@@ -45,6 +45,8 @@ const envSchema = z.object({
   // Bound each Prisma process explicitly; a PM2 worker owns its own pool.
   DB_CONNECTION_LIMIT: z.string().regex(/^\d+$/).transform(Number).refine(v => v >= 1 && v <= 100).default('1'),
   DB_POOL_TIMEOUT_SECONDS: z.string().regex(/^\d+$/).transform(Number).refine(v => v >= 1 && v <= 300).default('15'),
+  // PostgreSQL connection label used to attribute this service in pg_stat_activity.
+  DB_APPLICATION_NAME: z.string().trim().regex(/^[A-Za-z0-9_.-]{1,63}$/).default('marketplat-api'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: z.string().default('15m'),
@@ -717,6 +719,7 @@ export const env = {
     url: _env.DATABASE_URL.trim(),
     connectionLimit: _env.DB_CONNECTION_LIMIT,
     poolTimeoutSeconds: _env.DB_POOL_TIMEOUT_SECONDS,
+    applicationName: _env.DB_APPLICATION_NAME,
   },
   jwt: {
     secret: _env.JWT_SECRET,

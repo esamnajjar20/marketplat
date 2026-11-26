@@ -15,7 +15,9 @@
     "check": "npm run type-check && npm test",
     "benchmark": "node scripts/benchmark.mjs",
     "benchmark:phase3": "node scripts/phase3-benchmark.mjs",
-    "test:phase3": "node --test scripts/phase3-benchmark.test.mjs"
+    "test:phase3": "node --test scripts/phase3-benchmark.test.mjs",
+    "benchmark:compare": "node scripts/compare-connections.mjs",
+    "test:compare": "node --test scripts/compare-connections.test.mjs"
   },
   "dependencies": {
     "pg": "^8.16.3"

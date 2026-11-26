@@ -11,7 +11,8 @@ const globalForPrisma = globalThis as unknown as {
 export const prismaDatabaseUrl = buildPrismaDatabaseUrl(
   env.database.url,
   env.database.connectionLimit,
-  env.database.poolTimeoutSeconds
+  env.database.poolTimeoutSeconds,
+  env.database.applicationName
 );
 
 export const prisma =

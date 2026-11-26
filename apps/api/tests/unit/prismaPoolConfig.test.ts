@@ -6,13 +6,25 @@ describe('buildPrismaDatabaseUrl', () => {
       buildPrismaDatabaseUrl(
         'postgresql://user:pass@localhost:5432/marketplat?sslmode=require&connection_limit=20',
         1,
-        15
+        15,
+        'marketplat-api-read'
       )
     );
 
     expect(result.searchParams.get('connection_limit')).toBe('1');
     expect(result.searchParams.get('pool_timeout')).toBe('15');
     expect(result.searchParams.get('sslmode')).toBe('require');
+    expect(result.searchParams.get('application_name')).toBe('marketplat-api-read');
+  });
+
+
+  it('rejects unsafe PostgreSQL application names', () => {
+    expect(() =>
+      buildPrismaDatabaseUrl('postgresql://user:pass@localhost/db', 1, 15, 'bad name')
+    ).toThrow(/DB_APPLICATION_NAME/);
+    expect(() =>
+      buildPrismaDatabaseUrl('postgresql://user:pass@localhost/db', 1, 15, 'x'.repeat(64))
+    ).toThrow(/DB_APPLICATION_NAME/);
   });
 
   it('rejects non-PostgreSQL URLs', () => {

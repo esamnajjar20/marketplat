@@ -68,11 +68,28 @@ test('database probe requires a configured Hyperdrive binding', async () => {
   assert.equal(factoryCalls, 0);
 });
 
+
+test('direct database probe requires its own configured secret before opening a client', async () => {
+  let factoryCalls = 0;
+  const worker = createHyperdriveProbeWorker(() => {
+    factoryCalls += 1;
+    throw new Error('must not be called');
+  });
+  const response = await worker.fetch(authorizedRequest('/__internal/direct-db-probe'), {
+    HYPERDRIVE_PROBE_TOKEN: token,
+  });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json() as { error: string }).error, 'DIRECT_DATABASE_NOT_CONFIGURED');
+  assert.equal(factoryCalls, 0);
+});
+
 test('database probe executes only SELECT 1 and closes the request client', async () => {
   const { client, calls } = fakeClient();
   let receivedConnectionString = '';
-  const worker = createHyperdriveProbeWorker((connectionString) => {
+  let receivedMode = '';
+  const worker = createHyperdriveProbeWorker((connectionString, mode) => {
     receivedConnectionString = connectionString;
+    receivedMode = mode;
     return client;
   });
   const response = await worker.fetch(authorizedRequest(), env);
@@ -83,16 +100,54 @@ test('database probe executes only SELECT 1 and closes the request client', asyn
     connectDurationMs: number;
     queryDurationMs: number;
     totalDurationMs: number;
+    connectionMode: string;
   };
   assert.equal(response.status, 200);
   assert.equal(payload.ok, true);
   assert.equal(payload.database, 'reachable');
   assert.equal(payload.probe, 'read-only');
+  assert.equal(payload.connectionMode, 'hyperdrive');
   assert.equal(typeof payload.connectDurationMs, 'number');
   assert.equal(typeof payload.queryDurationMs, 'number');
   assert.equal(typeof payload.totalDurationMs, 'number');
   assert.equal(receivedConnectionString, env.HYPERDRIVE.connectionString);
+  assert.equal(receivedMode, 'hyperdrive');
   assert.deepEqual(calls, ['connect', 'SELECT 1::int AS ok', 'end']);
+});
+
+
+test('direct database probe uses only its dedicated secret and remains read-only', async () => {
+  const { client, calls } = fakeClient();
+  let receivedConnectionString = '';
+  let receivedMode = '';
+  const worker = createHyperdriveProbeWorker((connectionString, mode) => {
+    receivedConnectionString = connectionString;
+    receivedMode = mode;
+    return client;
+  });
+  const response = await worker.fetch(authorizedRequest('/__internal/direct-db-probe'), {
+    DIRECT_DATABASE_URL: 'postgres://direct-secret.invalid/db',
+    HYPERDRIVE_PROBE_TOKEN: token,
+  });
+  const payload = await response.json() as { ok: boolean; connectionMode: string };
+  assert.equal(response.status, 200);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.connectionMode, 'direct');
+  assert.equal(receivedConnectionString, 'postgres://direct-secret.invalid/db');
+  assert.equal(receivedMode, 'direct');
+  assert.deepEqual(calls, ['connect', 'SELECT 1::int AS ok', 'end']);
+});
+
+
+test('database probe sanitizes a synchronous driver construction failure', async () => {
+  const worker = createHyperdriveProbeWorker(() => {
+    throw new Error('private connection URL must not escape');
+  });
+  const response = await worker.fetch(authorizedRequest(), env);
+  assert.equal(response.status, 503);
+  const body = await response.text();
+  assert.equal(body.includes('private connection URL'), false);
+  assert.equal(body.includes('postgres://'), false);
 });
 
 test('database probe returns a sanitized failure and still closes the client', async () => {

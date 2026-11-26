@@ -1,18 +1,20 @@
 import { Client } from 'pg';
-import { createHyperdriveProbeWorker, type ProbeDatabaseClient } from './src/worker-core.ts';
+import { createHyperdriveProbeWorker, type ProbeDatabaseClient, type ProbeMode } from './src/worker-core.ts';
 
 /**
  * A fresh node-postgres Client is created per request. Hyperdrive performs the
  * reusable origin-side pooling; this Worker intentionally has no module-level
  * Client or pg.Pool that could pin sockets across requests.
  */
-const worker = createHyperdriveProbeWorker((connectionString) => {
+const worker = createHyperdriveProbeWorker((connectionString, mode: ProbeMode) => {
   const client = new Client({
     connectionString,
     connectionTimeoutMillis: 8_000,
     query_timeout: 5_000,
     statement_timeout: 5_000,
-    application_name: 'marketplat-hyperdrive-probe',
+    application_name: mode === 'hyperdrive'
+      ? 'marketplat-hyperdrive-probe'
+      : 'marketplat-direct-probe',
   });
 
   return {

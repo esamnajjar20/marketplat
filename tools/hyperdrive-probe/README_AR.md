@@ -1,4 +1,5 @@
 # مسبار Hyperdrive التجريبي لـ MarketPlat
+> **تقييم ما قبل الربط:** راجع `HYPERDRIVE-PRE-INTEGRATION-READINESS-AR.md` لنتيجة فحص البنية، وحدود Hyperdrive مع خدمات Express/Go، وخطة القياس الشاملة. لم تُحوّل هذه الأدوات اتصالات الإنتاج.
 
 هذا Worker مستقل للمرحلة الأولى فقط. هدفه إثبات أن Cloudflare Hyperdrive يستطيع الوصول إلى PostgreSQL في Aiven وإدارة اتصالات المصدر، قبل نقل أي طلب إنتاجي من Express.
 
@@ -143,3 +144,9 @@ unset HYPERDRIVE_PROBE_TOKEN HYPERDRIVE_PROBE_URL
 ## التراجع
 
 هذا العامل مستقل ولا يغيّر Express أو Go. لإيقاف التجربة: أوقف نشر `marketplat-hyperdrive-probe` أو احذف Worker وHyperdrive التجريبي من لوحة Cloudflare. لا تحذف أي مورد إنتاجي أو قاعدة بيانات.
+
+## تقارير الجاهزية والتحقق
+
+- [تقرير الجاهزية قبل Hyperdrive](HYPERDRIVE-PRE-INTEGRATION-READINESS-AR.md)
+- [مقارنة الاتصال المباشر مع Hyperdrive](PHASE5-DIRECT-VS-HYPERDRIVE-AR.md)
+- [نتائج التحقق المحلي وحدود الاختبارات](PHASE5-LOCAL-VALIDATION-RESULTS-AR.md)

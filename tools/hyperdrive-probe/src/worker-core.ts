@@ -6,8 +6,11 @@ export interface HyperdriveBindingLike {
 
 export interface HyperdriveProbeEnv {
   readonly HYPERDRIVE?: HyperdriveBindingLike;
+  readonly DIRECT_DATABASE_URL?: string;
   readonly HYPERDRIVE_PROBE_TOKEN?: string;
 }
+
+export type ProbeMode = 'hyperdrive' | 'direct';
 
 export interface ProbeQueryResult {
   readonly rows: readonly unknown[];
@@ -19,9 +22,12 @@ export interface ProbeDatabaseClient {
   end(): Promise<void>;
 }
 
-export type ProbeDatabaseClientFactory = (connectionString: string) => ProbeDatabaseClient;
+export type ProbeDatabaseClientFactory = (connectionString: string, mode: ProbeMode) => ProbeDatabaseClient;
 
-const INTERNAL_PATH = '/__internal/db-probe';
+const PROBE_PATHS: Readonly<Record<string, ProbeMode>> = {
+  '/__internal/db-probe': 'hyperdrive',
+  '/__internal/direct-db-probe': 'direct',
+};
 const HEALTH_PATH = '/health';
 
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {
@@ -57,7 +63,8 @@ export function createHyperdriveProbeWorker(createClient: ProbeDatabaseClientFac
         return jsonResponse({ ok: true, service: 'marketplat-hyperdrive-probe' });
       }
 
-      if (pathname !== INTERNAL_PATH) {
+      const mode = PROBE_PATHS[pathname];
+      if (!mode) {
         return jsonResponse({ ok: false, error: 'NOT_FOUND' }, 404);
       }
 
@@ -78,20 +85,28 @@ export function createHyperdriveProbeWorker(createClient: ProbeDatabaseClientFac
         return jsonResponse({ ok: false, error: 'UNAUTHORIZED' }, 401);
       }
 
-      const connectionString = env.HYPERDRIVE?.connectionString;
+      const connectionString = mode === 'hyperdrive'
+        ? env.HYPERDRIVE?.connectionString
+        : env.DIRECT_DATABASE_URL;
       if (!connectionString) {
-        return jsonResponse({ ok: false, error: 'HYPERDRIVE_NOT_CONFIGURED' }, 503);
+        return jsonResponse({
+          ok: false,
+          error: mode === 'hyperdrive' ? 'HYPERDRIVE_NOT_CONFIGURED' : 'DIRECT_DATABASE_NOT_CONFIGURED',
+        }, 503);
       }
 
-      const client = createClient(connectionString);
-      const startedAt = Date.now();
+      const startedAt = performance.now();
+      let client: ProbeDatabaseClient | undefined;
       try {
+        // Include synchronous driver construction in the sanitized error boundary.
+        client = createClient(connectionString, mode);
+        const connectStartedAt = performance.now();
         await client.connect();
-        const connectDurationMs = Date.now() - startedAt;
+        const connectDurationMs = performance.now() - connectStartedAt;
 
-        const queryStartedAt = Date.now();
+        const queryStartedAt = performance.now();
         const result = await client.query('SELECT 1::int AS ok');
-        const queryDurationMs = Date.now() - queryStartedAt;
+        const queryDurationMs = performance.now() - queryStartedAt;
         const firstRow = result.rows[0];
         const probeValue =
           typeof firstRow === 'object' && firstRow !== null && 'ok' in firstRow
@@ -107,20 +122,23 @@ export function createHyperdriveProbeWorker(createClient: ProbeDatabaseClientFac
           ok: true,
           database: 'reachable',
           probe: 'read-only',
-          connectDurationMs,
-          queryDurationMs,
-          totalDurationMs: Date.now() - startedAt,
+          connectionMode: mode,
+          connectDurationMs: Math.round(connectDurationMs * 100) / 100,
+          queryDurationMs: Math.round(queryDurationMs * 100) / 100,
+          totalDurationMs: Math.round((performance.now() - startedAt) * 100) / 100,
         });
       } catch (error) {
-        console.error('[hyperdrive-probe] database probe failed', getSafeDatabaseErrorCode(error));
+        console.error(`[hyperdrive-probe] ${mode} database probe failed`, getSafeDatabaseErrorCode(error));
         return jsonResponse({ ok: false, error: 'DATABASE_UNAVAILABLE' }, 503);
       } finally {
         // Never keep a request-scoped socket/client alive between Worker requests.
         // Hyperdrive, not this Worker instance, owns the reusable origin pool.
-        try {
-          await client.end();
-        } catch (error) {
-          console.warn('[hyperdrive-probe] client cleanup failed', getSafeDatabaseErrorCode(error));
+        if (client) {
+          try {
+            await client.end();
+          } catch (error) {
+            console.warn(`[hyperdrive-probe] ${mode} client cleanup failed`, getSafeDatabaseErrorCode(error));
+          }
         }
         // end() is attempted even when connect() fails, so partial sockets are cleaned up.
       }

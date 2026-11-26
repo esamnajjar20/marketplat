@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -42,6 +43,11 @@ func normalizeDatabaseURL(raw string) (string, error) {
 	query := u.Query()
 	for _, key := range []string{"connection_limit", "pool_timeout", "pgbouncer", "schema", "sslaccept"} {
 		query.Del(key)
+	}
+	// Preserve a caller-supplied label so separate deployments can be attributed
+	// independently; otherwise give this worker a stable PostgreSQL application name.
+	if strings.TrimSpace(query.Get("application_name")) == "" {
+		query.Set("application_name", "marketplat-go-worker")
 	}
 	u.RawQuery = query.Encode()
 	return u.String(), nil
