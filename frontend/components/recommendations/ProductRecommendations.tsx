@@ -51,6 +51,7 @@ export function ProductRecommendations({ excludeProductId, excludeStoreId }: Pro
       getItemKey={(product) => product.id}
       renderItem={(product) => <ProductCard product={product} storeId={product.storeId} context="related" />}
       renderSkeleton={() => <ProductCardSkeleton />}
+      variant="rail"
       skeletonCount={DISPLAY_COUNT}
     />
   );

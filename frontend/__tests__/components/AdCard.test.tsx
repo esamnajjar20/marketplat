@@ -250,9 +250,16 @@ describe('AdCard', () => {
   });
 
   describe('context rendering', () => {
-    it('hides seller in public context', () => {
+    it('shows seller and city in public context (unified card)', () => {
       render(<AdCard ad={baseAd} context="public" />);
+      expect(screen.getByText('محمد')).toBeInTheDocument();
+      expect(screen.getByText('خان يونس')).toBeInTheDocument();
+    });
+
+    it('hides seller and city inside a store context', () => {
+      render(<AdCard ad={baseAd} context="store" />);
       expect(screen.queryByText('محمد')).not.toBeInTheDocument();
+      expect(screen.queryByText('خان يونس')).not.toBeInTheDocument();
     });
 
     it('shows seller and keeps city/time in favorites context', () => {

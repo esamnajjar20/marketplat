@@ -73,11 +73,12 @@ describe('ServiceListingCard', () => {
     expect(screen.getByTestId('favorite-button')).toHaveAttribute('data-return-to', '/services/listing-99');
   });
 
-  it('renders the title and city in public context without provider attribution', () => {
+  it('renders title, provider, city and location hint like ads/products (unified card)', () => {
     render(<ServiceListingCard listing={makeListing()} />);
     expect(screen.getByText('تصليح مكيفات منزلية')).toBeInTheDocument();
+    expect(screen.getByText('ورشة التبريد الحديثة')).toBeInTheDocument();
+    expect(screen.getByText('غزة')).toBeInTheDocument();
     expect(screen.getByText('عند العميل')).toBeInTheDocument();
-    expect(screen.queryByText('ورشة التبريد الحديثة')).not.toBeInTheDocument();
   });
 
   describe('price formatting', () => {

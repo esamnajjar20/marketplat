@@ -30,6 +30,7 @@ import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGat
 import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
 import { LazySection } from '@/components/shared/LazySection';
 import { ProductCard } from '@/components/stores/ProductCard';
+import { CardRail } from '@/components/shared/cards/CardRail';
 import dynamic from 'next/dynamic';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { formatPrice, formatPhone } from '@/lib/formatters';
@@ -137,11 +138,12 @@ export function ProductDetail({ product, related = [] }: Props) {
           {related.length > 0 && (
             <section className="space-y-3">
               <h2 className={DETAIL_SECTION_TITLE}>منتجات من نفس المتجر</h2>
-              <div className="grid grid-cols-2 gap-3">
+              {/* Side-scrolling rail on phones, like إعلانات/خدمات مشابهة. */}
+              <CardRail gridClassName="sm:grid-cols-2 xl:grid-cols-3">
                 {related.map((p) => (
                   <ProductCard key={p.id} product={p} storeId={product.storeId} context="related" />
                 ))}
-              </div>
+              </CardRail>
             </section>
           )}
 
@@ -167,22 +169,16 @@ export function ProductDetail({ product, related = [] }: Props) {
         </aside>
       </div>
 
-      {/* Mobile sticky contact CTA — matches design mockup */}
+      {/* Mobile sticky contact CTA — action only (no pinned price) */}
       {ownerId && (
         <div className={cn(STICKY_BAR, 'md:hidden', stickyCta.transitionClass, stickyCta.hiddenClass)}>
-          <div className="min-w-0 flex-1">
-            <div className="text-[11px] text-muted-foreground">السعر</div>
-            <b className="truncate text-sm font-extrabold tabular-nums tracking-tight text-primary">
-              {formatPrice(String(displayPrice))}
-            </b>
-          </div>
           <MessageUserButtonGate
             targetUserId={ownerId}
             context={{ type: 'product', id: product.id }}
             size="lg"
             variant="default"
             label="راسل المتجر"
-            className="min-h-11 flex-[1.6] gap-1.5 rounded-xl font-bold"
+            className="min-h-11 w-full flex-1 gap-1.5 rounded-xl font-bold"
           />
         </div>
       )}

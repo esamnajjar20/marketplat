@@ -92,14 +92,14 @@ export function UnifiedResultCard({ result, className, layout = 'grid' }: Props)
         </div>
 
         <div className={cn(CARD_BODY_DEFAULT, 'min-w-0', isList && 'sm:gap-2')}>
+          <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground sm:text-card-title" title={result.title}>
+            {result.title}
+          </h3>
           {result.price !== null && (
             <p className="font-mono text-base font-bold leading-none tracking-tight text-primary tabular-nums sm:text-xl">
               {formatPrice(result.price)}
             </p>
           )}
-          <h3 className="line-clamp-2 text-sm font-medium leading-snug text-foreground sm:text-card-title" title={result.title}>
-            {result.title}
-          </h3>
 
           <div className={cn('mt-auto flex min-w-0 flex-col gap-1.5 border-t border-border/40 pt-2', isList && 'sm:flex-row sm:flex-wrap sm:items-center sm:justify-between')}>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">

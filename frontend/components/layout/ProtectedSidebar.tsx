@@ -123,7 +123,7 @@ function NavLink({
         'flex min-h-11 items-center gap-2.5 text-sm-tight transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         indent
           ? cn(
-              'ms-3 border-inline-start-2 py-0 pe-3 ps-3',
+              'ms-3 border-s-2 py-0 pe-3 ps-3',
               isActive
                 ? 'border-primary bg-primary/10 font-extrabold text-primary rounded-e-[10px]'
                 : 'border-border font-semibold text-foreground hover:bg-muted/60',
@@ -183,7 +183,7 @@ function DisclosureGroup({
           ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden={true} />
           : <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden={true} />}
       </button>
-      <div id={panelId} hidden={!isOpen} className="mt-0.5 flex flex-col gap-0.5 pb-1">
+      <div id={panelId} hidden={!isOpen} className={cn('mt-0.5 flex-col gap-0.5 pb-1', isOpen ? 'flex' : 'hidden')}>
           {group.children.map((child) => (
             <NavLink
               key={child.href}

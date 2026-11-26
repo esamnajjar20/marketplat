@@ -3,6 +3,7 @@
 import { AlertTriangle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { CardRail } from '@/components/shared/cards/CardRail';
 
 interface Props<T> {
   title: string;
@@ -20,6 +21,8 @@ interface Props<T> {
    * vs StoreRecommendations for the two shapes this app already uses
    * elsewhere (RecommendedAds/RecentStores). */
   gridClassName?: string;
+  /** 'rail' = side-scrolling on phones + grid on larger screens (same as إعلانات مشابهة). */
+  variant?: 'grid' | 'rail';
   skeletonCount?: number;
   className?: string;
 }
@@ -49,6 +52,7 @@ export function RecommendationRail<T>({
   renderItem,
   renderSkeleton,
   gridClassName = DEFAULT_GRID,
+  variant = 'grid',
   skeletonCount = 8,
   className,
 }: Props<T>) {
@@ -62,11 +66,19 @@ export function RecommendationRail<T>({
       </h2>
 
       {isLoading ? (
-        <div className={cn('grid', gridClassName)}>
-          {Array.from({ length: skeletonCount }).map((_, i) => (
-            <div key={i}>{renderSkeleton()}</div>
-          ))}
-        </div>
+        variant === 'rail' ? (
+          <CardRail>
+            {Array.from({ length: skeletonCount }).map((_, i) => (
+              <div key={i}>{renderSkeleton()}</div>
+            ))}
+          </CardRail>
+        ) : (
+          <div className={cn('grid', gridClassName)}>
+            {Array.from({ length: skeletonCount }).map((_, i) => (
+              <div key={i}>{renderSkeleton()}</div>
+            ))}
+          </div>
+        )
       ) : isError ? (
         <div className="flex flex-col items-center gap-2 py-6 text-center text-sm">
           <AlertTriangle className="h-6 w-6 text-muted-foreground" />
@@ -75,6 +87,12 @@ export function RecommendationRail<T>({
             إعادة المحاولة
           </button>
         </div>
+      ) : variant === 'rail' ? (
+        <CardRail>
+          {items!.map((item) => (
+            <div key={getItemKey(item)}>{renderItem(item)}</div>
+          ))}
+        </CardRail>
       ) : (
         <div className={cn('grid', gridClassName)}>
           {items!.map((item) => (

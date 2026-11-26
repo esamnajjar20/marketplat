@@ -236,7 +236,7 @@ function DisclosureGroup({
                   onClick={onNavigate}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'flex h-11 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-sm transition-colors',
+                    'flex h-11 items-center border-s-2 ms-3 pe-3 ps-3 text-sm transition-colors',
                     isActive ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary' : 'border-border font-semibold text-foreground hover:bg-muted/60',
                   )} prefetch={false}
                 >

@@ -19,7 +19,10 @@ const AdDetailDescription = dynamic(
 );
 const AdDetailSidebar = dynamic(
   () => import('@/components/ads/AdDetailSidebar').then((m) => m.AdDetailSidebar),
-  { loading: () => <Skeleton className="h-48 w-full" /> },
+  // Same box as the real <aside> (hidden below lg, 1/3 width on lg+). A bare
+  // `w-full` skeleton here used to sit in the md:flex-row row and squeeze the
+  // main column into a thin strip while the sidebar chunk was loading.
+  { loading: () => <div aria-hidden="true" className="hidden w-full shrink-0 lg:block lg:w-1/3"><Skeleton className="h-48 w-full" /></div> },
 );
 const AdDetailStickyCta = dynamic(
   () => import('@/components/ads/AdDetailStickyCta').then((m) => m.AdDetailStickyCta),

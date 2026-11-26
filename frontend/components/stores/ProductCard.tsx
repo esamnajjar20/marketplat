@@ -4,6 +4,7 @@ import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { CardKindBadge } from '@/components/shared/cards/cardDisplayParts';
 import { CardOfflineBadge } from '@/components/shared/cards/CardOfflineBadge';
+import { MarketCard } from '@/components/shared/cards/MarketCard';
 import { CardRelativeTime } from '@/components/shared/cards/CardRelativeTime';
 import type { CardContext } from '@/components/shared/cards/cardTypes';
 import {
@@ -22,9 +23,7 @@ import {
   CARD_PRICE_UNSET,
   CARD_SHELL,
   CARD_TITLE,
-  CARD_TITLE_GRID,
   HIT_AREA,
-  cardPlaceholderToneForId,
 } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/shared/ui/Badge';
 import { formatPrice } from '@/lib/formatters';
@@ -161,109 +160,48 @@ export const ProductCard = memo(function ProductCard({
       ? CARD_PRICE_UNSET
       : formatPrice(hasDiscount && effectivePrice.discountPrice != null ? effectivePrice.discountPrice : product.price);
 
-  // ── Catalog grid: design-mockup card (soft image area, store letter, compact) ──
-  if (isCatalogGrid) {
+  // ── Grid (every context): the unified card shared with ads and services ──
+  if (layout === 'grid') {
+    const hideStoreAndPlace = context === 'store' || context === 'owner';
     return (
-      <article
-        className={cn(
-          'group relative h-full min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_280px]',
-          className,
-        )}
-      >
-        <IntentPrefetchLink
-          href={detailHref}
-          prefetch={false}
-          className={cn(
-            CARD_SHELL,
-            'group/card flex flex-col',
-            CARD_HOVER,
-            CARD_FOCUS,
-            CARD_PRESS,
-          )}
-        >
-          <div
-            className={cn(
-              cn(CARD_IMAGE_43, 'flex items-center justify-center'),
-              !rawImage && cardPlaceholderToneForId(product.id),
-              rawImage && 'bg-muted',
-            )}
-          >
-            {rawImage ? (
-              <SafeImage
-                src={thumb}
-                alt={product.name}
-                fill
-                className={cn('object-cover', CARD_IMAGE_HOVER, outOfStock && 'opacity-60')}
-                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                priority={priority}
-                loading={priority ? undefined : 'lazy'}
-                {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
-              />
-            ) : (
-              <Package className="h-8 w-8 text-primary/50" aria-hidden />
-            )}
-            {outOfStock && (
-              <div
-                className="absolute inset-0 z-[1] flex items-center justify-center bg-foreground/35"
-                aria-label="المنتج غير متوفر"
-              >
-                <span className="rounded-full bg-background/95 px-3 py-1 text-sm font-bold text-foreground">
-                  غير متوفر
-                </span>
-              </div>
-            )}
-            <CardOfflineBadge />
-            <div className="absolute start-2 top-2 z-10 flex max-w-[calc(100%-3.5rem)] flex-col items-start gap-1">
-              {visibleBadges}
-            </div>
-          </div>
-          <div className={cn(CARD_BODY_DEFAULT, 'gap-1')}>
-            <h3 title={product.name} className={cn(CARD_TITLE_GRID, 'break-words')}>
-              {product.name}
-            </h3>
-            <div className="flex items-baseline gap-1.5">
-              <span
-                dir="ltr"
-                className={cn(
-                  'text-sm font-extrabold tabular-nums tracking-tight text-primary',
-                  outOfStock && 'text-muted-foreground line-through',
-                )}
-              >
-                {priceValue}
-              </span>
-              {hasDiscount && (
-                <span dir="ltr" className="text-xs text-muted-foreground line-through tabular-nums">
-                  {formatPrice(product.price)}
-                </span>
-              )}
-            </div>
-            {showStore && (
-              <span className="mt-0.5 flex items-center gap-1.5 text-2xs-tight text-muted-foreground">
-                <span
-                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary-soft text-3xs font-extrabold text-primary"
-                  aria-hidden
-                >
-                  {storeInitial(product.store.name)}
-                </span>
-                <span className="truncate">{product.store.name}</span>
-              </span>
-            )}
-          </div>
-        </IntentPrefetchLink>
-        {showHeart && (
-          <FavoriteButton
-            entityType="PRODUCT"
-            entityId={product.id}
-            returnTo={detailHref}
-            variant="card"
-            className={`${CARD_HEART_POSITION} ${HIT_AREA}`}
-          />
-        )}
-      </article>
+      <MarketCard
+        id={product.id}
+        href={detailHref}
+        title={product.name}
+        imageSrc={rawImage}
+        placeholderIcon={Package}
+        priority={priority}
+        badges={visibleBadges}
+        dimmed={outOfStock}
+        overlayLabel={outOfStock ? 'غير متوفر' : undefined}
+        price={priceValue}
+        priceUnset={product.price == null && !hasDiscount}
+        originalPrice={hasDiscount ? formatPrice(product.price) : undefined}
+        priceSub={
+          product.wholesalePrice && product.wholesaleMinQty
+            ? `${formatPrice(product.wholesalePrice)} عند شراء ${product.wholesaleMinQty}+`
+            : undefined
+        }
+        ownerName={hideStoreAndPlace ? undefined : product.store.name}
+        city={hideStoreAndPlace ? undefined : product.store.city}
+        createdAt={context === 'related' || context === 'store' ? undefined : product.createdAt}
+        className={className}
+        heart={
+          showHeart ? (
+            <FavoriteButton
+              entityType="PRODUCT"
+              entityId={product.id}
+              returnTo={detailHref}
+              variant="card"
+              className={`${CARD_HEART_POSITION} ${HIT_AREA}`}
+            />
+          ) : null
+        }
+      />
     );
   }
 
-  // ── Default card (other contexts / list layout) ──
+  // ── List layout (grid is handled above by the unified card) ──
   return (
     <article
       className={cn(
@@ -277,19 +215,19 @@ export const ProductCard = memo(function ProductCard({
         className={cn(
           CARD_SHELL,
           'group/card flex',
-          layout === 'list' ? 'flex-row' : 'flex-col',
+          'flex-row',
           CARD_HOVER,
           CARD_FOCUS,
           CARD_PRESS,
         )}
       >
-        <div className={cn(CARD_IMAGE_43, layout === 'list' && 'aspect-auto h-24 w-24 shrink-0 sm:h-32 sm:w-40')}>
+        <div className={cn(CARD_IMAGE_43, 'aspect-auto h-24 w-24 shrink-0 sm:h-32 sm:w-40')}>
           <SafeImage
             src={thumb}
             alt={product.name}
             fill
             className={cn('object-cover', CARD_IMAGE_HOVER, outOfStock && 'opacity-60')}
-            sizes={layout === 'list' ? '(max-width: 640px) 96px, 160px' : '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'}
+            sizes="(max-width: 640px) 96px, 160px"
             priority={priority}
             loading={priority ? undefined : 'lazy'}
             {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
@@ -311,6 +249,9 @@ export const ProductCard = memo(function ProductCard({
           </div>
         </div>
         <div className={cn('min-w-0', compact ? CARD_BODY_COMPACT : CARD_BODY_DEFAULT)}>
+          <h3 title={product.name} className={CARD_TITLE}>
+            {product.name}
+          </h3>
           <div className={CARD_PRICE_ROW}>
             <span
               dir="ltr"
@@ -328,9 +269,6 @@ export const ProductCard = memo(function ProductCard({
               </span>
             )}
           </div>
-          <h3 title={product.name} className={cn(layout === 'grid' ? CARD_TITLE_GRID : CARD_TITLE, layout === 'grid' ? 'leading-6' : '')}>
-            {product.name}
-          </h3>
           {product.wholesalePrice && product.wholesaleMinQty && (
             <p className="text-xs text-muted-foreground" dir="ltr">
               {formatPrice(product.wholesalePrice)} عند شراء {product.wholesaleMinQty}+

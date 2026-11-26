@@ -3,30 +3,23 @@ import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Star, MapPin, Wrench } from 'lucide-react';
 import { CardKindBadge } from '@/components/shared/cards/cardDisplayParts';
-import { CardOfflineBadge } from '@/components/shared/cards/CardOfflineBadge';
+import { MarketCard } from '@/components/shared/cards/MarketCard';
 import type { CardContext } from '@/components/shared/cards/cardTypes';
 import {
   CARD_FOCUS,
-  CARD_HOVER,
-  CARD_IMAGE_HOVER,
   CARD_HEART_POSITION,
-  CARD_IMAGE_43,
-  CARD_IMAGE_SHADE,
-  CARD_PRESS,
-  CARD_SHELL,
+  CARD_META_ITEM,
   CARD_SHELL_SOFT,
-  CARD_BODY_COMPACT,
   CARD_TITLE,
-  CARD_TITLE_GRID,
   CARD_BADGE_SUCCESS,
   CARD_BADGE_MUTED,
   HIT_AREA,
   cardPlaceholderToneForId,
 } from '@/components/shared/cards/cardTokens';
-import { Badge } from '@/components/shared/ui/Badge';
+import { TAG_AVAILABLE, TAG_MUTED, TAG_WARNING } from '@/components/shared/detail/detailTokens';
 import { ROUTES } from '@/lib/constants';
 import { formatServicePrice } from '@/lib/formatters';
-import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import { getListThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import type { ServiceListingWithProvider } from '@/types/service.types';
@@ -43,6 +36,12 @@ interface Props {
   /** بطاقة التصميم الأفقية (صفحة /services). */
   designLayout?: boolean;
 }
+
+const AVAILABILITY_TAG: Record<string, string> = {
+  AVAILABLE: TAG_AVAILABLE,
+  BUSY: TAG_WARNING,
+  UNAVAILABLE: TAG_MUTED,
+};
 
 const SERVICE_LOCATION_HINT: Record<string, string> = {
   AT_CUSTOMER: 'عند العميل',
@@ -63,7 +62,6 @@ export const ServiceListingCard = memo(function ServiceListingCard({
   const detailHref = ROUTES.serviceDetail(listing.id);
   const rawImage = listing.images?.[0];
   const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 240) : PLACEHOLDER_SVG;
-  const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const priceLabel = formatServicePrice(listing.pricingType, listing.price);
   const showHeart = context !== 'owner';
   const avail = listing.provider.availabilityStatus;
@@ -177,67 +175,54 @@ export const ServiceListingCard = memo(function ServiceListingCard({
     );
   }
 
-  // ── Fallback grid card ──
+  // ── Grid (unified card shared with ads and products) ──
+  const hidePlace = context === 'store' || context === 'owner';
+  const badges: React.ReactNode[] = [];
+  if (showKind) badges.push(<CardKindBadge key="kind" kind="service" />);
+  badges.push(
+    <span key="avail" className={AVAILABILITY_TAG[avail] ?? TAG_MUTED}>
+      {AVAILABILITY_LABEL[avail]}
+    </span>,
+  );
+  const serviceCity = listing.provider.serviceAreaCities?.[0];
+
   return (
-    <article
-      className={cn(
-        'group relative h-full min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_280px]',
-        className,
-      )}
-    >
-      <IntentPrefetchLink
-        href={detailHref}
-        prefetch={false}
-        className={cn(
-          CARD_SHELL,
-          'group/card flex flex-col',
-          CARD_HOVER,
-          CARD_FOCUS,
-          CARD_PRESS,
-        )}
-      >
-        <div className={CARD_IMAGE_43}>
-          <SafeImage
-            src={thumb}
-            alt={listing.title}
-            fill
-            className={cn('object-cover', CARD_IMAGE_HOVER)}
-            sizes="(max-width: 640px) 50vw, 33vw"
-            priority={priority}
-            loading={priority ? undefined : 'lazy'}
-            {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
+    <MarketCard
+      id={listing.id}
+      href={detailHref}
+      title={listing.title}
+      imageSrc={rawImage}
+      placeholderIcon={Wrench}
+      priority={priority}
+      badges={badges.slice(0, 2)}
+      price={priceLabel}
+      priceDir="auto"
+      priceUnset={listing.pricingType === 'NEGOTIABLE' || !listing.price}
+      ownerName={context === 'owner' ? undefined : listing.provider.businessName}
+      ownerVerified={Boolean(verified)}
+      rating={rating != null ? Number(rating) : null}
+      city={hidePlace ? undefined : serviceCity}
+      extraMeta={
+        SERVICE_LOCATION_HINT[listing.serviceLocation] ? (
+          <span className={CARD_META_ITEM}>
+            <span className="truncate">{SERVICE_LOCATION_HINT[listing.serviceLocation]}</span>
+          </span>
+        ) : null
+      }
+      createdAt={context === 'related' || context === 'store' ? undefined : listing.createdAt}
+      className={className}
+      heart={
+        showHeart ? (
+          <FavoriteButton
+            entityType="SERVICE_LISTING"
+            entityId={listing.id}
+            returnTo={detailHref}
+            variant="card"
+            className={`${CARD_HEART_POSITION} ${HIT_AREA}`}
           />
-          <div className={CARD_IMAGE_SHADE} aria-hidden />
-          <CardOfflineBadge />
-          <div className="absolute start-2 top-2 z-10 flex max-w-[calc(100%-3.5rem)] flex-col items-start gap-1 overflow-hidden">
-            {showKind && <CardKindBadge kind="service" />}
-            <Badge size="xs" variant="overlay" className="max-w-full whitespace-normal break-words">
-              {AVAILABILITY_LABEL[avail]}
-            </Badge>
-          </div>
-        </div>
-        <div className={cn(CARD_BODY_COMPACT, 'h-full')}>
-          <h3 title={listing.title} className={cn(CARD_TITLE_GRID, "line-clamp-2 break-words")}>
-            {listing.title}
-          </h3>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <span dir="ltr" className="text-sm font-extrabold tabular-nums text-primary">
-              {priceLabel}
-            </span>
-          </div>
-          <span title={listing.provider.businessName} className="min-w-0 truncate text-2xs-tight text-muted-foreground">{listing.provider.businessName}</span>
-        </div>
-      </IntentPrefetchLink>
-      {showHeart && (
-        <FavoriteButton
-          entityType="SERVICE_LISTING"
-          entityId={listing.id}
-          returnTo={detailHref}
-          variant="card"
-          className={`${CARD_HEART_POSITION} ${HIT_AREA}`}
-        />
-      )}
-    </article>
+        ) : null
+      }
+    />
   );
 });
 

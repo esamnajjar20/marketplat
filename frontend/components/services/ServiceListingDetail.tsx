@@ -194,17 +194,11 @@ export function ServiceListingDetail({ listing, action }: Props) {
       </div>
 
 
-      {/* Mobile sticky CTA — matches design: price + primary action */}
+      {/* Mobile sticky CTA — primary action only (no pinned price) */}
       {(providerUserId || action) && (
         <div className={cn(STICKY_BAR, 'md:hidden', stickyCta.transitionClass, stickyCta.hiddenClass)}>
-          <div className="min-w-0 flex-1">
-            <div className="text-[11px] text-muted-foreground">يبدأ من</div>
-            <b className="truncate text-sm font-extrabold tabular-nums tracking-tight text-primary">
-              {formatServicePrice(listing.pricingType, listing.price)}
-            </b>
-          </div>
           {action ? (
-            <div className="flex-[1.6]">{action}</div>
+            <div className="w-full flex-1">{action}</div>
           ) : providerUserId ? (
             <MessageUserButtonGate
               targetUserId={providerUserId}
@@ -212,7 +206,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
               variant="default"
               label="راسل مقدم الخدمة"
               context={{ type: 'service', id: listing.id }}
-              className="flex-[1.6] gap-1.5 rounded-xl font-bold"
+              className="w-full flex-1 gap-1.5 rounded-xl font-bold"
             />
           ) : null}
         </div>
