@@ -4,6 +4,7 @@ import { UserRound } from 'lucide-react';
 import { sellersApi } from '@/api/sellers.api';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
+import { PublicAccountBlockedState } from '@/components/shared/feedback/PublicAccountBlockedState';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -21,14 +22,17 @@ export default async function LegacySellerProfileRedirectPage({ params }: Props)
 
   let targetUserId: string | null = null;
   let statusCode: number | undefined;
+  let accountBlocked = false;
   try {
     const res = await sellersApi.getById(id);
     targetUserId = res.data.data?.userId?.trim() || null;
   } catch (error) {
-    const failure = error as { statusCode?: number; response?: { status?: number } };
+    const failure = error as { statusCode?: number; code?: string; response?: { status?: number; data?: { code?: string } } };
+    accountBlocked = failure.code === 'PUBLIC_ACCOUNT_BLOCKED' || failure.response?.data?.code === 'PUBLIC_ACCOUNT_BLOCKED';
     statusCode = failure.statusCode ?? failure.response?.status;
   }
 
+  if (accountBlocked) return <PublicAccountBlockedState />;
   if (statusCode === 404) notFound();
   if (targetUserId) redirect(ROUTES.userProfile(targetUserId));
 

@@ -24,9 +24,17 @@ const targetExists = async (targetType: FollowTargetType, targetId: string, acto
   if (targetType === FollowTargetType.USER) {
     const user = await prisma.user.findUnique({
       where: { id: targetId },
-      select: { id: true, name: true, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        sellerProfile: { select: { suspended: true } },
+      },
     });
     if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    if (user.sellerProfile?.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
     if (targetId === actorId)
       throw new BadRequestError('You cannot follow yourself', 'CANNOT_FOLLOW_SELF');
     const blocked = await prisma.userBlock.findFirst({
@@ -45,10 +53,24 @@ const targetExists = async (targetType: FollowTargetType, targetId: string, acto
   if (targetType === FollowTargetType.STORE) {
     const store = await prisma.storeDetails.findUnique({
       where: { id: targetId },
-      select: { id: true, name: true, status: true, sellerProfile: { select: { userId: true } } },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        sellerProfile: {
+          select: {
+            userId: true,
+            suspended: true,
+            user: { select: { isActive: true } },
+          },
+        },
+      },
     });
     if (!store || store.status !== 'ACTIVE')
       throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+    if (store.sellerProfile.suspended || !store.sellerProfile.user.isActive) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
     if (store.sellerProfile.userId === actorId)
       throw new ForbiddenError('You cannot follow your own store', 'CANNOT_FOLLOW_OWN_STORE');
     return store;
@@ -114,13 +136,24 @@ const hydrateFollowItems = async (
   const [users, stores, adCategories, productCategories, serviceCategories] = await Promise.all([
     userIds.size
       ? prisma.user.findMany({
-          where: { id: { in: Array.from(userIds) }, isActive: true },
+          where: {
+          id: { in: Array.from(userIds) },
+          isActive: true,
+          OR: [
+            { sellerProfile: { is: null } },
+            { sellerProfile: { is: { suspended: false } } },
+          ],
+        },
           select: { id: true, name: true, avatarUrl: true, city: true },
         })
       : [],
     storeIds.size
       ? prisma.storeDetails.findMany({
-          where: { id: { in: Array.from(storeIds) }, status: 'ACTIVE' },
+          where: {
+            id: { in: Array.from(storeIds) },
+            status: 'ACTIVE',
+            sellerProfile: { suspended: false, user: { isActive: true } },
+          },
           select: { id: true, name: true, logoUrl: true, city: true },
         })
       : [],
@@ -163,16 +196,18 @@ const hydrateFollowItems = async (
       { ...x, categoryType: 'SERVICE' },
     ]),
   ]);
-  return items.map(item => ({
-    ...item,
-    target:
-      item.targetType === FollowTargetType.USER
-        ? (userMap.get(item.targetId) ?? null)
-        : item.targetType === FollowTargetType.STORE
-          ? (storeMap.get(item.targetId) ?? null)
-          : (categoryMap.get(item.targetId) ?? null),
-    follower: mode === 'followers' ? (userMap.get(item.followerId) ?? null) : undefined,
-  }));
+  return items
+    .map(item => ({
+      ...item,
+      target:
+        item.targetType === FollowTargetType.USER
+          ? (userMap.get(item.targetId) ?? null)
+          : item.targetType === FollowTargetType.STORE
+            ? (storeMap.get(item.targetId) ?? null)
+            : (categoryMap.get(item.targetId) ?? null),
+      follower: mode === 'followers' ? (userMap.get(item.followerId) ?? null) : undefined,
+    }))
+    .filter(item => item.target !== null && (mode !== 'followers' || item.follower !== null));
 };
 
 export const followsService = {
@@ -305,9 +340,12 @@ export const followsService = {
   getUserFollowing: async (userId: string, page = 1, limit = 20) => {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, sellerProfile: { select: { suspended: true } } },
     });
     if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    if (user.sellerProfile?.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
     return followsService.getFollowing(userId, FollowTargetType.USER, page, limit);
   },
 

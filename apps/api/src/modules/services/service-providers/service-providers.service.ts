@@ -404,7 +404,14 @@ export const serviceProvidersService = {
     // provider page fully live at its direct URL. Treated as 404, same
     // as the other two
     if (details.sellerProfile.suspended) {
-      throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
+    const providerOwner = await prisma.user.findUnique({
+      where: { id: details.sellerProfile.userId },
+      select: { isActive: true },
+    });
+    if (!providerOwner?.isActive) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
     }
     const { listings } = await serviceListingsRepository.findManyByProviderId(id, {
       status: 'ACTIVE',

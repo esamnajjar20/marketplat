@@ -35,6 +35,7 @@ import { parseApiError }  from '@/lib/errorParser';
 import { ROUTES }         from '@/lib/constants';
 import { track }          from '@/lib/analytics';
 import { cn } from '@/lib/utils';
+import { PublicAccountBlockedState } from '@/components/shared/feedback/PublicAccountBlockedState';
 import { SearchX, AlertTriangle } from 'lucide-react';
 
 const RelatedAds = dynamic(
@@ -62,6 +63,12 @@ export function AdDetailSection({ id }: { id: string }) {
   useEffect(() => {
     if (ad?.id) track('AD_VIEW', { adId: ad.id, categoryId: ad.category?.id });
   }, [ad?.id, ad?.category?.id]);
+
+  // A confirmed moderation response overrides any previously cached detail.
+  // Network errors may retain stale content, but a 403 block must not.
+  if (isError && parseApiError(error).code === 'PUBLIC_ACCOUNT_BLOCKED') {
+    return <PublicAccountBlockedState />;
+  }
 
   // UX-FIX: route-level loading.tsx already shows AdDetailsSkeleton
   // during the initial server navigation, but any client-side refetch
@@ -99,7 +106,9 @@ export function AdDetailSection({ id }: { id: string }) {
   // Keep the last successful detail visible when only its background refresh failed.
   // A refetch error must not mask valid cached content.
   if (!ad) {
-    const status = isError ? parseApiError(error).statusCode : 404;
+    const parsedError = isError ? parseApiError(error) : null;
+    if (parsedError?.code === 'PUBLIC_ACCOUNT_BLOCKED') return <PublicAccountBlockedState />;
+    const status = parsedError?.statusCode ?? 404;
 
     if (status === 404) {
       return (

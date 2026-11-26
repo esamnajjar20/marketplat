@@ -46,6 +46,9 @@ export const serviceProvidersRepository = {
   findById: (id: string): Promise<ServiceProviderDetails | null> =>
     prisma.serviceProviderDetails.findUnique({ where: { id } }),
 
+  findPublicOwnerState: (userId: string) =>
+    prisma.user.findUnique({ where: { id: userId }, select: { isActive: true } }),
+
   findPublicById: (id: string) =>
     prisma.serviceProviderDetails.findUnique({
       where: { id },
@@ -168,7 +171,7 @@ export const serviceProvidersRepository = {
   ): Promise<{ rows: PublicServiceProviderSummary[]; total: number }> => {
     const where: Prisma.ServiceProviderDetailsWhereInput = {
       availabilityStatus: { not: 'UNAVAILABLE' },
-      sellerProfile: { suspended: false },
+      sellerProfile: { suspended: false, user: { isActive: true } },
       ...(query.city && { serviceAreaCities: { has: query.city } }),
     };
 
@@ -250,11 +253,13 @@ export const serviceProvidersRepository = {
     const whereSql = Prisma.sql`
       FROM "service_provider_details" spd
       JOIN "seller_profiles" sp ON sp."id" = spd."sellerProfileId"
+      JOIN "users" owner ON owner."id" = sp."userId"
       WHERE spd."latitude" IS NOT NULL AND spd."longitude" IS NOT NULL
         AND spd."latitude" BETWEEN ${minLat} AND ${maxLat}
         AND spd."longitude" BETWEEN ${minLng} AND ${maxLng}
         AND spd."availabilityStatus" != 'UNAVAILABLE'
         AND sp."suspended" = false
+        AND owner."isActive" = true
         AND (${distanceExpr}) <= ${radiusKm}
     `;
 

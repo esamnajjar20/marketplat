@@ -101,6 +101,13 @@ export function useAsyncResource<T>(
         if (requestId !== seq.current || controller.signal.aborted || isAbortError(e)) return;
         const message = mapErrorRef.current(e);
         logger.warn(tagRef.current, 'load failed', { message });
+        // A confirmed moderation response overrides any stale local snapshot.
+        // Never keep showing cached public content after the API says its owner is blocked.
+        if (e instanceof ApiError && e.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+          setData(null);
+          setError('هذا الحساب محظور، ولا يمكن عرض محتواه.');
+          return;
+        }
         // نسخة الكاش المعروضة تبقى بدل استبدالها بشاشة خطأ.
         if (shownCached) return;
         setError(message);

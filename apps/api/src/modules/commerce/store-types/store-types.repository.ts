@@ -50,7 +50,10 @@ export const storeTypesRepository = {
         _count: {
           select: {
             stores: {
-              where: { status: 'ACTIVE', sellerProfile: { suspended: false } },
+              where: {
+                status: 'ACTIVE',
+                sellerProfile: { suspended: false, user: { isActive: true } },
+              },
             },
           },
         },

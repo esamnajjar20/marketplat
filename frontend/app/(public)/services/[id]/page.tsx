@@ -10,6 +10,7 @@ import { ServiceViewTracker } from '@/components/services/ServiceViewTracker';
 import { RelatedServices } from '@/components/services/RelatedServices';
 import { LazySection } from '@/components/shared/LazySection';
 import { ServiceBreadcrumb } from '@/components/services/ServiceBreadcrumb';
+import { PublicAccountBlockedState } from '@/components/shared/feedback/PublicAccountBlockedState';
 import { headers } from 'next/headers';
 import { buildServiceJsonLd, safeJsonLd } from '@/lib/structuredData';
 
@@ -36,7 +37,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const listing = await getCachedListing(id);
     return buildMetadata({ title: listing.title, path: `/services/${id}` });
-  } catch {
+  } catch (error) {
+    if (error instanceof ServerApiHttpError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+      return { title: 'الحساب محظور', robots: { index: false, follow: false } };
+    }
     return { title: 'خدمة' };
   }
 }
@@ -44,10 +48,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ServiceListingPage({ params }: Props) {
   const { id } = await params;
   let listing: ServiceListingWithProvider | null = null;
+  let accountBlocked = false;
 
   try {
     listing = await getCachedListing(id);
   } catch (err) {
+    if (err instanceof ServerApiHttpError && err.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+      accountBlocked = true;
+    } else {
     // Only an HTTP 404 is a confirmed missing listing. Network failures,
     // timeouts, malformed payloads and every other HTTP status must remain
     // visible to the route error boundary so users can retry the request.
@@ -56,8 +64,10 @@ export default async function ServiceListingPage({ params }: Props) {
     } else {
       throw err;
     }
+    }
   }
 
+  if (accountBlocked) return <PublicAccountBlockedState />;
   if (!listing) notFound();
 
   const providerUserId = listing.provider.sellerProfile?.userId;

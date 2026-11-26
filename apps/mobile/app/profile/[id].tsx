@@ -1,4 +1,5 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
+import { ApiError } from '@/api/client';
 import { showToast } from '@/lib/toast';
 import { formatMoney } from '@/lib/formatters';
 import { formatSafeDate } from '@/lib/date-format';
@@ -57,6 +58,7 @@ export default function PublicProfileScreen() {
   const [blocked, setBlocked] = useState<boolean | null>(null);
   const [interactionRestricted, setInteractionRestricted] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileBlocked, setProfileBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const seq = useRef(0);
@@ -70,7 +72,7 @@ export default function PublicProfileScreen() {
     if (!id) { setError('رابط الملف الشخصي غير مكتمل.'); setLoading(false); return; }
     if (isRestoring) return;
     const token = getAccessToken();
-    setLoading(true); setError(''); setAdsError(''); setInteractionError('');
+    setLoading(true); setError(''); setAdsError(''); setInteractionError(''); setProfileBlocked(false);
     setProfile(null); setAds([]); setAdsPage(1); setAdsPages(1);
     setProfileServices([]); setSellerRatings([]); setServiceReviews([]); setContentLoading(false); setContentError('');
     setSellerRatingsPage(1); setSellerRatingsPages(1); setServiceReviewsPage(1); setServiceReviewsPages(1);
@@ -112,7 +114,19 @@ export default function PublicProfileScreen() {
         }
       }
     } catch (e) {
-      if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل الملف الشخصي.');
+      if (current === seq.current) {
+        if (e instanceof ApiError && e.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+          setProfileBlocked(true);
+          setProfile(null);
+          setAds([]);
+          setProfileServices([]);
+          setSellerRatings([]);
+          setServiceReviews([]);
+          setError('');
+        } else {
+          setError(e instanceof Error ? e.message : 'تعذر تحميل الملف الشخصي.');
+        }
+      }
     } finally { if (current === seq.current) { setLoading(false); setAdsLoading(false); } }
   }, [id, getAccessToken, isRestoring, user?.id]);
   useEffect(() => { void load(); return () => { seq.current += 1; }; }, [load]);
@@ -280,6 +294,22 @@ export default function PublicProfileScreen() {
 
   const hasStore = Boolean(storeDetails?.id);
   const hasServices = Boolean(serviceProvider?.id);
+  if (profileBlocked) {
+    return (
+      <PageList
+        title="الملف العام"
+        data={[]}
+        keyExtractor={profileAdKey}
+        renderItem={renderProfileAd}
+        header={(
+          <SectionCard>
+            <Text tone="ink" strong size={18}>هذا الحساب محظور</Text>
+            <Text tone="muted">لا يمكن عرض الملف الشخصي أو المحتوى المنشور من هذا الحساب حالياً.</Text>
+          </SectionCard>
+        )}
+      />
+    );
+  }
   const hasRatings = Boolean((sellerProfile?.totalRatings ?? 0) > 0 || (sellerProfile?._count?.serviceReviews ?? 0) > 0);
   const header = <>
     {isRestoring ? <Spinner color={colors.brand} /> : null}

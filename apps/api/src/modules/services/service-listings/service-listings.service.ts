@@ -439,7 +439,14 @@ export const serviceListingsService = {
     // search. provider.sellerProfile is already loaded by
     // listingWithRelations, so no extra query needed here.
     if (listing.provider.sellerProfile.suspended) {
-      throw new NotFoundError('Service listing not found', 'SERVICE_LISTING_NOT_FOUND');
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
+    const listingOwner = await prisma.user.findUnique({
+      where: { id: listing.provider.sellerProfile.userId },
+      select: { isActive: true },
+    });
+    if (!listingOwner?.isActive) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
     }
     // Fire-and-forget: a failed view-count bump shouldn't fail the read.
     serviceListingsRepository

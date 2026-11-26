@@ -10,6 +10,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchProduct, fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
+import { ApiError } from '@/api/client';
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMixedRecommendations, type RecommendationItem } from '@/features/discovery/discovery.api';
@@ -76,8 +77,16 @@ export default function ProductDetailScreen() {
     if (!id) { setLoading(false); setError('معرّف المنتج غير صالح.'); return; }
     setLoading(true);
     setError(null);
+    setItem(null);
+    setSameStoreProducts([]);
+    setRecommendations([]);
     try { setItem(await fetchProduct(id)); }
-    catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل المنتج.'); }
+    catch (e) {
+      if (e instanceof ApiError && e.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+        setItem(null);
+        setError('هذا الحساب محظور، ولا يمكن عرض المنتج أو محتواه.');
+      } else setError(e instanceof Error ? e.message : 'تعذر تحميل المنتج.');
+    }
     finally { setLoading(false); }
   }, [id]);
   useEffect(() => { void load(); }, [load]);

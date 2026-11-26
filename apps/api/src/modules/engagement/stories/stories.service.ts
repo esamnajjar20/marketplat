@@ -150,9 +150,12 @@ export const storiesService = {
   userStories: async (viewerId: string | null, userId: string) => {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, sellerProfile: { select: { suspended: true } } },
     });
-    if (!user?.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    if (!user.isActive || user.sellerProfile?.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
     const rows = await storiesRepository.listActiveForUser(userId);
     // Every row belongs to the same author, so the follow relationship is
     // identical for all private stories. Resolve it once instead of issuing
@@ -187,6 +190,13 @@ export const storiesService = {
   view: async (viewerId: string, storyId: string) => {
     const story = await storiesRepository.findActiveById(storyId);
     if (!story) throw new NotFoundError('Story not found or expired', 'STORY_NOT_FOUND');
+    const author = await prisma.user.findUnique({
+      where: { id: story.userId },
+      select: { isActive: true, sellerProfile: { select: { suspended: true } } },
+    });
+    if (!author?.isActive || author.sellerProfile?.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
     if (!(await canView(story, viewerId)))
       throw new ForbiddenError('You cannot view this story', 'STORY_NOT_VISIBLE');
     await storiesRepository.createView(storyId, viewerId);

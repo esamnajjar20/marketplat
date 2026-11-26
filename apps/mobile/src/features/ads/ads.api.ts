@@ -1,5 +1,5 @@
-import { apiRequest } from '@/api/client';
-import { readPublicCache, readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
+import { ApiError, apiRequest } from '@/api/client';
+import { deletePublicCacheEntry, readPublicCache, readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import {
   cachePublicImages,
   prunePublicImageCache,
@@ -171,6 +171,13 @@ export async function fetchAdDetail(id: string): Promise<AdDetail> {
   try {
     response = await apiRequest<ApiEnvelope<AdDetail>>(`/api/v1/ads/${encodeURIComponent(normalizedId)}`);
   } catch (error) {
+    if (error instanceof ApiError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+      await Promise.all([
+        deletePublicCacheEntry(cacheKey),
+        deletePublicCacheEntry(`/api/v1/ads/${encodeURIComponent(normalizedId)}`),
+      ]);
+      throw error;
+    }
     if (!canUseStaleCacheAfterReadFailure(error)) throw error;
     const cached = await readPublicCache<AdDetail>(cacheKey);
     if (cached && cached.id === normalizedId && typeof cached.title === 'string') return cached;

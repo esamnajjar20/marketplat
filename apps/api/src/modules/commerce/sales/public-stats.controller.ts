@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../../config/prisma';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { successResponse } from '../../../shared/types/api-response.types';
 
 export const publicSalesStatsController = {
@@ -11,12 +12,21 @@ export const publicSalesStatsController = {
         where: { slug },
         include: {
           sellerProfile: {
-            select: { verified: true, averageRating: true, totalRatings: true },
+            select: {
+              verified: true,
+              averageRating: true,
+              totalRatings: true,
+              suspended: true,
+              user: { select: { isActive: true } },
+            },
           },
         },
       });
       if (!store || store.status !== 'ACTIVE')
         throw new NotFoundError('Store not found.', 'STORE_NOT_FOUND');
+      if (store.sellerProfile.suspended || !store.sellerProfile.user.isActive) {
+        throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+      }
       // A fully refunded sale is not counted as a completed public sale.
       // Partially refunded sales remain counted; zero-value sales remain valid.
       const [aggregate] = await prisma.$queryRaw<

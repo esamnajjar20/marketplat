@@ -244,17 +244,39 @@ export const requestsService = {
     const row = await requestsRepository.findById(id);
     if (!row) throw new NotFoundError('Request not found', 'REQUEST_NOT_FOUND');
 
+    // A direct request URL must enforce the same publisher visibility as the public feed.
+    // Do not turn a deactivated account's previously published request into a public detail.
+    const ownerState = await requestsRepository.findPublicOwnerState(row.customerId);
+    if (!ownerState?.isActive || ownerState.sellerProfile?.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
+
+    // The accepted offer is a single relation, so it cannot be filtered in
+    // the Prisma include like the offers collection. Verify its publisher
+    // separately to avoid exposing a suspended/deactivated offerer through
+    // the accepted-offer summary.
+    let acceptedOffer = row.acceptedOffer;
+    if (acceptedOffer) {
+      const acceptedOfferer = await requestsRepository.findPublicOwnerState(
+        acceptedOffer.offererUserId
+      );
+      if (!acceptedOfferer?.isActive || acceptedOfferer.sellerProfile?.suspended) {
+        acceptedOffer = null;
+      }
+    }
+    const visibleRow = acceptedOffer === row.acceptedOffer ? row : { ...row, acceptedOffer };
+
     if (viewerUserId && row.customerId === viewerUserId) {
-      return row;
+      return visibleRow;
     }
 
     if (viewerUserId) {
-      const mine = (row.offers ?? []).filter(o => o.offererUserId === viewerUserId);
-      return { ...row, offers: mine };
+      const mine = (visibleRow.offers ?? []).filter(o => o.offererUserId === viewerUserId);
+      return { ...visibleRow, offers: mine };
     }
 
     // Anonymous: never expose competitive offer details
-    return { ...row, offers: [] };
+    return { ...visibleRow, offers: [] };
   },
 
   cancel: async (userId: string, id: string): Promise<RequestRow> => {

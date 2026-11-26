@@ -5,6 +5,7 @@ import type { ServiceProviderPublic } from '@/types/service.types';
 import { fetchServerApi, ServerApiHttpError } from '@/lib/server/serverApiFetch';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
+import { PublicAccountBlockedState } from '@/components/shared/feedback/PublicAccountBlockedState';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -20,6 +21,7 @@ export default async function LegacyServiceProviderRedirectPage({ params }: Prop
   if (!id?.trim()) notFound();
 
   let provider: ServiceProviderPublic | null = null;
+  let accountBlocked = false;
   try {
     const response = await fetchServerApi<ServiceProviderPublic>(
       `/service-providers/${encodeURIComponent(id)}`,
@@ -27,11 +29,17 @@ export default async function LegacyServiceProviderRedirectPage({ params }: Prop
     );
     provider = response.data ?? null;
   } catch (error) {
+    if (error instanceof ServerApiHttpError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+      accountBlocked = true;
+    } else {
     // A missing provider is a real 404. Do not turn transport/5xx failures
     // into a misleading message that claims the linked account is missing.
     if (error instanceof ServerApiHttpError && [400, 404, 422].includes(error.statusCode)) notFound();
     throw error;
+    }
   }
+
+  if (accountBlocked) return <PublicAccountBlockedState />;
 
   const targetUserId = provider?.sellerProfile?.userId?.trim() || null;
   if (targetUserId) redirect(ROUTES.userProfile(targetUserId));

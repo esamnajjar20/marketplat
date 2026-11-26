@@ -1,4 +1,5 @@
 import { adsService } from '../../classifieds/ads/ads.service';
+import { Prisma } from '@prisma/client';
 import { storesService } from '../../commerce/stores/stores.service';
 import { serviceListingsService } from '../../services/service-listings/service-listings.service';
 import { categoriesService } from '../../classifieds/categories/categories.service';
@@ -78,12 +79,31 @@ async function settle<T>(name: string, promise: Promise<T>): Promise<T | null> {
 type Sortable = { sortBy: 'createdAt'; sortOrder: 'desc' };
 const LATEST: Sortable = { sortBy: 'createdAt', sortOrder: 'desc' };
 
-/** Live counters shown in the trust strip. Only ACTIVE ads count. */
+/** Live counters shown in the trust strip; count only publicly visible ads. */
 async function homeStats(): Promise<{ activeAds: number; adsLast24h: number }> {
+  const publicAdWhere: Prisma.AdWhereInput = {
+    status: 'ACTIVE',
+    flaggedForReview: false,
+    user: { isActive: true },
+    sellerProfile: { suspended: false, user: { isActive: true } },
+    AND: [
+      {
+        OR: [
+          { storeId: null },
+          {
+            store: {
+              status: 'ACTIVE',
+              sellerProfile: { suspended: false, user: { isActive: true } },
+            },
+          },
+        ],
+      },
+    ],
+  };
   const [activeAds, adsLast24h] = await Promise.all([
-    prisma.ad.count({ where: { status: 'ACTIVE' } }),
+    prisma.ad.count({ where: publicAdWhere }),
     prisma.ad.count({
-      where: { status: 'ACTIVE', createdAt: { gte: new Date(Date.now() - DAY_MS) } },
+      where: { ...publicAdWhere, createdAt: { gte: new Date(Date.now() - DAY_MS) } },
     }),
   ]);
   return { activeAds, adsLast24h };

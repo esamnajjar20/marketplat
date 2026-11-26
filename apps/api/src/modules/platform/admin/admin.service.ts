@@ -19,7 +19,7 @@ import { adminStatsCache } from '../../../shared/cache/adminStatsCache';
 // mutate Ad rows the GET /ads list cache is built from, but previously
 // never invalidated it.
 import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../../classifieds/ads/ads.service';
-import { hidePublicEntities } from '../../../shared/cache/publicListCache';
+import { ALL_PUBLIC_LIST_NAMESPACES, hidePublicEntities } from '../../../shared/cache/publicListCache';
 import { logger } from '../../../shared/observability/logger';
 import { getGoWorkerBaseUrl, getGoWorkerToken } from '../../../shared/go-worker/goWorkerConfig';
 
@@ -541,7 +541,15 @@ export const adminService = {
       // The cached SafeUser includes isActive. Invalidate on BOTH transitions:
       // activation must evict a previously cached inactive auth projection too,
       // otherwise the reactivated user can remain rejected until its cache TTL.
-      const invalidations: Promise<unknown>[] = [userCache.invalidate(userId)];
+      const invalidations: Promise<unknown>[] = [
+        userCache.invalidate(userId),
+        // A user's active state participates in every public content query.
+        // Hard-invalidate all affected list namespaces and the ads/home/edge
+        // caches on both transitions so deactivation hides immediately and
+        // reactivation can restore eligible content without waiting for TTL.
+        bumpAdsCacheVersionAndHome(),
+        hidePublicEntities(...ALL_PUBLIC_LIST_NAMESPACES),
+      ];
       if (!isActive) invalidations.push(tokenStore.deleteAllRefreshTokens(userId));
       await Promise.all(invalidations);
 

@@ -11,6 +11,7 @@ import { goBack } from '@/lib/navigation';
 import { AppImage } from '@/components/AppImage';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteStory, fetchStoryFeed, fetchUserStories, markStoryViewed, type Story } from '@/features/stories/stories.api';
+import { ApiError } from '@/api/client';
 import { shareMarketPlatResource } from '@/features/sharing/deep-links';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 const STORY_DURATION_MS = 6500;
@@ -61,7 +62,9 @@ export default function StoryViewerScreen() {
             setImageFailed(false);
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : 'تعذر فتح القصة.');
+            setError(e instanceof ApiError && e.code === 'PUBLIC_ACCOUNT_BLOCKED'
+                ? 'هذا الحساب محظور، ولا يمكن عرض قصصه.'
+                : e instanceof Error ? e.message : 'تعذر فتح القصة.');
         }
         finally {
             setLoading(false);

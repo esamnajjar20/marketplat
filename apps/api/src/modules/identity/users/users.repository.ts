@@ -85,7 +85,22 @@ const publicUserSelect = {
   createdAt: true,
   // S-05: count only ACTIVE ads on the public profile, same rule
   // getUserAds already enforces — otherwise this leaks SOLD/removed count.
-  _count: { select: { ads: { where: { status: 'ACTIVE' } } } },
+  _count: {
+    select: {
+      ads: {
+        where: {
+          status: 'ACTIVE',
+          flaggedForReview: false,
+          user: { isActive: true },
+          sellerProfile: { suspended: false, user: { isActive: true } },
+          OR: [
+            { storeId: null },
+            { store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } } },
+          ],
+        },
+      },
+    },
+  },
   sellerProfile: {
     select: {
       id: true,

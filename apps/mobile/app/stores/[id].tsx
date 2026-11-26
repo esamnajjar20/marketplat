@@ -16,6 +16,8 @@ import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { ErrorState, LoadingState, Notice, PageShell, Spinner } from '@/components/ui';
 import { createStoreReview, fetchProducts, fetchStore, fetchStoreFollowStatus, fetchStoreReviews, toggleStoreFollow, type ProductSummary, type StoreReview, type StoreSummary } from '@/features/commerce/commerce.api';
+import { ApiError } from '@/api/client';
+import { deletePublicCacheEntry, deletePublicCacheEntriesByPrefix } from '@/storage/public-cache';
 import { fetchPublicAds, type AdListItem } from '@/features/ads/ads.api';
 import { fetchPublicCollections, type StoreCollection } from '@/features/commerce/store-management.api';
 import { telUrl, whatsappUrl } from '@/lib/contact-links';
@@ -93,6 +95,14 @@ export default function StoreDetailScreen() {
       setLoading(true);
     setError(null);
     setProductsError(null);
+    if (!refresh) {
+      setStore(null);
+      setProducts([]);
+      setReviews([]);
+      setPromotedProducts([]);
+      setStoreAds([]);
+      setCollections([]);
+    }
     try {
       const settled = await Promise.allSettled([fetchStore(id), fetchProducts({
           page: 1, limit: 12, storeId: id
@@ -124,8 +134,21 @@ export default function StoreDetailScreen() {
         setFollowing(null);
     }
     catch (e) {
-      if (current === sequence.current)
-        setError(e instanceof Error ? e.message : 'تعذر تحميل المتجر.');
+      if (current === sequence.current) {
+        if (e instanceof ApiError && e.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+          setStore(null);
+          setProducts([]);
+          setReviews([]);
+          setPromotedProducts([]);
+          setStoreAds([]);
+          setCollections([]);
+          setError('هذا الحساب محظور، وتم إخفاء المتجر وجميع محتوياته.');
+          await Promise.all([
+            deletePublicCacheEntry(`api-public:/api/v1/stores/${encodeURIComponent(id)}`),
+            deletePublicCacheEntriesByPrefix('api-public:/api/v1/stores?'),
+          ]);
+        } else setError(e instanceof Error ? e.message : 'تعذر تحميل المتجر.');
+      }
     }
     finally {
       if (current === sequence.current) {
@@ -285,7 +308,7 @@ export default function StoreDetailScreen() {
   };
   return <PageShell title="صفحة المتجر" right={<Pressable accessibilityRole="button" onPress={() => router.push('/stores')} style={s.smallButton}><Text style={s.smallButtonText}>كل المتاجر</Text></Pressable>} refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={() => void load(true)}/>}>
   <View style={s.content}>
-  {loading ? <LoadingState message="جاري تحميل المتجر…"/> : error ? <ErrorState title="تعذر تحميل المتجر" description={error} onAction={() => void load()}/> : store ? <>
+  {loading ? <LoadingState message="جاري تحميل المتجر…"/> : error ? <ErrorState title={error.startsWith('هذا الحساب محظور') ? 'هذا الحساب محظور' : 'تعذر تحميل المتجر'} description={error} onAction={() => void load()}/> : store ? <>
    <View style={s.hero}>{store.coverImageUrl ? <AppImage uri={store.coverImageUrl} style={s.cover} resizeMode="cover"/> : <View style={[s.cover, s.coverFallback]}><Text style={s.coverMark}>MARKETPLAT</Text></View>}
     <View style={s.storeCard}>{store.logoUrl ? <AppImage uri={store.logoUrl} style={s.logo}/> : <View style={s.logoPlaceholder}><Text style={s.glyph}>▣</Text></View>}<View style={s.storeTitleRow}><Text style={[s.heading, s.storeTitle]}>{store.name}</Text><FavoriteButton entityType="stores" entityId={store.id} label="المتجر" /></View><Text style={s.muted}>{store.description || 'متجر محلي على MarketPlat'}</Text><Text style={s.location}>{[store.city, store.address].filter(Boolean).join(' · ') || 'الموقع غير محدد'}</Text>{store.phone ? <Text style={s.muted}>للتواصل: {store.phone}</Text> : null}
      {!!safePhone(store.phone) ? <View style={s.contactActions}>

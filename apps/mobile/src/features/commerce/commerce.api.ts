@@ -57,7 +57,20 @@ export async function fetchStores(options: { page?: number; limit?: number; sear
   const response = await apiRequest<Envelope<StoreSummary[]>>(`/api/v1/stores?${params}`);
   return pageFrom(response, 'تعذر تحميل المتاجر.', page);
 }
-export async function fetchStore(id: string) { return dataOf(await apiRequest<Envelope<StoreSummary>>(`/api/v1/stores/${encodeURIComponent(id)}`), 'تعذر تحميل المتجر.'); }
+export async function fetchStore(id: string) {
+  const path = `/api/v1/stores/${encodeURIComponent(id)}`;
+  try {
+    return dataOf(await apiRequest<Envelope<StoreSummary>>(path), 'تعذر تحميل المتجر.');
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+      await Promise.all([
+        deletePublicCacheEntry(`api-public:${path}`),
+        deletePublicCacheEntriesByPrefix('api-public:/api/v1/stores?'),
+      ]);
+    }
+    throw error;
+  }
+}
 export async function toggleStoreFollow(id: string, token: string, csrfToken?: string | null) { return dataOf(await apiRequest<Envelope<{ action: 'followed' | 'unfollowed' }>>(`/api/v1/stores/${encodeURIComponent(id)}/follow`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر تحديث متابعة المتجر.'); }
 export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; city?: string; minPrice?: number; maxPrice?: number; hasPromotion?: boolean; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal } = {}) {
   const page = options.page ?? 1; const sortBy = options.sortBy ?? 'createdAt'; const sortOrder = options.sortOrder ?? (sortBy === 'price' ? 'asc' : 'desc'); const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 20), sortBy, sortOrder });
@@ -65,7 +78,20 @@ export async function fetchProducts(options: { page?: number; limit?: number; se
   const response = await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products?${params}`, { signal: options.signal });
   return pageFrom(response, 'تعذر تحميل المنتجات.', page);
 }
-export async function fetchProduct(id: string) { return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`), 'تعذر تحميل تفاصيل المنتج.'); }
+export async function fetchProduct(id: string) {
+  const path = `/api/v1/products/${encodeURIComponent(id)}`;
+  try {
+    return dataOf(await apiRequest<Envelope<ProductSummary>>(path), 'تعذر تحميل تفاصيل المنتج.');
+  } catch (error) {
+    if (error instanceof ApiError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+      await Promise.all([
+        deletePublicCacheEntry(`api-public:${path}`),
+        deletePublicCacheEntriesByPrefix('api-public:/api/v1/products?'),
+      ]);
+    }
+    throw error;
+  }
+}
 export async function fetchMyStore(token: string): Promise<StoreSummary | null> {
   try {
     return dataOf(await apiRequest<Envelope<StoreSummary | null>>('/api/v1/stores/me', { token }), 'تعذر تحميل متجرك.');

@@ -102,7 +102,17 @@ type EntityConfig<T> = {
 const AD_CONFIG: EntityConfig<FavoriteAdEntity> = {
   fetchActive: ids =>
     prisma.ad.findMany({
-      where: { id: { in: ids }, status: { not: 'DELETED' } },
+      where: {
+        id: { in: ids },
+        status: { not: 'DELETED' },
+        flaggedForReview: false,
+        user: { isActive: true },
+        sellerProfile: { suspended: false, user: { isActive: true } },
+        OR: [
+          { storeId: null },
+          { store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } } },
+        ],
+      },
       select: adSelect,
     }),
   getId: e => e.id,
@@ -111,7 +121,11 @@ const AD_CONFIG: EntityConfig<FavoriteAdEntity> = {
 const PRODUCT_CONFIG: EntityConfig<ProductWithStoreLite> = {
   fetchActive: ids =>
     prisma.product.findMany({
-      where: { id: { in: ids }, status: { not: 'DELETED' } },
+      where: {
+        id: { in: ids },
+        status: { not: 'DELETED' },
+        store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } },
+      },
       // the favourites list renders ProductCard,
       // which never reads store.storeType.fields. Use the lite variant.
       include: productWithRelationsLite,
@@ -122,7 +136,7 @@ const PRODUCT_CONFIG: EntityConfig<ProductWithStoreLite> = {
 const STORE_CONFIG: EntityConfig<StoreDirectoryRow> = {
   fetchActive: ids =>
     prisma.storeDetails.findMany({
-      where: { id: { in: ids }, status: 'ACTIVE', sellerProfile: { suspended: false } },
+      where: { id: { in: ids }, status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } },
       select: storeDirectorySelect,
     }),
   getId: e => e.id,
@@ -131,7 +145,11 @@ const STORE_CONFIG: EntityConfig<StoreDirectoryRow> = {
 const SERVICE_LISTING_CONFIG: EntityConfig<ServiceListingWithProvider> = {
   fetchActive: ids =>
     prisma.serviceListing.findMany({
-      where: { id: { in: ids }, status: { not: 'DELETED' } },
+      where: {
+        id: { in: ids },
+        status: { not: 'DELETED' },
+        provider: { sellerProfile: { suspended: false, user: { isActive: true } } },
+      },
       include: listingWithRelations,
     }),
   getId: e => e.id,
@@ -162,16 +180,58 @@ const activeFavoritesFilter = (
   listId?: string
 ): Prisma.Sql => {
   const target = ACTIVE_COUNT_TARGETS[entityType];
-  const visibilityFilter =
-    entityType === 'STORE'
-      ? Prisma.sql`AND t."status"::text = ${'ACTIVE'}
+  const visibilityFilter = (() => {
+    switch (entityType) {
+      case 'AD':
+        return Prisma.sql`AND t."status"::text <> ${target.excludedStatus}
+          AND t."flaggedForReview" = false
           AND EXISTS (
-            SELECT 1
-            FROM "seller_profiles" sp
+            SELECT 1 FROM "users" author
+            WHERE author."id" = t."userId" AND author."isActive" = true
+          )
+          AND EXISTS (
+            SELECT 1 FROM "seller_profiles" sp
+            JOIN "users" owner ON owner."id" = sp."userId"
             WHERE sp."id" = t."sellerProfileId"
-              AND sp."suspended" = false
-          )`
-      : Prisma.sql`AND t."status"::text <> ${target.excludedStatus}`;
+              AND sp."suspended" = false AND owner."isActive" = true
+          )
+          AND (
+            t."storeId" IS NULL OR EXISTS (
+              SELECT 1 FROM "store_details" sd
+              JOIN "seller_profiles" store_seller ON store_seller."id" = sd."sellerProfileId"
+              JOIN "users" store_owner ON store_owner."id" = store_seller."userId"
+              WHERE sd."id" = t."storeId" AND sd."status"::text = ${'ACTIVE'}
+                AND store_seller."suspended" = false AND store_owner."isActive" = true
+            )
+          )`;
+      case 'PRODUCT':
+        return Prisma.sql`AND t."status"::text <> ${target.excludedStatus}
+          AND EXISTS (
+            SELECT 1 FROM "store_details" sd
+            JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
+            JOIN "users" owner ON owner."id" = sp."userId"
+            WHERE sd."id" = t."storeId" AND sd."status"::text = ${'ACTIVE'}
+              AND sp."suspended" = false AND owner."isActive" = true
+          )`;
+      case 'STORE':
+        return Prisma.sql`AND t."status"::text = ${'ACTIVE'}
+          AND EXISTS (
+            SELECT 1 FROM "seller_profiles" sp
+            JOIN "users" owner ON owner."id" = sp."userId"
+            WHERE sp."id" = t."sellerProfileId"
+              AND sp."suspended" = false AND owner."isActive" = true
+          )`;
+      case 'SERVICE_LISTING':
+        return Prisma.sql`AND t."status"::text <> ${target.excludedStatus}
+          AND EXISTS (
+            SELECT 1 FROM "service_provider_details" provider
+            JOIN "seller_profiles" sp ON sp."id" = provider."sellerProfileId"
+            JOIN "users" owner ON owner."id" = sp."userId"
+            WHERE provider."id" = t."providerId"
+              AND sp."suspended" = false AND owner."isActive" = true
+          )`;
+    }
+  })();
   return Prisma.sql`
     FROM "favorites" f
     JOIN ${Prisma.raw(target.table)} t ON t."id" = f."entityId"

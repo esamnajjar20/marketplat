@@ -221,7 +221,11 @@ export const sellersService = {
     // one place it referenced was the one place still missing the
     // check. Treated as 404, same as those four siblings.
     if (profile.suspended) {
-      throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
+    const owner = await prisma.user.findUnique({ where: { id: profile.userId }, select: { isActive: true } });
+    if (!owner?.isActive) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
     }
     return profile;
   },
@@ -305,7 +309,13 @@ export const sellersService = {
     // endpoint checked existence but never `suspended`, so a suspended
     // seller's ratings stayed publicly readable even after their own
     // profile page started 404ing.
-    if (profile.suspended) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
+    if (profile.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
+    const owner = await prisma.user.findUnique({ where: { id: profile.userId }, select: { isActive: true } });
+    if (!owner?.isActive) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
 
     const { ratings, total } = await sellersRepository.findManyRatingsBySellerProfileId(
       sellerProfileId,

@@ -13,6 +13,7 @@ import {
 import { useUser } from '@/hooks/queries/useUsers';
 import { ProfileTabsSection } from '@/components/profile/ProfileTabsSection';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { PublicProfileBlocked } from '@/components/profile/PublicProfileBlocked';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Button } from '@/components/shared/ui/Button';
 import { parseApiError } from '@/lib/errorParser';
@@ -83,7 +84,9 @@ export function PublicProfileClient({ id }: { id: string }) {
   }
 
   if (isError || !user) {
-    const notFound = isError && parseApiError(error).statusCode === 404;
+    const parsedError = isError ? parseApiError(error) : null;
+    if (parsedError?.code === 'PUBLIC_ACCOUNT_BLOCKED') return <PublicProfileBlocked />;
+    const notFound = parsedError?.statusCode === 404;
     return (
       <div className={ENTITY_PAGE}>
         <EmptyState

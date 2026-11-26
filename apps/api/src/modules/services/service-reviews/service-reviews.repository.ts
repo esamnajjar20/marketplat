@@ -2,6 +2,14 @@ import { prisma } from '../../../config/prisma';
 import { Prisma, ServiceReview } from '@prisma/client';
 import { getPaginationParams } from '../../../shared/http/pagination';
 
+const PUBLIC_RATER_FILTER: Prisma.UserWhereInput = {
+  isActive: true,
+  OR: [
+    { sellerProfile: { is: null } },
+    { sellerProfile: { is: { suspended: false } } },
+  ],
+};
+
 export type ServiceReviewWithRater = Prisma.ServiceReviewGetPayload<{
   include: { rater: { select: { id: true; name: true; avatarUrl: true } } };
 }>;
@@ -31,7 +39,7 @@ export const serviceReviewsRepository = {
     sellerProfileId: string
   ): Promise<{ avg: number | null; count: number }> => {
     const result = await prisma.serviceReview.aggregate({
-      where: { sellerProfileId },
+      where: { sellerProfileId, rater: PUBLIC_RATER_FILTER },
       _avg: { score: true },
       _count: true,
     });
@@ -44,7 +52,7 @@ export const serviceReviewsRepository = {
   ): Promise<{ reviews: ServiceReviewWithRater[]; total: number }> => {
     const { page = 1, limit = 20 } = query;
     const { skip, take } = getPaginationParams(page, limit);
-    const where: Prisma.ServiceReviewWhereInput = { sellerProfileId };
+    const where: Prisma.ServiceReviewWhereInput = { sellerProfileId, rater: PUBLIC_RATER_FILTER };
 
     const [reviews, total] = await Promise.all([
       prisma.serviceReview.findMany({

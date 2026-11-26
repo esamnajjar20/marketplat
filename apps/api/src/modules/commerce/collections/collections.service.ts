@@ -188,6 +188,10 @@ export const collectionsService = {
     if (!store || store.status !== 'ACTIVE') {
       throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
     }
+    const ownerState = await storesRepository.findPublicOwnerState(store.sellerProfileId);
+    if (!ownerState?.user.isActive || ownerState.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
     return collectionsRepository.findActiveByStoreId(store.id);
   },
 
@@ -202,6 +206,10 @@ export const collectionsService = {
     const store = await storesRepository.findById(collection.storeId);
     if (!store || store.status !== 'ACTIVE') {
       throw new NotFoundError('Collection not found', 'COLLECTION_NOT_FOUND');
+    }
+    const ownerState = await storesRepository.findPublicOwnerState(store.sellerProfileId);
+    if (!ownerState?.user.isActive || ownerState.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
     }
     const rows = await collectionsRepository.findVisibleProducts(collectionId);
     return rows.map(row => row.product);

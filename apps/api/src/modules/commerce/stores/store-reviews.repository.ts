@@ -2,6 +2,14 @@ import { prisma } from '../../../config/prisma';
 import { Prisma, StoreReview } from '@prisma/client';
 import { getPaginationParams } from '../../../shared/http/pagination';
 
+const PUBLIC_RATER_FILTER: Prisma.UserWhereInput = {
+  isActive: true,
+  OR: [
+    { sellerProfile: { is: null } },
+    { sellerProfile: { is: { suspended: false } } },
+  ],
+};
+
 export type StoreReviewWithRater = Prisma.StoreReviewGetPayload<{
   include: { rater: { select: { id: true; name: true; avatarUrl: true } } };
 }>;
@@ -23,7 +31,7 @@ export const storeReviewsRepository = {
   ): Promise<{ reviews: StoreReviewWithRater[]; total: number }> => {
     const { page = 1, limit = 20 } = query;
     const { skip, take } = getPaginationParams(page, limit);
-    const where: Prisma.StoreReviewWhereInput = { sellerProfileId };
+    const where: Prisma.StoreReviewWhereInput = { sellerProfileId, rater: PUBLIC_RATER_FILTER };
 
     const [reviews, total] = await Promise.all([
       prisma.storeReview.findMany({
@@ -47,7 +55,7 @@ export const storeReviewsRepository = {
     sellerProfileId: string
   ): Promise<{ avg: number | null; count: number }> => {
     const result = await prisma.storeReview.aggregate({
-      where: { sellerProfileId },
+      where: { sellerProfileId, rater: PUBLIC_RATER_FILTER },
       _avg: { score: true },
       _count: true,
     });
@@ -63,7 +71,7 @@ export const storeReviewsRepository = {
     if (sellerProfileIds.length === 0) return new Map();
     const rows = await prisma.storeReview.groupBy({
       by: ['sellerProfileId'],
-      where: { sellerProfileId: { in: sellerProfileIds } },
+      where: { sellerProfileId: { in: sellerProfileIds }, rater: PUBLIC_RATER_FILTER },
       _avg: { score: true },
       _count: true,
     });

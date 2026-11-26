@@ -128,8 +128,18 @@ const findPublicStoreView = async (idOrSlug: string): Promise<StorePublicView> =
     (await storesRepository.findPublicById(idOrSlug)) ??
     (await storesRepository.findPublicBySlug(idOrSlug));
   if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
-  if (store.status !== 'ACTIVE' || store.sellerProfile.suspended) {
+  if (store.status !== 'ACTIVE') {
     throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+  }
+  if (store.sellerProfile.suspended) {
+    throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+  }
+  const storeOwner = await prisma.user.findUnique({
+    where: { id: store.sellerProfile.userId },
+    select: { isActive: true },
+  });
+  if (!storeOwner?.isActive) {
+    throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
   }
   return { ...store, isOpen: computeIsOpen(store.workingHours) };
 };
@@ -799,8 +809,18 @@ export const storesService = {
     // Same gate as getPublicStore, applied here too since this is an
     // independent public entry point keyed only by storeId.
     const store = await storesRepository.findByIdWithSeller(storeId);
-    if (!store || store.status !== 'ACTIVE' || store.sellerProfile.suspended) {
+    if (!store || store.status !== 'ACTIVE') {
       throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+    }
+    if (store.sellerProfile.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
+    const storeOwner = await prisma.user.findUnique({
+      where: { id: store.sellerProfile.userId },
+      select: { isActive: true },
+    });
+    if (!storeOwner?.isActive) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
     }
 
     const { reviews, total } = await storeReviewsRepository.findManyBySellerProfileId(

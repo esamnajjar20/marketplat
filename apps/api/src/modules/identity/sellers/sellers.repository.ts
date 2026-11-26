@@ -2,6 +2,14 @@ import { prisma } from '../../../config/prisma';
 import { Prisma, SellerProfile, SellerVerificationStatus } from '@prisma/client';
 import { getPaginationParams } from '../../../shared/http/pagination';
 
+const PUBLIC_RATER_FILTER: Prisma.UserWhereInput = {
+  isActive: true,
+  OR: [
+    { sellerProfile: { is: null } },
+    { sellerProfile: { is: { suspended: false } } },
+  ],
+};
+
 export type SellerProfileWithAds = Prisma.SellerProfileGetPayload<{
   include: {
     ads: true;
@@ -232,7 +240,7 @@ export const sellersRepository = {
   ): Promise<{ ratings: SellerRatingWithRater[]; total: number }> => {
     const { page = 1, limit = 20 } = query;
     const { skip, take } = getPaginationParams(page, limit);
-    const where: Prisma.SellerRatingWhereInput = { sellerProfileId };
+    const where: Prisma.SellerRatingWhereInput = { sellerProfileId, rater: PUBLIC_RATER_FILTER };
 
     const [ratings, total] = await Promise.all([
       prisma.sellerRating.findMany({
@@ -267,12 +275,12 @@ export const sellersRepository = {
   ): Promise<SellerProfile> => {
     const [adAgg, serviceAgg, storeAgg] = await Promise.all([
       tx.sellerRating.aggregate({
-        where: { sellerProfileId },
+        where: { sellerProfileId, rater: PUBLIC_RATER_FILTER },
         _sum: { score: true },
         _count: { score: true },
       }),
       tx.serviceReview.aggregate({
-        where: { sellerProfileId },
+        where: { sellerProfileId, rater: PUBLIC_RATER_FILTER },
         _sum: { score: true },
         _count: { score: true },
       }),
@@ -282,7 +290,7 @@ export const sellersRepository = {
       // which of the three product surfaces (ad, service, store) the
       // rating came from.
       tx.storeReview.aggregate({
-        where: { sellerProfileId },
+        where: { sellerProfileId, rater: PUBLIC_RATER_FILTER },
         _sum: { score: true },
         _count: { score: true },
       }),

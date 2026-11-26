@@ -20,6 +20,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { parseApiError } from '@/lib/errorParser';
 import { ROUTES } from '@/lib/constants';
 import { ENTITY_PAGE } from '@/components/shared/entity-page/entityPageTokens';
+import { PublicAccountBlockedState } from '@/components/shared/feedback/PublicAccountBlockedState';
 
 export function StoreDetailClient({ id }: { id: string }) {
   const { data: pageData, isLoading, isError, error, refetch } = useStore(id, { trackView: true });
@@ -30,7 +31,9 @@ export function StoreDetailClient({ id }: { id: string }) {
   }
 
   if (isError || !store) {
-    const notFound = isError && parseApiError(error).statusCode === 404;
+    const parsed = isError ? parseApiError(error) : null;
+    if (parsed?.code === 'PUBLIC_ACCOUNT_BLOCKED') return <PublicAccountBlockedState />;
+    const notFound = parsed?.statusCode === 404;
     return (
       <div className={ENTITY_PAGE}>
         <EmptyState

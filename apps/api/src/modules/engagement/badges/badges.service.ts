@@ -7,6 +7,7 @@ import { serviceProvidersRepository } from '../../services/service-providers/ser
 import { serviceListingsRepository } from '../../services/service-listings/service-listings.repository';
 import { serviceReviewsRepository } from '../../services/service-reviews/service-reviews.repository';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { Badge, computeBadges, ProviderBadge, computeProviderBadges } from './badges.types';
 
 const toBadgeInput = (
@@ -43,6 +44,10 @@ export const badgesService = {
     if (!store || store.status !== 'ACTIVE') {
       throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
     }
+    const ownerState = await storesRepository.findPublicOwnerState(store.sellerProfileId);
+    if (!ownerState?.user.isActive || ownerState.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
     return getStoreBadgesForRecord(store);
   },
 
@@ -70,8 +75,14 @@ export const badgesService = {
   // page, same visibility as its rating.
   getProviderBadges: async (providerId: string): Promise<ProviderBadge[]> => {
     const provider = await serviceProvidersRepository.findPublicById(providerId);
-    if (!provider || provider.sellerProfile.suspended) {
+    if (!provider) {
       throw new NotFoundError('Service provider not found', 'SERVICE_PROVIDER_NOT_FOUND');
+    }
+    const ownerState = await serviceProvidersRepository.findPublicOwnerState(
+      provider.sellerProfile.userId
+    );
+    if (provider.sellerProfile.suspended || !ownerState?.isActive) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
     }
     const [listingStats, rating] = await Promise.all([
       serviceListingsRepository.getStatsByProviderId(provider.id),

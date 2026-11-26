@@ -497,9 +497,11 @@ export const productsRepository = {
         FROM "products" p
         INNER JOIN "store_details" s ON p."storeId" = s."id"
         INNER JOIN "seller_profiles" sp ON s."sellerProfileId" = sp."id"
+        INNER JOIN "users" owner ON owner."id" = sp."userId"
         WHERE p."status" = 'ACTIVE'
           AND s."status" = 'ACTIVE'
           AND sp."suspended" = false
+          AND owner."isActive" = true
           AND (
             setweight(to_tsvector('simple', arabic_normalize(coalesce(p."name", ''))), 'A') ||
             setweight(to_tsvector('simple', arabic_normalize(coalesce(p."description", ''))), 'B')
@@ -525,14 +527,14 @@ export const productsRepository = {
     // suspended check has to be repeated there too, not just once).
     const where: Prisma.ProductWhereInput = {
       status: 'ACTIVE',
-      store: { status: 'ACTIVE', sellerProfile: { suspended: false } },
+      store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } },
       ...(categoryId && { categoryId }),
       ...(storeId && { storeId }),
       ...(availability && { availability }),
       // Products don't carry their own city — they inherit the store's,
       // same relation-filter approach service-listings.repository.ts
       // uses for provider.serviceAreaCities.
-      ...(city && { store: { status: 'ACTIVE', sellerProfile: { suspended: false }, city } }),
+      ...(city && { store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } }, city } }),
       ...((minPrice !== undefined || maxPrice !== undefined) && {
         price: {
           ...(minPrice !== undefined && { gte: minPrice }),

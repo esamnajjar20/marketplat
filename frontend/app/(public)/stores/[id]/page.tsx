@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { headers } from 'next/headers';
 import { buildStoreJsonLd, safeJsonLd } from '@/lib/structuredData';
 import { StoreVisitSnapshot } from '@/components/stores/StoreVisitSnapshot';
+import { PublicAccountBlockedState } from '@/components/shared/feedback/PublicAccountBlockedState';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -39,7 +40,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       path: `/stores/${data.slug || id}`,
       image,
     });
-  } catch {
+  } catch (error) {
+    const failure = error as { code?: string; response?: { data?: { code?: string } } };
+    if (failure.code === 'PUBLIC_ACCOUNT_BLOCKED' || failure.response?.data?.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+      return { title: 'الحساب محظور', robots: { index: false, follow: false } };
+    }
     return { title: 'متجر' };
   }
 }
@@ -58,9 +63,11 @@ export default async function StorePage({ params }: Props) {
     // state, telling a user that an existing store was deleted. Only a
     // confirmed 404 (backend said so) is a genuine miss; anything else
     // propagates so app/(public)/error.tsx can show a retry UI.
-    const statusCode =
-      (err as { statusCode?: number; response?: { status?: number } })?.statusCode ??
-      (err as { response?: { status?: number } })?.response?.status;
+    const failure = err as { statusCode?: number; code?: string; response?: { status?: number; data?: { code?: string } } };
+    if (failure.code === 'PUBLIC_ACCOUNT_BLOCKED' || failure.response?.data?.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+      return <PublicAccountBlockedState />;
+    }
+    const statusCode = failure.statusCode ?? failure.response?.status;
     // FIX SSR-FALLBACK-03: instead of throwing (opaque React #441 crash), let
     // the browser fetch the store through the same-origin proxy.
     if (statusCode !== 404) return <StoreDetailClient id={id} />;

@@ -6,7 +6,9 @@ const STORY_VIEWERS_LIST_LIMIT = 500;
 export const storiesRepository = {
   create: (data: Prisma.StoryCreateInput) => prisma.story.create({ data }),
   findActiveById: (id: string) =>
-    prisma.story.findFirst({ where: { id, expiresAt: { gt: new Date() } } }),
+    prisma.story.findFirst({
+      where: { id, expiresAt: { gt: new Date() } },
+    }),
   findById: (id: string) => prisma.story.findUnique({ where: { id } }),
   /**
    * Bound the feed to the 50 most recently active followed authors plus the
@@ -27,7 +29,14 @@ export const storiesRepository = {
       SELECT story."userId"
       FROM followed_authors AS author
       INNER JOIN "stories" AS story ON story."userId" = author."userId"
+      INNER JOIN "users" AS author_user ON author_user."id" = story."userId"
       WHERE story."expiresAt" > NOW()
+        AND author_user."isActive" = true
+        AND NOT EXISTS (
+          SELECT 1 FROM "seller_profiles" AS author_seller
+          WHERE author_seller."userId" = author_user."id"
+            AND author_seller."suspended" = true
+        )
         AND (
           author."userId" = ${viewerId}
           OR NOT EXISTS (
@@ -66,6 +75,12 @@ export const storiesRepository = {
         FROM "stories"
         WHERE "userId" IN (${Prisma.join(userIds)})
           AND "expiresAt" > ${now}
+          AND "userId" IN (SELECT "id" FROM "users" WHERE "isActive" = true)
+          AND NOT EXISTS (
+            SELECT 1 FROM "seller_profiles" AS author_seller
+            WHERE author_seller."userId" = "stories"."userId"
+              AND author_seller."suspended" = true
+          )
       ) AS ranked
       WHERE ranked.author_rank <= ${Math.max(1, Math.min(20, Math.trunc(limitPerUser || 20)))}
       ORDER BY ranked."userId" ASC, ranked."createdAt" ASC, ranked."id" ASC
@@ -73,7 +88,16 @@ export const storiesRepository = {
     if (ranked.length === 0) return [];
     const ids = ranked.map(row => row.id);
     const rows = await prisma.story.findMany({
-      where: { id: { in: ids } },
+      where: {
+        id: { in: ids },
+        user: {
+          isActive: true,
+          OR: [
+            { sellerProfile: { is: null } },
+            { sellerProfile: { is: { suspended: false } } },
+          ],
+        },
+      },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },
         _count: { select: { views: true } },
@@ -87,7 +111,17 @@ export const storiesRepository = {
   },
   listActiveForUser: (userId: string) =>
     prisma.story.findMany({
-      where: { userId, expiresAt: { gt: new Date() } },
+      where: {
+        userId,
+        expiresAt: { gt: new Date() },
+        user: {
+          isActive: true,
+          OR: [
+            { sellerProfile: { is: null } },
+            { sellerProfile: { is: { suspended: false } } },
+          ],
+        },
+      },
       orderBy: { createdAt: 'asc' },
       include: {
         user: { select: { id: true, name: true, avatarUrl: true } },

@@ -198,14 +198,27 @@ export const adsRepository = {
         // linked seller profile at all, keeping this branch's semantics
         // identical to the non-search branch rather than introducing a
         // second, slightly different definition of "hidden".
-        Prisma.sql`"sellerProfileId" IN (SELECT "id" FROM "seller_profiles" WHERE "suspended" = false)`,
+        Prisma.sql`"userId" IN (SELECT "id" FROM "users" WHERE "isActive" = true)`,
+        Prisma.sql`"sellerProfileId" IN (
+          SELECT sp."id" FROM "seller_profiles" sp
+          INNER JOIN "users" owner ON owner."id" = sp."userId"
+          WHERE sp."suspended" = false AND owner."isActive" = true
+        )`,
         // AUDIT-FIX (store BLOCKED): store-published ads must leave public
         // search when the store is not ACTIVE (fraud/moderation), matching
         // products.repository.ts. Personal ads (storeId IS NULL) stay visible
         // unless the seller profile is suspended (filter above).
         Prisma.sql`(
           "storeId" IS NULL
-          OR "storeId" IN (SELECT "id" FROM "store_details" WHERE "status" = 'ACTIVE')
+          OR "storeId" IN (
+            SELECT store."id"
+            FROM "store_details" store
+            INNER JOIN "seller_profiles" store_seller ON store_seller."id" = store."sellerProfileId"
+            INNER JOIN "users" store_owner ON store_owner."id" = store_seller."userId"
+            WHERE store."status" = 'ACTIVE'
+              AND store_seller."suspended" = false
+              AND store_owner."isActive" = true
+          )
         )`,
         // + SEARCH-INTEL-01: arabic_normalize on both
         // sides; to_tsquery carries synonym OR-groups from analyzeSearchQuery.
@@ -293,12 +306,16 @@ export const adsRepository = {
       // relation (Ad.sellerProfileId), not a nested chain like
       // products' store.sellerProfile, so this is a single relation
       // filter rather than two.
-      sellerProfile: { suspended: false },
+      user: { isActive: true },
+      sellerProfile: { suspended: false, user: { isActive: true } },
       // AUDIT-FIX (store BLOCKED): hide store ads when store is not ACTIVE.
       // Personal ads (no store) keep using sellerProfile.suspended only.
       AND: [
         {
-          OR: [{ storeId: null }, { store: { status: 'ACTIVE' } }],
+          OR: [
+            { storeId: null },
+            { store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } } },
+          ],
         },
       ],
       // exact match, not contains — see the identical fix
@@ -415,7 +432,14 @@ export const adsRepository = {
     // storeId: ads belonging to a store storefront
     const where: Prisma.AdWhereInput = {
       ...(storeId ? { storeId } : { userId }),
-      ...(personalOnly && !storeId ? { storeId: null } : {}),
+      ...(personalOnly && !storeId
+        ? {
+            storeId: null,
+            user: { isActive: true },
+            flaggedForReview: false,
+            sellerProfile: { suspended: false, user: { isActive: true } },
+          }
+        : {}),
       status: statusFilter ? statusFilter : { not: AdStatus.DELETED },
     };
 
@@ -448,10 +472,14 @@ export const adsRepository = {
       // recommended in every other ad's "related ads" section, one of
       // the two gaps (alongside the search branch above) the SEC-FIX
       // comment on the non-search branch never actually covered.
-      sellerProfile: { suspended: false },
+      user: { isActive: true },
+      sellerProfile: { suspended: false, user: { isActive: true } },
       AND: [
         {
-          OR: [{ storeId: null }, { store: { status: 'ACTIVE' } }],
+          OR: [
+            { storeId: null },
+            { store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } } },
+          ],
         },
       ],
       OR: [...(categoryId ? [{ categoryId }] : []), { city }],

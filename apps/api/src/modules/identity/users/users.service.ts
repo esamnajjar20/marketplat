@@ -3,6 +3,7 @@ import { usersRepository, SafeUser, PublicUser } from './users.repository';
 import { hashPassword, comparePassword } from '../../../shared/auth/hash';
 import { UpdateProfileInput, UpdateNotificationPreferencesInput } from './users.validation';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
+import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { userCache } from '../../../shared/cache/userCache';
 import {
@@ -33,6 +34,7 @@ import { storesService } from '../../commerce/stores/stores.service';
 import { serviceProvidersService } from '../../services/service-providers/service-providers.service';
 import { favoritesService } from '../../engagement/favorites/favorites.service';
 import { bumpAdsCacheVersionAndHome } from '../../classifieds/ads/ads.cache.keys';
+import { ALL_PUBLIC_LIST_NAMESPACES, hidePublicEntities } from '../../../shared/cache/publicListCache';
 
 export const usersService = {
   /** PATCH /users/me/presence — heartbeat. No DB write, no response
@@ -55,6 +57,10 @@ export const usersService = {
    * the same header; stories and profile content remain independently lazy.
    */
   getProfileInteractionState: async (viewerId: string, profileUserId: string) => {
+    const target = await usersRepository.findPublicById(profileUserId);
+    if (!target || !target.isActive || target.sellerProfile?.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
     if (viewerId === profileUserId) {
       return {
         following: false,
@@ -167,7 +173,10 @@ export const usersService = {
         user = await usersRepository.findPublicById(ownerId);
       }
     }
-    if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    if (!user.isActive || user.sellerProfile?.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
     const id = user.id; // always the real User.id from here on
     const [followersCount, followingCount] = await Promise.all([
       prisma.follow.count({ where: { targetType: 'USER', targetId: id } }),
@@ -212,8 +221,11 @@ export const usersService = {
   },
 
   getUserAds: async (userId: string, query: { page?: number; limit?: number }) => {
-    const user = await usersRepository.findById(userId);
-    if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    const user = await usersRepository.findPublicById(userId);
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    if (!user.isActive || user.sellerProfile?.suspended) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
     const page = query.page || 1;
     const limit = query.limit || 20;
     // S-05: statusFilter pushed to DB — total now only counts ACTIVE ads
@@ -359,13 +371,15 @@ export const usersService = {
       }),
     ]);
 
-    // S-04: invalidate all active sessions + cache
-    await Promise.all([userCache.invalidate(userId), tokenStore.deleteAllRefreshTokens(userId)]);
-
-    // the transaction above flips this user's
-    // ACTIVE ads to DELETED, but nothing invalidated the ads-list / homepage
-    // caches, so a deleted account's ads kept showing for up to ~40s.
-    await bumpAdsCacheVersionAndHome();
+    // S-04: revoke sessions and invalidate every public projection owned by
+    // the account. This includes store/product/service/provider lists, not
+    // only ads: deactivation hides all of those through their owner relation.
+    await Promise.all([
+      userCache.invalidate(userId),
+      tokenStore.deleteAllRefreshTokens(userId),
+      bumpAdsCacheVersionAndHome(),
+      hidePublicEntities(...ALL_PUBLIC_LIST_NAMESPACES),
+    ]);
 
     // Cloudinary cleanup is deliberately after the transaction (the
     // DB state is authoritative; the images are orphaned-by-design

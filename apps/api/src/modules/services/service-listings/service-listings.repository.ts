@@ -257,8 +257,10 @@ export const serviceListingsRepository = {
         FROM "service_listings" sl
         INNER JOIN "service_provider_details" p ON sl."providerId" = p."id"
         INNER JOIN "seller_profiles" sp ON p."sellerProfileId" = sp."id"
+        INNER JOIN "users" owner ON owner."id" = sp."userId"
         WHERE sl."status" = 'ACTIVE'
           AND sp."suspended" = false
+          AND owner."isActive" = true
           AND (
             setweight(to_tsvector('simple', arabic_normalize(coalesce(sl."title", ''))), 'A') ||
             setweight(to_tsvector('simple', arabic_normalize(coalesce(sl."description", ''))), 'B')
@@ -294,7 +296,7 @@ export const serviceListingsRepository = {
 
     const where: Prisma.ServiceListingWhereInput = {
       status: 'ACTIVE',
-      provider: { sellerProfile: { suspended: false } },
+      provider: { sellerProfile: { suspended: false, user: { isActive: true } } },
       ...(categoryId && { categoryId }),
       ...(serviceTypeId && { serviceTypeId }),
       ...(providerId && { providerId }),
@@ -304,7 +306,7 @@ export const serviceListingsRepository = {
       // ads.repository.ts's city filter, via a relation filter instead
       // of a direct column.
       ...(city && {
-        provider: { serviceAreaCities: { has: city }, sellerProfile: { suspended: false } },
+        provider: { serviceAreaCities: { has: city }, sellerProfile: { suspended: false, user: { isActive: true } } },
       }),
       ...((minPrice !== undefined || maxPrice !== undefined) && {
         price: {

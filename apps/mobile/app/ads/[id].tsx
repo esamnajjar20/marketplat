@@ -80,13 +80,19 @@ export default function AdDetailScreen() {
       if (current === loadSequence.current) setAd(fresh);
     } catch (error) {
       if (current !== loadSequence.current) return;
-      if (hasCachedAd) setCacheNotice(true);
-      if (!hasCachedAd) {
-        setErrorMessage(
-          error instanceof ApiError || error instanceof Error
-            ? error.message
-            : 'تعذر تحميل تفاصيل الإعلان.',
-        );
+      if (error instanceof ApiError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+        setAd(null);
+        setCacheNotice(false);
+        setErrorMessage('هذا الحساب محظور، ولا يمكن عرض الإعلان أو محتواه.');
+      } else {
+        if (hasCachedAd) setCacheNotice(true);
+        if (!hasCachedAd) {
+          setErrorMessage(
+            error instanceof ApiError || error instanceof Error
+              ? error.message
+              : 'تعذر تحميل تفاصيل الإعلان.',
+          );
+        }
       }
     } finally {
       if (current === loadSequence.current) setLoading(false);

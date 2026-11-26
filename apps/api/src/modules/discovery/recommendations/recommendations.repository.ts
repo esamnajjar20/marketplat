@@ -490,7 +490,9 @@ export const productRecommendationsRepository = {
     );
     const whereParts: Prisma.Sql[] = [
       Prisma.sql`p."status" = ${ProductStatus.ACTIVE}::"ProductStatus"`,
+      Prisma.sql`sd."status" = ${StoreStatus.ACTIVE}::"StoreStatus"`,
       Prisma.sql`sp."suspended" = false`,
+      Prisma.sql`EXISTS (SELECT 1 FROM "users" owner WHERE owner."id" = sp."userId" AND owner."isActive" = true)`,
     ];
     if (excludeIds.length > 0) {
       whereParts.push(Prisma.sql`p."id" NOT IN (${Prisma.join(excludeIds)})`);
@@ -542,7 +544,10 @@ export const productRecommendationsRepository = {
   ): Promise<ProductWithStoreLite[]> => {
     const where: Prisma.ProductWhereInput = {
       status: ProductStatus.ACTIVE,
-      store: { sellerProfile: { suspended: false } },
+      store: {
+        status: StoreStatus.ACTIVE,
+        sellerProfile: { suspended: false, user: { isActive: true } },
+      },
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
     };
     const [topByViews, mostRecent] = await Promise.all([
@@ -747,6 +752,7 @@ export const serviceListingRecommendationsRepository = {
     const whereParts: Prisma.Sql[] = [
       Prisma.sql`sl."status" = ${ServiceListingStatus.ACTIVE}::"ServiceListingStatus"`,
       Prisma.sql`sp."suspended" = false`,
+      Prisma.sql`EXISTS (SELECT 1 FROM "users" owner WHERE owner."id" = sp."userId" AND owner."isActive" = true)`,
     ];
     if (excludeIds.length > 0) {
       whereParts.push(Prisma.sql`sl."id" NOT IN (${Prisma.join(excludeIds)})`);
@@ -793,7 +799,7 @@ export const serviceListingRecommendationsRepository = {
   ): Promise<ServiceListingWithProvider[]> => {
     const where: Prisma.ServiceListingWhereInput = {
       status: ServiceListingStatus.ACTIVE,
-      provider: { sellerProfile: { suspended: false } },
+      provider: { sellerProfile: { suspended: false, user: { isActive: true } } },
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
       ...(serviceTypeId ? { serviceTypeId } : {}),
     };
@@ -1062,6 +1068,15 @@ export const recommendationsRepository = {
     const whereParts: Prisma.Sql[] = [
       Prisma.sql`a."status" = ${AdStatus.ACTIVE}::"AdStatus" AND a."flaggedForReview" = false`,
       Prisma.sql`sp."suspended" = false`,
+      Prisma.sql`EXISTS (SELECT 1 FROM "users" owner WHERE owner."id" = sp."userId" AND owner."isActive" = true)`,
+      Prisma.sql`EXISTS (SELECT 1 FROM "users" author WHERE author."id" = a."userId" AND author."isActive" = true)`,
+      Prisma.sql`(a."storeId" IS NULL OR EXISTS (
+        SELECT 1 FROM "store_details" sd
+        JOIN "seller_profiles" store_seller ON store_seller."id" = sd."sellerProfileId"
+        JOIN "users" store_owner ON store_owner."id" = store_seller."userId"
+        WHERE sd."id" = a."storeId" AND sd."status" = ${StoreStatus.ACTIVE}::"StoreStatus"
+          AND store_seller."suspended" = false AND store_owner."isActive" = true
+      ))`,
     ];
     if (excludeIds.length > 0) {
       whereParts.push(Prisma.sql`a."id" NOT IN (${Prisma.join(excludeIds)})`);
@@ -1118,7 +1133,21 @@ export const recommendationsRepository = {
     const baseWhere: Prisma.AdWhereInput = {
       status: AdStatus.ACTIVE,
       flaggedForReview: false,
-      sellerProfile: { suspended: false },
+      user: { isActive: true },
+      sellerProfile: { suspended: false, user: { isActive: true } },
+      AND: [
+        {
+          OR: [
+            { storeId: null },
+            {
+              store: {
+                status: StoreStatus.ACTIVE,
+                sellerProfile: { suspended: false, user: { isActive: true } },
+              },
+            },
+          ],
+        },
+      ],
       ...(excludeIds.length > 0 && { id: { notIn: excludeIds } }),
     };
 
@@ -1275,6 +1304,7 @@ export const serviceProviderRecommendationsRepository = {
       JOIN "seller_profiles" sp ON sp."id" = spd."sellerProfileId"
       WHERE spd."availabilityStatus" != 'UNAVAILABLE'::"ServiceAvailability"
         AND sp."suspended" = false
+        AND EXISTS (SELECT 1 FROM "users" owner WHERE owner."id" = sp."userId" AND owner."isActive" = true)
       ORDER BY (${cityScore}) DESC, (${interestScore}) DESC,
         COALESCE((SELECT MAX(sl."createdAt") FROM "service_listings" sl
           WHERE sl."providerId" = spd."id" AND sl."status" = ${ServiceListingStatus.ACTIVE}::"ServiceListingStatus"), spd."createdAt") DESC,
@@ -1381,6 +1411,7 @@ export const storeRecommendationsRepository = {
     const whereParts: Prisma.Sql[] = [
       Prisma.sql`sd."status" = ${StoreStatus.ACTIVE}::"StoreStatus"`,
       Prisma.sql`sp."suspended" = false`,
+      Prisma.sql`EXISTS (SELECT 1 FROM "users" owner WHERE owner."id" = sp."userId" AND owner."isActive" = true)`,
     ];
     if (excludeIds.length > 0) {
       whereParts.push(Prisma.sql`sd."id" NOT IN (${Prisma.join(excludeIds)})`);

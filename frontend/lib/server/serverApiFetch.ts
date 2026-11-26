@@ -47,12 +47,14 @@ const MAX_CACHE_TAGS = 16;
 export class ServerApiHttpError extends Error {
   readonly statusCode: number;
   readonly status: number;
+  readonly code?: string;
 
-  constructor(status: number) {
+  constructor(status: number, code?: string) {
     super(`API request failed with status ${status}`);
     this.name = 'ServerApiHttpError';
     this.statusCode = status;
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -189,7 +191,14 @@ async function requestApiEnvelopeUncached(
 
     if (!response.ok) {
       console.error(`[serverApiFetch] HTTP ${response.status} for ${safeLogPath}`);
-      throw new ServerApiHttpError(response.status);
+      let errorCode: string | undefined;
+      try {
+        const errorPayload = await response.clone().json() as { code?: unknown };
+        if (typeof errorPayload?.code === 'string') errorCode = errorPayload.code;
+      } catch {
+        // Non-JSON proxy/network errors retain status-only classification.
+      }
+      throw new ServerApiHttpError(response.status, errorCode);
     }
 
     // Read as text first so a failed parse can be diagnosed (see describeInvalidBody).

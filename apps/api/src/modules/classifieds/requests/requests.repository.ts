@@ -17,8 +17,32 @@ const offererSelect = {
 const requestDetailInclude = {
   serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } },
   customer: { select: { id: true, name: true, avatarUrl: true } },
-  _count: { select: { offers: { where: { status: { not: 'WITHDRAWN' } } } } },
+  _count: {
+    select: {
+      offers: {
+        where: {
+          status: { not: 'WITHDRAWN' },
+          offerer: {
+            isActive: true,
+            OR: [
+              { sellerProfile: { is: null } },
+              { sellerProfile: { is: { suspended: false } } },
+            ],
+          },
+        },
+      },
+    },
+  },
   offers: {
+    where: {
+      offerer: {
+        isActive: true,
+        OR: [
+          { sellerProfile: { is: null } },
+          { sellerProfile: { is: { suspended: false } } },
+        ],
+      },
+    },
     include: { offerer: { select: offererSelect } },
     orderBy: { price: 'asc' as const },
   },
@@ -30,7 +54,22 @@ const requestDetailInclude = {
 const requestListInclude = {
   serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } },
   customer: { select: { id: true, name: true, avatarUrl: true } },
-  _count: { select: { offers: { where: { status: { not: 'WITHDRAWN' } } } } },
+  _count: {
+    select: {
+      offers: {
+        where: {
+          status: { not: 'WITHDRAWN' },
+          offerer: {
+            isActive: true,
+            OR: [
+              { sellerProfile: { is: null } },
+              { sellerProfile: { is: { suspended: false } } },
+            ],
+          },
+        },
+      },
+    },
+  },
 } as const;
 
 export type RequestWithRelations = Prisma.RequestGetPayload<{
@@ -104,6 +143,12 @@ export const requestsRepository = {
   findById: (id: string): Promise<RequestWithRelations | null> =>
     prisma.request.findUnique({ where: { id }, include: requestDetailInclude }),
 
+  findPublicOwnerState: (userId: string) =>
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { isActive: true, sellerProfile: { select: { suspended: true } } },
+    }),
+
   findOpenFeed: async (query: {
     page?: number;
     limit?: number;
@@ -129,6 +174,13 @@ export const requestsRepository = {
     const search = q?.trim();
     const where: Prisma.RequestWhereInput = {
       status: 'OPEN',
+      customer: {
+        isActive: true,
+        OR: [
+          { sellerProfile: { is: null } },
+          { sellerProfile: { is: { suspended: false } } },
+        ],
+      },
       AND: [
         {
           OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],

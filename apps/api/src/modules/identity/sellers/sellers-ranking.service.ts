@@ -62,6 +62,7 @@ export const sellersRankingService = {
     const rows = await prisma.sellerProfile.findMany({
       where: {
         suspended: false,
+        user: { isActive: true },
         // at least some activity signal
         OR: [{ totalRatings: { gt: 0 } }, { activeAds: { gt: 0 } }, { trustScore: { gt: 0 } }],
       },

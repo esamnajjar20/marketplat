@@ -444,7 +444,14 @@ export const productsService = {
       throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
     }
     if (product.store.sellerProfile?.suspended) {
-      throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+    }
+    const productOwner = await prisma.user.findUnique({
+      where: { id: product.store.sellerProfile.userId },
+      select: { isActive: true },
+    });
+    if (!productOwner?.isActive) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
     }
     // SEC-FIX: same gap, different trigger — an admin blocking a store
     // via storesService.updateStoreStatus (status -> BLOCKED) already

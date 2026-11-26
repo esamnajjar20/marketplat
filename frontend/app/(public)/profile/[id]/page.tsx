@@ -4,6 +4,8 @@ import { notFound }            from 'next/navigation';
 import { cache }               from 'react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
 import { ProfileTabsSection }  from '@/components/profile/ProfileTabsSection';
+import { PublicProfileBlocked } from '@/components/profile/PublicProfileBlocked';
+import { ServerApiHttpError } from '@/lib/server/serverApiFetch';
 import { buildMetadata }       from '@/lib/seo';
 import type { PublicUser }     from '@/types/user.types';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
@@ -54,7 +56,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const user = await getCachedUser(id);
     return buildMetadata({ title: `${user?.name ?? ''} — الملف الشخصي`, path: `/profile/${id}` });
-  } catch {
+  } catch (error) {
+    if (error instanceof ServerApiHttpError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+      return {
+        title: 'الحساب محظور',
+        robots: { index: false, follow: false },
+      };
+    }
     return { title: 'الملف الشخصي' };
   }
 }
@@ -66,6 +74,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   const requestedPage = positivePage(first(rawSearch.page));
   let user: PublicUser | null = null;
   let loadFailed = false;
+  let accountBlocked = false;
   try {
     user = await getCachedUser(id);
   } catch (err) {
@@ -75,8 +84,12 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     const status =
       (err as { statusCode?: number })?.statusCode ??
       (err as { response?: { status?: number } })?.response?.status;
-    if (status !== 404) loadFailed = true;
+    const code = (err as { code?: string })?.code;
+    accountBlocked = status === 403 && code === 'PUBLIC_ACCOUNT_BLOCKED';
+    if (status !== 404 && !accountBlocked) loadFailed = true;
   }
+
+  if (accountBlocked) return <PublicProfileBlocked />;
 
   // FIX SSR-FALLBACK-02: SSR fetch failed (not a 404) -> let the browser fetch it.
   if (!user && loadFailed) return <PublicProfileClient id={id} />;

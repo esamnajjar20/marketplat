@@ -170,6 +170,18 @@ export const serviceRequestsService = {
         'SERVICE_PROVIDER_SUSPENDED'
       );
     }
+    if (provider) {
+      const providerOwner = await prisma.user.findUnique({
+        where: { id: provider.sellerProfile.userId },
+        select: { isActive: true },
+      });
+      if (!providerOwner?.isActive) {
+        throw new BadRequestError(
+          'This service listing is not available for requests.',
+          'PUBLIC_ACCOUNT_BLOCKED'
+        );
+      }
+    }
 
     if (provider?.availabilityStatus === 'UNAVAILABLE') {
       throw new BadRequestError(

@@ -139,6 +139,12 @@ const storeWithSellerAndCounts = {
 };
 
 export const storesRepository = {
+  findPublicOwnerState: (sellerProfileId: string) =>
+    prisma.sellerProfile.findUnique({
+      where: { id: sellerProfileId },
+      select: { suspended: true, user: { select: { isActive: true } } },
+    }),
+
   findBySellerProfileId: (sellerProfileId: string): Promise<StoreDetails | null> =>
     prisma.storeDetails.findUnique({
       where: { sellerProfileId },
@@ -208,7 +214,7 @@ export const storesRepository = {
   // pending or seller-suspended store as a public target.
   findActiveByIdWithSeller: (id: string): Promise<StoreWithSeller | null> =>
     prisma.storeDetails.findFirst({
-      where: { id, status: 'ACTIVE', sellerProfile: { suspended: false } },
+      where: { id, status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } },
       include: storeWithSeller,
     }),
 
@@ -332,8 +338,10 @@ export const storesRepository = {
         SELECT s."id"
         FROM "store_details" s
         INNER JOIN "seller_profiles" sp ON s."sellerProfileId" = sp."id"
+        INNER JOIN "users" owner ON owner."id" = sp."userId"
         WHERE s."status" = 'ACTIVE'
           AND sp."suspended" = false
+          AND owner."isActive" = true
           AND (
             setweight(to_tsvector('simple', arabic_normalize(coalesce(s."name", ''))), 'A') ||
             setweight(to_tsvector('simple', arabic_normalize(coalesce(s."description", ''))), 'B')
@@ -352,7 +360,7 @@ export const storesRepository = {
       // search.repository.ts — this endpoint had no suspended-seller
       // filter at all, so a suspended seller's store kept showing up
       // in the public "browse stores" directory.
-      sellerProfile: { suspended: false },
+      sellerProfile: { suspended: false, user: { isActive: true } },
       ...(city && { city }),
       ...(query.type ? { storeType: { slug: query.type } } : {}),
       ...(ftsIds ? { id: { in: ftsIds } } : {}),
@@ -381,7 +389,7 @@ export const storesRepository = {
     const where: Prisma.StoreDetailsWhereInput = {
       status: 'ACTIVE',
       plan: 'FEATURED',
-      sellerProfile: { suspended: false },
+      sellerProfile: { suspended: false, user: { isActive: true } },
       ...(city && { city }),
     };
 

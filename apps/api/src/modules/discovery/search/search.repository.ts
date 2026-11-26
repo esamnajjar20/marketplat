@@ -272,7 +272,18 @@ const adBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => {
   // `sellerProfile: { suspended: false }` filter elsewhere.
   const conditions: Prisma.Sql[] = [
     Prisma.sql`a."status" = 'ACTIVE'`,
-    Prisma.sql`a."sellerProfileId" IN (SELECT "id" FROM "seller_profiles" WHERE "suspended" = false)`,
+    Prisma.sql`a."userId" IN (SELECT "id" FROM "users" WHERE "isActive" = true)`,
+    Prisma.sql`a."sellerProfileId" IN (
+      SELECT sp."id" FROM "seller_profiles" sp
+      INNER JOIN "users" owner ON owner."id" = sp."userId"
+      WHERE sp."suspended" = false AND owner."isActive" = true
+    )`,
+    Prisma.sql`(a."storeId" IS NULL OR a."storeId" IN (
+      SELECT sd."id" FROM "store_details" sd
+      JOIN "seller_profiles" store_seller ON store_seller."id" = sd."sellerProfileId"
+      JOIN "users" store_owner ON store_owner."id" = store_seller."userId"
+      WHERE sd."status" = 'ACTIVE' AND store_seller."suspended" = false AND store_owner."isActive" = true
+    ))`,
   ];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
@@ -365,6 +376,7 @@ const productBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) =
     Prisma.sql`p."status" = 'ACTIVE'`,
     Prisma.sql`st."status" = 'ACTIVE'`,
     Prisma.sql`sp."suspended" = false`,
+    Prisma.sql`EXISTS (SELECT 1 FROM "users" owner WHERE owner."id" = sp."userId" AND owner."isActive" = true)`,
   ];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
@@ -453,6 +465,7 @@ const storeBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) => 
   const conditions: Prisma.Sql[] = [
     Prisma.sql`st."status" = 'ACTIVE'`,
     Prisma.sql`sp."suspended" = false`,
+    Prisma.sql`EXISTS (SELECT 1 FROM "users" owner WHERE owner."id" = sp."userId" AND owner."isActive" = true)`,
   ];
   if (tsQuery) {
     conditions.push(Prisma.sql`(
@@ -518,6 +531,7 @@ const serviceBranch: BranchBuilder = (tsQuery, categoryId, city, geo, filters) =
   const conditions: Prisma.Sql[] = [
     Prisma.sql`sl."status" = 'ACTIVE'`,
     Prisma.sql`sp."suspended" = false`,
+    Prisma.sql`EXISTS (SELECT 1 FROM "users" owner WHERE owner."id" = sp."userId" AND owner."isActive" = true)`,
   ];
   if (tsQuery) {
     conditions.push(Prisma.sql`(

@@ -14,6 +14,7 @@ import { useProducts } from '@/hooks/queries/useProducts';
 import { track } from '@/lib/analytics';
 import { ROUTES } from '@/lib/constants';
 import { parseApiError } from '@/lib/errorParser';
+import { PublicAccountBlockedState } from '@/components/shared/feedback/PublicAccountBlockedState';
 
 export function ProductDetailSection({ id }: { id: string }) {
   const { data: product, isLoading, isFetching, isError, error, refetch } = useProduct(id);
@@ -29,6 +30,11 @@ export function ProductDetailSection({ id }: { id: string }) {
     }
   }, [product?.id, product?.storeId]);
 
+  // A confirmed moderation response overrides previously cached product data.
+  if (isError && parseApiError(error).code === 'PUBLIC_ACCOUNT_BLOCKED') {
+    return <PublicAccountBlockedState />;
+  }
+
   if (isLoading && !product) {
     return (
       <OfflineQueryFallback
@@ -42,6 +48,7 @@ export function ProductDetailSection({ id }: { id: string }) {
   // A failed background refetch should not replace a previously loaded product.
   if (isError && !product) {
     const parsed = parseApiError(error);
+    if (parsed.code === 'PUBLIC_ACCOUNT_BLOCKED') return <PublicAccountBlockedState />;
     const notFound = parsed.statusCode === 404;
     return (
       <OfflineQueryFallback

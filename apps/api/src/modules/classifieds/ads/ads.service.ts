@@ -533,8 +533,23 @@ export const adsService = {
     if (ad.sellerProfileId) {
       const sellerProfile = await sellersRepository.findById(ad.sellerProfileId);
       if (sellerProfile?.suspended) {
-        throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
+        throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
       }
+      if (sellerProfile) {
+        const sellerOwner = await prisma.user.findUnique({
+          where: { id: sellerProfile.userId },
+          select: { isActive: true },
+        });
+        if (!sellerOwner?.isActive) {
+          throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
+        }
+      }
+    }
+    // Ads can be created by authorized store members, so check the actual
+    // publisher as well as the owning seller profile above.
+    const publisher = await prisma.user.findUnique({ where: { id: ad.userId }, select: { isActive: true } });
+    if (!publisher?.isActive) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
     }
 
     // AUDIT-FIX (store BLOCKED): direct URL must not surface ads of a

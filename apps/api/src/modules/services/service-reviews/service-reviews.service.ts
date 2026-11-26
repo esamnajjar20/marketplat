@@ -83,9 +83,13 @@ export const serviceReviewsService = {
     // seller's service reviews stayed publicly readable via this
     // independent list endpoint even after the seller's own public
     // profile/provider pages were gated on `suspended`.
-    const profile = await sellersRepository.findById(sellerProfileId);
-    if (!profile || profile.suspended) {
-      throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
+    const profile = await prisma.sellerProfile.findUnique({
+      where: { id: sellerProfileId },
+      select: { suspended: true, user: { select: { isActive: true } } },
+    });
+    if (!profile) throw new NotFoundError('Seller not found', 'SELLER_NOT_FOUND');
+    if (profile.suspended || !profile.user.isActive) {
+      throw new ForbiddenError('This account is blocked or unavailable.', 'PUBLIC_ACCOUNT_BLOCKED');
     }
 
     const { reviews, total } = await serviceReviewsRepository.findManyBySellerProfileId(

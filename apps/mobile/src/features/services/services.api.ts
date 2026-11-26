@@ -1,5 +1,5 @@
 import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
-import { apiRequest } from '@/api/client';
+import { ApiError, apiRequest } from '@/api/client';
 import { uploadMobileImagesDirect } from '../media/direct-upload.api';
 import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry, readPublicCache, writePublicCache } from '@/storage/public-cache';
 import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
@@ -107,7 +107,20 @@ export async function getCachedServiceListing(id: string): Promise<ServiceListin
 export async function fetchServiceListing(id: string): Promise<ServiceListing> {
   let response: Envelope<ServiceListing>;
   try { response = await apiRequest<Envelope<ServiceListing>>(`/api/v1/service-listings/${encodeURIComponent(id)}`); }
-  catch (error) { if (!canUseStaleCacheAfterReadFailure(error)) throw error; const cached = await getCachedServiceListing(id); if (cached) return cached; throw error; }
+  catch (error) {
+    if (error instanceof ApiError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+      await Promise.all([
+        deletePublicCacheEntry(`service-listing:${id}`),
+        deletePublicCacheEntriesByPrefix('service-listings:'),
+        deletePublicCacheEntriesByPrefix('api-public:/api/v1/service-listings?'),
+      ]);
+      throw error;
+    }
+    if (!canUseStaleCacheAfterReadFailure(error)) throw error;
+    const cached = await getCachedServiceListing(id);
+    if (cached) return cached;
+    throw error;
+  }
   const item = readData(response, 'تعذر تحميل تفاصيل الخدمة.');
   if (!item || item.id !== id) throw new Error('استجابة تفاصيل الخدمة غير صالحة.');
   await writePublicCache(`service-listing:${id}`, item);
