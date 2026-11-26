@@ -13,7 +13,9 @@
     "type-check": "tsc --noEmit -p tsconfig.json",
     "test": "node --experimental-strip-types --test src/*.test.mts scripts/*.test.mjs",
     "check": "npm run type-check && npm test",
-    "benchmark": "node scripts/benchmark.mjs"
+    "benchmark": "node scripts/benchmark.mjs",
+    "benchmark:phase3": "node scripts/phase3-benchmark.mjs",
+    "test:phase3": "node --test scripts/phase3-benchmark.test.mjs"
   },
   "dependencies": {
     "pg": "^8.16.3"

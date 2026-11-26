@@ -117,6 +117,25 @@ unset HYPERDRIVE_PROBE_TOKEN HYPERDRIVE_PROBE_URL
 
 التفاصيل: [`PHASE2-BENCHMARK-AR.md`](./PHASE2-BENCHMARK-AR.md).
 
+## المرحلة الثالثة: اختبار الحمل المتدرّج والمستمر
+
+بعد مراجعة نتائج المرحلة الثانية، استخدم `PHASE3-LOAD-TEST-AR.md` لاختبار مستويات التزامن 1 و5 و10 و25 و50، ثم اختبار مستمر مضبوط المعدل (10 طلبات/ثانية لمدة تصل إلى 5 دقائق). لا ينشر هذا الاختبار Worker ولا يغيّر إعدادات Hyperdrive؛ إنه عميل HTTP محلي يستخدم نقطة الفحص الموجودة.
+
+```bash
+npm run check
+npm run test:phase3
+export HYPERDRIVE_PROBE_URL='https://<worker-subdomain>.workers.dev/__internal/db-probe'
+read -rsp 'Worker token: ' HYPERDRIVE_PROBE_TOKEN
+echo
+export HYPERDRIVE_PROBE_TOKEN
+npm run benchmark:phase3
+unset HYPERDRIVE_PROBE_TOKEN HYPERDRIVE_PROBE_URL
+```
+
+التقط إحصاءات اتصالات PostgreSQL قبل الاختبار وأثناءه وبعده باستخدام `scripts/connection-snapshot.sql`، كما هو موضح في دليل المرحلة الثالثة. لا تبدأ الاختبار المستمر إلا بعد نجاح اختبارات التزامن، ولا تشغّل أكثر من نسخة benchmark في الوقت نفسه.
+
+التفاصيل: [`PHASE3-LOAD-TEST-AR.md`](./PHASE3-LOAD-TEST-AR.md).
+
 ## لماذا لا يوجد Prisma هنا؟
 
 نسخة `apps/api` في المستودع تستخدم `prisma` و`@prisma/client` بإصدار 5.22.0 ومولّد `prisma-client-js` مع محرك الاعتيادي. توثيق Prisma الحالي يوصي لمسار Worker الخالي من محرك Rust باستخدام `engineType = "client"` وDriver Adapter، ويذكر أن هذا المسار أصبح GA ابتداءً من Prisma 6.16. لذلك لا نعيد استخدام Client الحالي في Worker ولا نرقّي Prisma على مستوى المستودع ضمن اختبار الاتصالات. بعد نجاح المسبار نقرر ترقية محكومة أو فصل طبقة DB Worker/adapter بخطة واختبارات مستقلة.
