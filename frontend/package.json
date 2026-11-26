@@ -30,7 +30,7 @@
     "e2e:report": "playwright show-report",
     "e2e:codegen": "playwright codegen http://localhost:3000",
     "tessdata:sync": "node scripts/sync-tessdata.mts",
-    "postinstall": "node scripts/sync-tessdata.mts || true",
+    "postinstall": "node scripts/sync-tessdata.mts",
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap add android",
     "cap:open:android": "npx cap open android",

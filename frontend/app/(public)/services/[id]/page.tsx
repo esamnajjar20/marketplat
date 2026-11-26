@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { buildMetadata } from '@/lib/seo';
 import type { ServiceListingWithProvider } from '@/types/service.types';
-import { fetchServerApi, ServerApiHttpError } from '@/lib/server/serverApiFetch';
+import { fetchServerApi, isPublicAccountBlockedError, ServerApiHttpError } from '@/lib/server/serverApiFetch';
 import { ServiceListingDetail } from '@/components/services/ServiceListingDetail';
 import { ServiceRequestButton } from '@/components/services/ServiceRequestButton';
 import { ServiceViewTracker } from '@/components/services/ServiceViewTracker';
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const listing = await getCachedListing(id);
     return buildMetadata({ title: listing.title, path: `/services/${id}` });
   } catch (error) {
-    if (error instanceof ServerApiHttpError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+    if (isPublicAccountBlockedError(error)) {
       return { title: 'الحساب محظور', robots: { index: false, follow: false } };
     }
     return { title: 'خدمة' };
@@ -53,17 +53,17 @@ export default async function ServiceListingPage({ params }: Props) {
   try {
     listing = await getCachedListing(id);
   } catch (err) {
-    if (err instanceof ServerApiHttpError && err.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+    if (isPublicAccountBlockedError(err)) {
       accountBlocked = true;
     } else {
-    // Only an HTTP 404 is a confirmed missing listing. Network failures,
-    // timeouts, malformed payloads and every other HTTP status must remain
-    // visible to the route error boundary so users can retry the request.
-    if (err instanceof ServerApiHttpError && [400, 404, 422].includes(err.statusCode)) {
-      listing = null;
-    } else {
-      throw err;
-    }
+      // Only an HTTP 404 is a confirmed missing listing. Network failures,
+      // timeouts, malformed payloads and every other HTTP status must remain
+      // visible to the route error boundary so users can retry the request.
+      if (err instanceof ServerApiHttpError && [400, 404, 422].includes(err.statusCode)) {
+        listing = null;
+      } else {
+        throw err;
+      }
     }
   }
 

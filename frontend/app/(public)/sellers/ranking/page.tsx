@@ -4,9 +4,13 @@ import { SellersRankingClient } from '@/components/sellers/SellersRankingClient'
 import { buildMetadata } from '@/lib/seo';
 import { getQueryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
-import { fetchServerApi } from '@/lib/server/serverApiFetch';
+import { fetchServerApi, isNextProductionBuild } from '@/lib/server/serverApiFetch';
 import type { SellerRankingRow } from '@/types/seller-ranking.types';
 import { normalizeSellerRankingRows } from '@/lib/sellerRanking';
+
+// Keep this page request-rendered. Skip only the optional API prefetch during
+// the build; runtime SSR still uses the Cloudflare API service binding.
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = buildMetadata({
   title: 'أفضل البائعين',
@@ -20,20 +24,22 @@ export default async function SellersRankingPage() {
   const queryKey = queryKeys.sellers.ranking(RANKING_LIMIT);
   let persistServerSeed = false;
 
-  try {
-    const response = await fetchServerApi<SellerRankingRow[]>(
-      `/sellers/ranking?limit=${RANKING_LIMIT}`,
-      { mode: 'no-store', timeoutMs: 2_500 },
-    );
-    if (!Array.isArray(response.data)) {
-      throw new Error('Seller ranking response did not contain a list');
-    }
+  if (!isNextProductionBuild()) {
+    try {
+      const response = await fetchServerApi<SellerRankingRow[]>(
+        `/sellers/ranking?limit=${RANKING_LIMIT}`,
+        { mode: 'no-store', timeoutMs: 2_500 },
+      );
+      if (!Array.isArray(response.data)) {
+        throw new Error('Seller ranking response did not contain a list');
+      }
 
-    queryClient.setQueryData(queryKey, normalizeSellerRankingRows(response.data));
-    persistServerSeed = true;
-  } catch {
-    // Keep the client query and its offline snapshot fallback available when
-    // the public ranking endpoint is temporarily unavailable during SSR.
+      queryClient.setQueryData(queryKey, normalizeSellerRankingRows(response.data));
+      persistServerSeed = true;
+    } catch {
+      // Keep the client query and its offline snapshot fallback available when
+      // the public ranking endpoint is temporarily unavailable during SSR.
+    }
   }
 
   return (

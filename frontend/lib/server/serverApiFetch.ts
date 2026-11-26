@@ -38,12 +38,21 @@ type CloudflareBindingContext = {
 };
 
 const SERVER_API_CACHE_VERSION = 'marketplat-server-api-v1';
+
+/**
+ * Next.js may execute Server Components while creating the production build.
+ * Optional, client-recoverable data seeds must not make that build depend on
+ * a live API endpoint. At runtime this flag is false and SSR uses API_WORKER.
+ */
+export function isNextProductionBuild(): boolean {
+  return process.env.NEXT_PHASE === 'phase-production-build';
+}
 const DEFAULT_SERVER_API_TIMEOUT_MS = 8_000;
 const MIN_PUBLIC_REVALIDATE_SECONDS = 5;
 const MAX_PUBLIC_REVALIDATE_SECONDS = 86_400;
 const MAX_CACHE_TAGS = 16;
 
-/** HTTP response failure with a stable status field for route-level classification. */
+/** HTTP response failure with stable status and API error-code fields. */
 export class ServerApiHttpError extends Error {
   readonly statusCode: number;
   readonly status: number;
@@ -56,6 +65,19 @@ export class ServerApiHttpError extends Error {
     this.status = status;
     this.code = code;
   }
+}
+
+/**
+ * A public resource is blocked only when the API explicitly returns the
+ * account-blocked contract with HTTP 403. A generic 403/5xx/network failure
+ * must never be rendered as a confirmed account block.
+ */
+export function isPublicAccountBlockedError(error: unknown): error is ServerApiHttpError {
+  return (
+    error instanceof ServerApiHttpError &&
+    error.statusCode === 403 &&
+    error.code === 'PUBLIC_ACCOUNT_BLOCKED'
+  );
 }
 
 /**
@@ -191,13 +213,23 @@ async function requestApiEnvelopeUncached(
 
     if (!response.ok) {
       console.error(`[serverApiFetch] HTTP ${response.status} for ${safeLogPath}`);
+
+      // The API error contract places `code` at the top level. Read from a
+      // clone so the original response remains untouched for any caller or
+      // transport instrumentation. Non-JSON proxy responses are status-only.
       let errorCode: string | undefined;
       try {
-        const errorPayload = await response.clone().json() as { code?: unknown };
-        if (typeof errorPayload?.code === 'string') errorCode = errorPayload.code;
+        const errorPayload: unknown = await response.clone().json();
+        if (errorPayload !== null && typeof errorPayload === 'object' && !Array.isArray(errorPayload)) {
+          const candidate = (errorPayload as Record<string, unknown>).code;
+          if (typeof candidate === 'string' && candidate.length > 0 && candidate.length <= 128) {
+            errorCode = candidate;
+          }
+        }
       } catch {
-        // Non-JSON proxy/network errors retain status-only classification.
+        // Non-JSON/malformed proxy errors retain status-only classification.
       }
+
       throw new ServerApiHttpError(response.status, errorCode);
     }
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchServerApi, ServerApiHttpError } from '@/lib/server/serverApiFetch';
+import { fetchServerApi, isNextProductionBuild, isPublicAccountBlockedError, ServerApiHttpError } from '@/lib/server/serverApiFetch';
 import { getPublicApiCacheTags } from '@/lib/server/serverCacheTags';
 
 const mocks = vi.hoisted(() => ({
@@ -32,6 +32,14 @@ describe('fetchServerApi', () => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+  });
+
+  it('detects the production build phase so optional SSR seeds can be skipped', () => {
+    vi.stubEnv('NEXT_PHASE', 'phase-production-build');
+    expect(isNextProductionBuild()).toBe(true);
+
+    vi.stubEnv('NEXT_PHASE', 'phase-production-server');
+    expect(isNextProductionBuild()).toBe(false);
   });
 
   it('reads public API data using the unified transport and its registered tags', async () => {
@@ -147,6 +155,71 @@ describe('fetchServerApi', () => {
       revalidateSeconds: 300,
       tags: getPublicApiCacheTags('/categories'),
     })).rejects.toThrow('استجابة الخادم غير صالحة');
+  });
+
+  it('preserves PUBLIC_ACCOUNT_BLOCKED from the API error envelope for SSR routes', async () => {
+    const errorBody = {
+      success: false,
+      message: 'This account is blocked or unavailable.',
+      statusCode: 403,
+      code: 'PUBLIC_ACCOUNT_BLOCKED',
+    };
+    const response = jsonResponse(errorBody, 403);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    const error = await fetchServerApi('/users/blocked-user', { mode: 'no-store' }).catch((value) => value);
+
+    expect(error).toBeInstanceOf(ServerApiHttpError);
+    expect(error).toMatchObject({ statusCode: 403, status: 403, code: 'PUBLIC_ACCOUNT_BLOCKED' });
+    expect(isPublicAccountBlockedError(error)).toBe(true);
+    // Parsing the clone must not consume the original response body.
+    await expect(response.json()).resolves.toEqual(errorBody);
+  });
+
+  it('does not classify a generic HTTP 403 as a blocked account', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+      success: false,
+      message: 'Forbidden',
+      statusCode: 403,
+      code: 'FORBIDDEN',
+    }, 403)));
+
+    const error = await fetchServerApi('/users/private-resource', { mode: 'no-store' }).catch((value) => value);
+
+    expect(error).toBeInstanceOf(ServerApiHttpError);
+    expect(error).toMatchObject({ statusCode: 403, code: 'FORBIDDEN' });
+    expect(isPublicAccountBlockedError(error)).toBe(false);
+  });
+
+  it('does not classify PUBLIC_ACCOUNT_BLOCKED returned with a non-403 status', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+      success: false,
+      message: 'Upstream error',
+      statusCode: 503,
+      code: 'PUBLIC_ACCOUNT_BLOCKED',
+    }, 503)));
+
+    const error = await fetchServerApi('/users/blocked-user', { mode: 'no-store' }).catch((value) => value);
+
+    expect(error).toBeInstanceOf(ServerApiHttpError);
+    expect(error).toMatchObject({ statusCode: 503, code: 'PUBLIC_ACCOUNT_BLOCKED' });
+    expect(isPublicAccountBlockedError(error)).toBe(false);
+  });
+
+  it('keeps status-only classification for non-JSON proxy errors', async () => {
+    const response = new Response('<html>upstream unavailable</html>', {
+      status: 403,
+      headers: { 'content-type': 'text/html' },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+
+    const error = await fetchServerApi('/users/blocked-user', { mode: 'no-store' }).catch((value) => value);
+
+    expect(error).toBeInstanceOf(ServerApiHttpError);
+    expect(error).toMatchObject({ statusCode: 403, status: 403 });
+    expect((error as ServerApiHttpError).code).toBeUndefined();
+    expect(isPublicAccountBlockedError(error)).toBe(false);
+    await expect(response.text()).resolves.toContain('upstream unavailable');
   });
 
   it('preserves HTTP 404 status so public detail pages can render not-found states', async () => {

@@ -2,7 +2,7 @@ import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { notFound, redirect } from 'next/navigation';
 import { UserRound } from 'lucide-react';
 import type { ServiceProviderPublic } from '@/types/service.types';
-import { fetchServerApi, ServerApiHttpError } from '@/lib/server/serverApiFetch';
+import { fetchServerApi, isPublicAccountBlockedError, ServerApiHttpError } from '@/lib/server/serverApiFetch';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
 import { PublicAccountBlockedState } from '@/components/shared/feedback/PublicAccountBlockedState';
@@ -29,13 +29,13 @@ export default async function LegacyServiceProviderRedirectPage({ params }: Prop
     );
     provider = response.data ?? null;
   } catch (error) {
-    if (error instanceof ServerApiHttpError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+    if (isPublicAccountBlockedError(error)) {
       accountBlocked = true;
     } else {
-    // A missing provider is a real 404. Do not turn transport/5xx failures
-    // into a misleading message that claims the linked account is missing.
-    if (error instanceof ServerApiHttpError && [400, 404, 422].includes(error.statusCode)) notFound();
-    throw error;
+      // A missing provider is a real 404. Do not turn transport/5xx failures
+      // into a misleading message that claims the linked account is missing.
+      if (error instanceof ServerApiHttpError && [400, 404, 422].includes(error.statusCode)) notFound();
+      throw error;
     }
   }
 

@@ -1,0 +1,25 @@
+{
+  "name": "@marketplat/hyperdrive-probe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Isolated, read-only Cloudflare Hyperdrive connectivity probe for MarketPlat PostgreSQL",
+  "engines": {
+    "node": ">=22.18 <25"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "test": "node --experimental-strip-types --test src/*.test.mts",
+    "check": "npm run type-check && npm test"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.5",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.168.0"
+  }
+}

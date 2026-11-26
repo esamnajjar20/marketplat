@@ -5,13 +5,12 @@ import { cache }               from 'react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
 import { ProfileTabsSection }  from '@/components/profile/ProfileTabsSection';
 import { PublicProfileBlocked } from '@/components/profile/PublicProfileBlocked';
-import { ServerApiHttpError } from '@/lib/server/serverApiFetch';
+import { fetchServerApi, isPublicAccountBlockedError, ServerApiHttpError } from '@/lib/server/serverApiFetch';
 import { buildMetadata }       from '@/lib/seo';
 import type { PublicUser }     from '@/types/user.types';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { getQueryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
-import { fetchServerApi } from '@/lib/server/serverApiFetch';
 import type { AdListItem } from '@/types/ad.types';
 import type { PaginationMeta } from '@/types/api.types';
 
@@ -57,7 +56,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const user = await getCachedUser(id);
     return buildMetadata({ title: `${user?.name ?? ''} — الملف الشخصي`, path: `/profile/${id}` });
   } catch (error) {
-    if (error instanceof ServerApiHttpError && error.code === 'PUBLIC_ACCOUNT_BLOCKED') {
+    if (isPublicAccountBlockedError(error)) {
       return {
         title: 'الحساب محظور',
         robots: { index: false, follow: false },
@@ -84,8 +83,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
     const status =
       (err as { statusCode?: number })?.statusCode ??
       (err as { response?: { status?: number } })?.response?.status;
-    const code = (err as { code?: string })?.code;
-    accountBlocked = status === 403 && code === 'PUBLIC_ACCOUNT_BLOCKED';
+    accountBlocked = isPublicAccountBlockedError(err);
     if (status !== 404 && !accountBlocked) loadFailed = true;
   }
 

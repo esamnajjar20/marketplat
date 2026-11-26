@@ -13,9 +13,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pubTess = join(root, 'public', 'tesseract');
 const pubData = join(root, 'public', 'tessdata');
 
-mkdirSync(pubTess, { recursive: true });
-mkdirSync(pubData, { recursive: true });
-
 function tryCopy(src: PathLike, dest: PathLike, label: string) {
   if (!existsSync(src)) {
     console.warn(`[tessdata:sync] تخطي ${label}: غير موجود (${src})`);
@@ -30,35 +27,49 @@ const nm = join(root, 'node_modules');
 const tj = join(nm, 'tesseract.js');
 const core = join(nm, 'tesseract.js-core');
 
-tryCopy(join(tj, 'dist', 'worker.min.js'), join(pubTess, 'worker.min.js'), 'worker.min.js');
+// OCR is not enabled in this frontend build (see middleware.ts CSP comment).
+// Do not emit misleading missing-file warnings during every install unless
+// the runtime packages are actually part of the installation.
+const hasTesseractRuntime = existsSync(join(tj, 'package.json'));
+const hasTesseractCore = existsSync(join(core, 'package.json'));
+if (!hasTesseractRuntime && !hasTesseractCore) {
+  console.info('[tessdata:sync] تم التخطي: حزم OCR غير مثبتة في واجهة الويب.');
+} else if (!hasTesseractRuntime || !hasTesseractCore) {
+  throw new Error('[tessdata:sync] تثبيت OCR غير مكتمل: يلزم tesseract.js و tesseract.js-core معًا.');
+} else {
+  mkdirSync(pubTess, { recursive: true });
+  mkdirSync(pubData, { recursive: true });
+  tryCopy(join(tj, 'dist', 'worker.min.js'), join(pubTess, 'worker.min.js'), 'worker.min.js');
 
-const coreCandidates = [
-  'tesseract-core-simd-lstm.wasm.js',
-  'tesseract-core-simd.wasm.js',
-  'tesseract-core.wasm.js',
-];
-let coreJs = null;
-for (const name of coreCandidates) {
-  const p = join(core, name);
-  if (existsSync(p)) {
-    coreJs = name;
-    tryCopy(p, join(pubTess, 'tesseract-core-simd-lstm.wasm.js'), name);
-    const wasmName = name.replace(/\.js$/, '.wasm');
-    tryCopy(join(core, wasmName), join(pubTess, wasmName), wasmName);
-    break;
+  const coreCandidates = [
+    'tesseract-core-simd-lstm.wasm.js',
+    'tesseract-core-simd.wasm.js',
+    'tesseract-core.wasm.js',
+  ];
+  let coreJs = null;
+  for (const name of coreCandidates) {
+    const p = join(core, name);
+    if (existsSync(p)) {
+      coreJs = name;
+      tryCopy(p, join(pubTess, 'tesseract-core-simd-lstm.wasm.js'), name);
+      const wasmName = name.replace(/\.js$/, '.wasm');
+      tryCopy(join(core, wasmName), join(pubTess, wasmName), wasmName);
+      break;
+    }
   }
-}
-if (!coreJs) {
-  console.warn('[tessdata:sync] لم يُعثر على tesseract.js-core — أبقِ الملفات الحالية في public/tesseract');
-}
+  if (!coreJs) {
+    console.warn('[tessdata:sync] لم يُعثر على tesseract.js-core — أبقِ الملفات الحالية في public/tesseract');
+  }
 
-for (const lang of ['eng', 'ara']) {
-  const f = join(pubData, `${lang}.traineddata.gz`);
-  if (existsSync(f)) console.log(`[tessdata:sync] ✓ ${lang}.traineddata.gz موجود`);
-  else
-    console.warn(
-      `[tessdata:sync] ناقص: public/tessdata/${lang}.traineddata.gz — حمّله للأوفلاين`,
-    );
+  for (const lang of ['eng', 'ara']) {
+    const f = join(pubData, `${lang}.traineddata.gz`);
+    if (existsSync(f)) console.log(`[tessdata:sync] ✓ ${lang}.traineddata.gz موجود`);
+    else
+      console.warn(
+        `[tessdata:sync] ناقص: public/tessdata/${lang}.traineddata.gz — حمّله للأوفلاين`,
+      );
+  }
+
 }
 
 console.log('[tessdata:sync] انتهى');
