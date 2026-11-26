@@ -405,7 +405,8 @@ export const productsRepository = {
   addImages: async (
     id: string,
     newImages: string[],
-    maxImages = MAX_IMAGES_PER_ENTITY
+    maxImages = MAX_IMAGES_PER_ENTITY,
+    tx?: Prisma.TransactionClient
   ): Promise<Product> => {
     // Enforce the dynamic SQL bounds at the repository boundary. The number
     // of bound image placeholders is capped by MAX_IMAGES_PER_ENTITY; the
@@ -417,7 +418,7 @@ export const productsRepository = {
       );
     }
     if (newImages.length === 0) {
-      return prisma.product.findUniqueOrThrow({ where: { id } });
+      return (tx ?? prisma).product.findUniqueOrThrow({ where: { id } });
     }
     const safeMaxImages =
       Number.isInteger(maxImages) && maxImages > 0 && maxImages <= MAX_IMAGES_PER_ENTITY
@@ -425,7 +426,7 @@ export const productsRepository = {
         : MAX_IMAGES_PER_ENTITY;
     const placeholders = newImages.map((_, i) => `$${i + 2}`).join(', ');
 
-    await prisma.$executeRawUnsafe(
+    await (tx ?? prisma).$executeRawUnsafe(
       `UPDATE "products"
        SET "images" = (
          SELECT array_agg(img ORDER BY rn)
@@ -447,7 +448,7 @@ export const productsRepository = {
       ...newImages
     );
 
-    return prisma.product.findUniqueOrThrow({ where: { id } });
+    return (tx ?? prisma).product.findUniqueOrThrow({ where: { id } });
   },
 
   // Mirrors ads.repository.ts's removeImage — atomic, no read-before-write race.

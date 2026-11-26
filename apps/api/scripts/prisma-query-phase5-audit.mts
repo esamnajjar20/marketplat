@@ -120,7 +120,7 @@ check(
 check(
   'Stale service-request expiry replaces per-row writes with one parameterized batch UPDATE',
   /expirePendingBatch: async[\s\S]*?Prisma\.join\(uniqueIds\)[\s\S]*?RETURNING \"id\"/.test(expiryRepository)
-    && /const expiredIds = new Set\([\s\S]*?expirePendingBatch\(stale\.map\(row => row\.id\), cutoff\)/.test(expiryService)
+    && /const expiredIds = new Set\([\s\S]*?expirePendingBatch\(\s*stale\.map\(row => row\.id\),\s*cutoff\s*\)/.test(expiryService)
     && !/for \(const row of stale\) \{[\s\S]*?await serviceRequestsRepository\.expirePending/.test(expiryService),
   'A 200-row expiry batch now needs one conditional write statement instead of up to 200 per-row updates.'
 );

@@ -2,8 +2,11 @@ package rediswire
 
 import (
 	"bufio"
+	"context"
+	"net"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestReadReplyParsesNestedScanResponse(t *testing.T) {
@@ -108,5 +111,48 @@ func TestCacheConfigAcceptsSharedRedisCacheURL(t *testing.T) {
 	}
 	if cfg == nil || cfg.Addr != "cache.example:6380" || !cfg.TLS || cfg.Username != "cache-user" || cfg.Password != "cache-pass" || cfg.DB != 4 {
 		t.Fatalf("unexpected shared cache Redis config: %#v", cfg)
+	}
+}
+
+func TestConnDoInterruptsNetworkReadWhenContextIsCancelled(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+
+	commandReceived := make(chan struct{})
+	go func() {
+		buffer := make([]byte, 1024)
+		_, _ = server.Read(buffer)
+		close(commandReceived)
+		// Keep the peer open without replying so Conn.Do blocks on its read.
+		_, _ = server.Read(buffer)
+	}()
+
+	conn := &Conn{
+		netConn: client,
+		reader:  bufio.NewReader(client),
+		writer:  bufio.NewWriter(client),
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	go func() {
+		_, err := conn.Do(ctx, "PING")
+		result <- err
+	}()
+
+	select {
+	case <-commandReceived:
+	case <-time.After(time.Second):
+		t.Fatal("Redis command was not written")
+	}
+	cancel()
+
+	select {
+	case err := <-result:
+		if err != context.Canceled {
+			t.Fatalf("Conn.Do error = %v, want context.Canceled", err)
+		}
+	case <-time.After(250 * time.Millisecond):
+		t.Fatal("Conn.Do did not stop promptly after context cancellation")
 	}
 }

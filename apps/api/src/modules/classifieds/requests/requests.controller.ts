@@ -11,17 +11,22 @@ import {
 } from './requests.validation';
 import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/auth/requireUser';
+import { resolveDirectImageUploads } from '../../../shared/media/directImageUpload';
 
 export const requestsController = {
   create: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
       const { body } = createRequestSchema.parse({ body: req.body });
+      const directImagePublicIds = body.directImagePublicIds ?? [];
+      const directUploads = directImagePublicIds.length
+        ? await resolveDirectImageUploads(user.userId, 'requests', directImagePublicIds)
+        : undefined;
       const offlineOpId =
         (req.headers['x-offline-op-id'] as string | undefined) ||
         (req.headers['X-Offline-Op-Id'] as string | undefined) ||
         null;
-      const row = await requestsService.create(user.userId, body, offlineOpId);
+      const row = await requestsService.create(user.userId, body, offlineOpId, directUploads, directImagePublicIds);
       res.status(201).json(successResponse('Request created', row));
     } catch (error) {
       next(error);

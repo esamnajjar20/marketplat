@@ -56,6 +56,7 @@ describe('config/cloudinary — circuit breaker integration', () => {
         // asynchronously (as the real SDK does).
         setImmediate(() => callback(new Error('simulated Cloudinary failure'), null));
       },
+      destroy: jest.fn(),
     }));
   }
 
@@ -66,6 +67,7 @@ describe('config/cloudinary — circuit breaker integration', () => {
           callback(null, { secure_url: 'https://cloudinary.example/img.webp', public_id: 'abc123' }),
         );
       },
+      destroy: jest.fn(),
     }));
   }
 
@@ -77,6 +79,23 @@ describe('config/cloudinary — circuit breaker integration', () => {
 
     expect(result).toEqual({ url: 'https://cloudinary.example/img.webp', publicId: 'abc123' });
     expect(getCloudinaryCircuitState().upload).toBe('CLOSED');
+  });
+
+
+  it('aborts the underlying upload stream when the wrapper timeout expires', async () => {
+    jest.useFakeTimers();
+    const destroyStream = jest.fn();
+    mockUploadStream.mockImplementation(() => ({ end: jest.fn(), destroy: destroyStream }));
+    const { uploadImage } = await import('../../src/config/cloudinary');
+
+    const upload = uploadImage(Buffer.from('x'), 'ads');
+    await jest.advanceTimersByTimeAsync(20_000);
+    try {
+      await expect(upload).rejects.toThrow(/timed out/i);
+      expect(destroyStream).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('opens the upload circuit after 5 consecutive upload failures, then rejects the 6th call immediately', async () => {

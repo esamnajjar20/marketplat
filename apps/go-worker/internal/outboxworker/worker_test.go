@@ -1,13 +1,17 @@
 package outboxworker
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 	"testing"
 	"time"
 
 	"marketplat/apps/go-worker/internal/outboxevents"
+	"marketplat/apps/go-worker/internal/rediswire"
 )
 
 func TestEventTypesAreExplicitAndSupported(t *testing.T) {
@@ -110,5 +114,58 @@ func TestSplitNotificationBatchesRejectsSingleOversizedNotification(t *testing.T
 	}
 	if _, err := splitNotificationBatches("event-id", []outboxevents.Notification{notification}, callbackBatchSize, callbackMaxPayloadSize); err == nil {
 		t.Fatal("expected oversized notification to be rejected")
+	}
+}
+
+func TestCheckReadyRejectsMissingDatabaseAndCallbackConfig(t *testing.T) {
+	worker := New(nil, nil, nil, Config{})
+	if err := worker.CheckReady(context.Background()); err == nil || !strings.Contains(err.Error(), "database") {
+		t.Fatalf("CheckReady error = %v, want missing database error", err)
+	}
+}
+
+func TestCheckCacheRedisRequiresHealthyPing(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	serverDone := make(chan error, 1)
+	go func() {
+		connection, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverDone <- acceptErr
+			return
+		}
+		defer connection.Close()
+		reader := bufio.NewReader(connection)
+		for i := 0; i < 3; i++ {
+			if _, readErr := reader.ReadString('\n'); readErr != nil {
+				serverDone <- readErr
+				return
+			}
+		}
+		_, writeErr := connection.Write([]byte("+PONG\r\n"))
+		serverDone <- writeErr
+	}()
+
+	pool := rediswire.NewPool(&rediswire.Config{Addr: listener.Addr().String()}, 1)
+	defer pool.Close()
+	worker := &Worker{cacheRedisPool: pool}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := worker.checkCacheRedis(ctx); err != nil {
+		t.Fatalf("checkCacheRedis returned error for healthy Redis: %v", err)
+	}
+	if err := <-serverDone; err != nil {
+		t.Fatalf("fake Redis server failed: %v", err)
+	}
+}
+
+func TestCheckCacheRedisRejectsMissingPool(t *testing.T) {
+	worker := &Worker{}
+	if err := worker.checkCacheRedis(context.Background()); err == nil || !strings.Contains(err.Error(), "pool") {
+		t.Fatalf("checkCacheRedis error = %v, want missing pool error", err)
 	}
 }

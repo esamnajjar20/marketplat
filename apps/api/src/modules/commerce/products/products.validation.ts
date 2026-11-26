@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ProductAvailability, ProductStatus } from '@prisma/client';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
+import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
 
 const productAttributesSchema = z.preprocess(
   value => {
@@ -34,6 +35,7 @@ export const createProductSchema = z.object({
       // Explicit scope for members who manage more than one store. The
       // service uses this only for authorization; it is not a Product column.
       storeId: z.string().min(1).optional(),
+      directImagePublicIds: directImagePublicIdsSchema,
     })
     // Wholesale pricing is a pair — a minimum quantity with no price
     // (or vice versa) is a contradiction, not a valid partial state.

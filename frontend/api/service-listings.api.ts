@@ -1,8 +1,8 @@
 /**
  * Service listings API — maps to backend /api/v1/service-listings/*.
  * Verified against service-listings.routes.ts / .validation.ts:
- *   - POST is multipart/form-data (uploadMultipleMiddleware) — same
- *     pattern as ads.api.ts's create().
+ *   - POST uses signed direct-to-Cloudinary uploads; legacy multipart
+ *     clients remain supported through uploadMultipleMiddleware.
  *   - PATCH /:id is plain JSON and has NO images field in its Zod
  *     schema — images are only ever mutated through the two dedicated
  *     endpoints below (Gap #3 fix), never through this general PATCH.
@@ -17,6 +17,7 @@ import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 import type { ApiResponse } from '@/types/api.types';
+import { uploadImagesDirect } from './direct-upload';
 import type {
   ServiceListing,
   ServiceListingWithProvider,
@@ -52,42 +53,25 @@ export const serviceListingsApi = {
     (config ? apiClient.get<ApiResponse<ServiceListingWithProvider>>(`/service-listings/${id}`, config) : apiClient.get<ApiResponse<ServiceListingWithProvider>>(`/service-listings/${id}`)),
 
   /**
-   * POST /service-listings — multipart/form-data, same field-append
-   * pattern as ads.api.ts.
-   * UX-FIX P3-10b: accepts an optional onUploadProgress callback, same
-   * as ads.api.ts's create(), so ServiceListingForm can show a real
-   * progress bar during the multipart upload instead of only a static
-   * "جارٍ الحفظ…" button label.
+   * POST /service-listings — JSON with API-issued Cloudinary image IDs;
+   * progress tracks the direct image transfer to Cloudinary.
    *
    * operationId (اختياري): نفس نمط ads.api — يُرسَل كـ X-Offline-Op-Id
    * لربط المسودة المحلية (offlineAdDrafts) بعنصر طابور الـ SW.
    */
-  create: (
+  create: async (
     payload: CreateServiceListingPayload,
     onUploadProgress?: (percent: number) => void,
     operationId?: string,
   ) => {
-    const form = new FormData();
-    form.append('serviceTypeId', payload.serviceTypeId);
-    form.append('categoryId', payload.categoryId);
-    form.append('title', payload.title);
-    form.append('description', payload.description);
-    form.append('pricingType', payload.pricingType);
-    if (payload.price !== undefined) form.append('price', String(payload.price));
-    if (payload.durationEstimate) form.append('durationEstimate', payload.durationEstimate);
-    if (payload.attributes && Object.keys(payload.attributes).length > 0) form.append('attributes', JSON.stringify(payload.attributes));
-    form.append('serviceLocation', payload.serviceLocation);
-    payload.images.forEach((file) => form.append('images', file));
-
-    return apiClient.post<ApiResponse<ServiceListing>>('/service-listings', form, {
-      headers: {
-        // FIX MULTIPART-BOUNDARY-01: axios+FormData sets boundary automatically
-        ...(operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : {}),
-      },
-      onUploadProgress: onUploadProgress
-        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
-        : undefined,
-    });
+    const { images, ...fields } = payload;
+    const directImagePublicIds = await uploadImagesDirect(images, 'service-listings', onUploadProgress);
+    const response = await apiClient.post<ApiResponse<ServiceListing>>('/service-listings', {
+      ...fields,
+      directImagePublicIds,
+    }, { headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined });
+    onUploadProgress?.(100);
+    return response;
   },
 
   /** PATCH /service-listings/:id — JSON only, no images (see file header). */
@@ -107,15 +91,11 @@ export const serviceListingsApi = {
    * POST /service-listings/:id/images — add images to an existing
    * listing. Gap #3 fix — mirrors ads.api.ts's addImages() exactly.
    */
-  addImages: (id: string, files: File[], onUploadProgress?: (percent: number) => void) => {
-    const form = new FormData();
-    files.forEach((f) => form.append('images', f));
-    return apiClient.post<ApiResponse<ServiceListing>>(`/service-listings/${id}/images`, form, {
-      // FIX MULTIPART-BOUNDARY-01: axios+FormData sets boundary automatically
-      onUploadProgress: onUploadProgress
-        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
-        : undefined,
-    });
+  addImages: async (id: string, files: File[], onUploadProgress?: (percent: number) => void) => {
+    const directImagePublicIds = await uploadImagesDirect(files, 'service-listings', onUploadProgress);
+    const response = await apiClient.post<ApiResponse<ServiceListing>>(`/service-listings/${id}/images`, { directImagePublicIds });
+    onUploadProgress?.(100);
+    return response;
   },
 
   /** DELETE /service-listings/:id/images — remove one image by URL. Gap #3 fix. */

@@ -9,7 +9,10 @@ import (
 	"marketplat/apps/go-worker/internal/pushdispatch"
 )
 
-const pushDispatchReadyRetryDelay = 10 * time.Second
+const (
+	pushDispatchReadyRetryDelay = 10 * time.Second
+	outboxReadyRetryDelay       = 10 * time.Second
+)
 
 // startBackgroundWorkers launches every enabled long-running consumer and
 // returns a channel that closes once all of them have exited. Each worker
@@ -42,9 +45,28 @@ func (s *server) startBackgroundWorkers(ctx context.Context) <-chan struct{} {
 }
 
 func (s *server) runOutboxWorker(ctx context.Context) {
-	worker := outboxworker.New(s.db, s.cacheRedisConfig, s.logger, outboxworker.Config{APIBaseURL: s.apiBaseURL, APIToken: s.token, LoadTracker: s.load})
+	worker := outboxworker.New(s.db, s.cacheRedisPool, s.logger, outboxworker.Config{APIBaseURL: s.apiBaseURL, APIToken: s.token, LoadTracker: s.load})
+	for ctx.Err() == nil {
+		readyCtx, readyCancel := context.WithTimeout(ctx, 5*time.Second)
+		readyErr := worker.CheckReady(readyCtx)
+		readyCancel()
+		if readyErr == nil {
+			break
+		}
+		s.logger.Warn("Go outbox worker is not ready; Express fallback remains active", "error", readyErr)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(outboxReadyRetryDelay):
+		}
+	}
+	if ctx.Err() != nil {
+		return
+	}
+	s.outboxWorkerActive.Store(true)
+	defer s.outboxWorkerActive.Store(false)
 	if err := worker.Run(ctx); err != nil && ctx.Err() == nil {
-		s.logger.Error("Go transactional outbox worker exited unexpectedly", "error", err)
+		s.logger.Error("Go transactional outbox worker exited unexpectedly; Express fallback remains active", "error", err)
 	}
 }
 

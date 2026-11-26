@@ -7,7 +7,8 @@ import { logger } from './logger';
  * its own Prisma pool, so the estimate multiplies the configured per-process
  * connection_limit by the resolved worker count. DB_POOL_INSTANCES can
  * override that count with the total Node process count across all Render
- * services sharing the same PostgreSQL instance.
+ * services sharing the same PostgreSQL instance. DB_OTHER_CONNECTIONS adds
+ * Go Worker and other non-Prisma connection pools to the same budget.
  */
 
 // Leave headroom for migrations, psql, pgAdmin, backup jobs, etc.
@@ -32,9 +33,14 @@ function extractConnectionLimit(databaseUrl: string): number | null {
 /** Resolve total Node pool processes, including an optional cross-service override. */
 function estimateInstanceCount(): number {
   const deploymentTotal = process.env.DB_POOL_INSTANCES?.trim();
-  if (deploymentTotal && /^\d+$/.test(deploymentTotal)) {
-    const parsedTotal = Number.parseInt(deploymentTotal, 10);
-    if (parsedTotal > 0) return parsedTotal;
+  if (deploymentTotal) {
+    if (/^\d+$/.test(deploymentTotal)) {
+      const parsedTotal = Number.parseInt(deploymentTotal, 10);
+      if (Number.isSafeInteger(parsedTotal) && parsedTotal >= 1 && parsedTotal <= 500) {
+        return parsedTotal;
+      }
+    }
+    logger.warn('DB_POOL_INSTANCES must be an integer between 1 and 500; estimating this API service with the PM2 fallback');
   }
   const raw = process.env.PM2_INSTANCES?.trim();
   if (raw && /^\d+$/.test(raw)) {
@@ -44,6 +50,28 @@ function estimateInstanceCount(): number {
   if (raw?.toLowerCase() === 'max') return os.cpus().length;
   // Keep this in sync with ecosystem.config.js, which defaults to 2.
   return 2;
+}
+
+
+/**
+ * Connections used by non-Prisma clients that share this PostgreSQL server.
+ * One Go Worker defaults to DB_MAX_OPEN_CONNS=2; enabling both Outbox and Push
+ * Dispatch requires at least 4. Set DB_OTHER_CONNECTIONS to the aggregate maximum
+ * across all Go Worker replicas plus cron and other non-Prisma PostgreSQL clients.
+ */
+function estimateOtherConnections(): number {
+  const raw = process.env.DB_OTHER_CONNECTIONS?.trim();
+  if (!raw) return 2;
+  if (!/^\d+$/.test(raw)) {
+    logger.warn('DB_OTHER_CONNECTIONS must be a non-negative integer; using the safe default of 2');
+    return 2;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isSafeInteger(parsed) || parsed > 500) {
+    logger.warn('DB_OTHER_CONNECTIONS is outside the supported range 0-500; using the safe default of 2');
+    return 2;
+  }
+  return parsed;
 }
 
 export function checkConnectionCapacity(databaseUrl: string, maxConnections: number): void {
@@ -62,26 +90,31 @@ export function checkConnectionCapacity(databaseUrl: string, maxConnections: num
   }
 
   const instances = estimateInstanceCount();
-  const estimatedTotal = connectionLimit * instances;
+  const estimatedNodeTotal = connectionLimit * instances;
+  const estimatedOtherConnections = estimateOtherConnections();
+  const estimatedTotal = estimatedNodeTotal + estimatedOtherConnections;
   const reservedHeadroom = Math.min(SAFETY_MARGIN, Math.floor(maxConnections * 0.3));
   const threshold = Math.max(1, maxConnections - reservedHeadroom);
 
   if (estimatedTotal > threshold) {
     logger.warn(
-      `⚠️  Estimated total DB connections (${instances} instances × ` +
-        `connection_limit=${connectionLimit} = ${estimatedTotal}) may exceed ` +
+      `⚠️  Estimated total DB connections (${instances} Node instances × ` +
+        `connection_limit=${connectionLimit} = ${estimatedNodeTotal}, plus ` +
+        `${estimatedOtherConnections} non-Prisma connections = ${estimatedTotal}) may exceed ` +
         `Postgres's configured max_connections (${maxConnections}), ` +
         `leaving less than the reserved connection headroom ` +
         `for migrations, admin tools, and backup jobs. Set DB_POOL_INSTANCES to ` +
-        `include all Node processes across Render services sharing this database. ` +
+        `include all Node processes across Render services, and DB_OTHER_CONNECTIONS ` +
+        `to the aggregate Go Worker/cron/other non-Prisma pool maximums. ` +
         `Set PM2_INSTANCES explicitly when the platform allocation differs from the ` +
         `host CPU count, and configure connection_limit to match the service's pool budget.`,
-      { instances, connectionLimit, estimatedTotal, threshold, maxConnections }
+      { instances, connectionLimit, estimatedNodeTotal, estimatedOtherConnections, estimatedTotal, threshold, maxConnections }
     );
   } else {
     logger.info(
-      `DB connection capacity check passed: ${instances} instances × ` +
-        `connection_limit=${connectionLimit} = ${estimatedTotal} ` +
+      `DB connection capacity check passed: ${instances} Node instances × ` +
+        `connection_limit=${connectionLimit} = ${estimatedNodeTotal}, plus ` +
+        `${estimatedOtherConnections} non-Prisma connections = ${estimatedTotal} ` +
         `(within configured max_connections=${maxConnections})`
     );
   }

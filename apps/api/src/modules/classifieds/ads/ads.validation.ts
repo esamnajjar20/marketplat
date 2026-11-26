@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AdStatus, AdCondition } from '@prisma/client';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
+import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
 
 /**
  * createAd sends multipart/form-data (required for image
@@ -46,6 +47,8 @@ export const createAdSchema = z.object({
       v => (v === '' || v === null || v === undefined ? undefined : v),
       z.string().cuid().optional()
     ),
+    // Opaque IDs issued by the API and uploaded directly to Cloudinary.
+    directImagePublicIds: directImagePublicIdsSchema,
   }),
 });
 

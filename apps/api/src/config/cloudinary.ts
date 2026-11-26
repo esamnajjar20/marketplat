@@ -42,9 +42,21 @@ class CloudinaryTimeoutError extends Error {
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  operation: string,
+  onTimeout?: () => void
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
+      // Rejecting the wrapper alone leaves the provider stream running and
+      // retaining its source buffer/socket. Abort the underlying stream too.
+      try {
+        onTimeout?.();
+      } catch {
+        // Preserve the timeout as the primary error even if abort cleanup fails.
+      }
       reject(new CloudinaryTimeoutError(operation, timeoutMs));
     }, timeoutMs);
     timer.unref();
@@ -129,40 +141,42 @@ async function uploadWithTransform(
 ): Promise<UploadResult> {
   return uploadBreaker
     .execute(async () => {
+      let uploadStream: ReturnType<typeof cloudinary.uploader.upload_stream> | undefined;
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream(
-            {
-              folder,
-              timeout: UPLOAD_TIMEOUT_MS,
-              transformation,
-            },
-            (error, result) => {
-              if (error || !result) {
-                logger.error(`Cloudinary ${label} returned an error`, {
-                  folder,
-                  cloudinaryError: error
-                    ? {
-                        message: error.message,
-                        name: error.name,
-                        http_code: (error as { http_code?: number }).http_code,
-                      }
-                    : 'no error object, but no result either',
-                });
-                return reject(
-                  new ServiceUnavailableError(
-                    'Image upload is temporarily unavailable, please try again shortly'
-                  )
-                );
-              }
-              resolve({ url: result.secure_url, publicId: result.public_id });
+        uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder,
+            timeout: UPLOAD_TIMEOUT_MS,
+            transformation,
+          },
+          (error, result) => {
+            if (error || !result) {
+              logger.error(`Cloudinary ${label} returned an error`, {
+                folder,
+                cloudinaryError: error
+                  ? {
+                      message: error.message,
+                      name: error.name,
+                      http_code: (error as { http_code?: number }).http_code,
+                    }
+                  : 'no error object, but no result either',
+              });
+              return reject(
+                new ServiceUnavailableError(
+                  'Image upload is temporarily unavailable, please try again shortly'
+                )
+              );
             }
-          )
-          .end(buffer);
+            resolve({ url: result.secure_url, publicId: result.public_id });
+          }
+        );
+        uploadStream.end(buffer);
       });
 
       try {
-        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, label);
+        return await withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, label, () => {
+          uploadStream?.destroy();
+        });
       } catch (err) {
         if (err instanceof CloudinaryTimeoutError) {
           logger.error(`Cloudinary ${label} timed out`, {
@@ -194,33 +208,35 @@ export const uploadImage = (buffer: Buffer, folder: string): Promise<UploadResul
 export const uploadAudio = async (buffer: Buffer, folder: string): Promise<UploadResult> => {
   return uploadBreaker
     .execute(async () => {
+      let uploadStream: ReturnType<typeof cloudinary.uploader.upload_stream> | undefined;
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream(
-            {
-              folder: `classifieds/${folder}`,
-              resource_type: 'video',
-              // Normalize browser MediaRecorder output (WebM/Opus/Ogg) to a
-              // universally playable audio container for the <audio> element.
-              // Returning the original video-resource URL was the reason some
-              // Android/browser combinations showed a voice bubble but could
-              // not play it.
-              format: 'mp3',
-              timeout: UPLOAD_TIMEOUT_MS,
-            },
-            (error, result) => {
-              if (error || !result)
-                return reject(
-                  new ServiceUnavailableError(
-                    'Audio upload is temporarily unavailable, please try again shortly'
-                  )
-                );
-              resolve({ url: result.secure_url, publicId: result.public_id });
-            }
-          )
-          .end(buffer);
+        uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: `classifieds/${folder}`,
+            resource_type: 'video',
+            // Normalize browser MediaRecorder output (WebM/Opus/Ogg) to a
+            // universally playable audio container for the <audio> element.
+            // Returning the original video-resource URL was the reason some
+            // Android/browser combinations showed a voice bubble but could
+            // not play it.
+            format: 'mp3',
+            timeout: UPLOAD_TIMEOUT_MS,
+          },
+          (error, result) => {
+            if (error || !result)
+              return reject(
+                new ServiceUnavailableError(
+                  'Audio upload is temporarily unavailable, please try again shortly'
+                )
+              );
+            resolve({ url: result.secure_url, publicId: result.public_id });
+          }
+        );
+        uploadStream.end(buffer);
       });
-      return withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'audio upload');
+      return withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'audio upload', () => {
+        uploadStream?.destroy();
+      });
     })
     .catch(err => {
       if (err instanceof CircuitBreakerOpenError) {
@@ -239,30 +255,32 @@ export const uploadRawFile = async (
 ): Promise<UploadResult> => {
   return uploadBreaker
     .execute(async () => {
+      let uploadStream: ReturnType<typeof cloudinary.uploader.upload_stream> | undefined;
       const uploadPromise = new Promise<UploadResult>((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream(
-            {
-              folder: `classifieds/${folder}`,
-              resource_type: 'raw',
-              use_filename: true,
-              unique_filename: true,
-              filename_override: fileName.replace(/[^a-zA-Z0-9._-]/g, '_'),
-              timeout: UPLOAD_TIMEOUT_MS,
-            },
-            (error, result) => {
-              if (error || !result)
-                return reject(
-                  new ServiceUnavailableError(
-                    'File upload is temporarily unavailable, please try again shortly'
-                  )
-                );
-              resolve({ url: result.secure_url, publicId: result.public_id });
-            }
-          )
-          .end(buffer);
+        uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: `classifieds/${folder}`,
+            resource_type: 'raw',
+            use_filename: true,
+            unique_filename: true,
+            filename_override: fileName.replace(/[^a-zA-Z0-9._-]/g, '_'),
+            timeout: UPLOAD_TIMEOUT_MS,
+          },
+          (error, result) => {
+            if (error || !result)
+              return reject(
+                new ServiceUnavailableError(
+                  'File upload is temporarily unavailable, please try again shortly'
+                )
+              );
+            resolve({ url: result.secure_url, publicId: result.public_id });
+          }
+        );
+        uploadStream.end(buffer);
       });
-      return withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'file upload');
+      return withTimeout(uploadPromise, UPLOAD_TIMEOUT_MS, 'file upload', () => {
+        uploadStream?.destroy();
+      });
     })
     .catch(err => {
       if (err instanceof CircuitBreakerOpenError)

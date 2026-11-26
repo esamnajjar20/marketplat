@@ -34,7 +34,11 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=5000
-      - DATABASE_URL=postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-classifieds_db}?connection_limit=${DB_CONNECTION_LIMIT:-20}&pool_timeout=30
+      - DATABASE_URL=postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-classifieds_db}?connection_limit=${DB_CONNECTION_LIMIT:-1}&pool_timeout=${DB_POOL_TIMEOUT_SECONDS:-15}
+      - DB_CONNECTION_LIMIT=${DB_CONNECTION_LIMIT:-1}
+      - DB_POOL_TIMEOUT_SECONDS=${DB_POOL_TIMEOUT_SECONDS:-15}
+      - DB_POOL_INSTANCES=${DB_POOL_INSTANCES:-2}
+      - DB_OTHER_CONNECTIONS=${DB_OTHER_CONNECTIONS:-2}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - JWT_EXPIRES_IN=15m

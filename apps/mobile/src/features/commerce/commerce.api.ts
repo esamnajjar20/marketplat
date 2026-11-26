@@ -1,5 +1,6 @@
 import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
 import { ApiError, apiRequest } from '@/api/client';
+import { uploadMobileImagesDirect } from '../media/direct-upload.api';
 import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry } from '@/storage/public-cache';
 
 type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
@@ -111,25 +112,26 @@ export type ProductWriteInput = {
   discountPrice?: number; wholesalePrice?: number; wholesaleMinQty?: number; costPrice?: number;
   attributes?: Record<string, string | number | boolean>;
 };
-export async function createProduct(input: ProductWriteInput, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string}> = [], storeId?: string) {
+export async function createProduct(input: ProductWriteInput, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string;fileSize?:number|null}> = [], storeId?: string) {
+  const scopedInput = { ...input, ...(storeId ? { storeId } : {}) };
+  const directImagePublicIds = await uploadMobileImagesDirect(images, 'products', token, csrfToken);
   const headers = { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}) };
-  const scopedInput = storeId ? { ...input, storeId } : input;
-  let body: FormData | string = JSON.stringify(scopedInput);
-  if (images.length) { const form = new FormData(); for (const [key,value] of Object.entries(scopedInput)) if (value !== undefined) form.append(key, value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value)); for (const image of images) form.append('images', {uri:image.uri,name:image.fileName,type:image.mimeType} as unknown as Blob); body = form; }
-  const created = dataOf(await apiRequest<Envelope<ProductSummary>>('/api/v1/products', { method: 'POST', token, headers, body }), 'تعذر إنشاء المنتج.');
+  const response = await apiRequest<Envelope<ProductSummary>>('/api/v1/products', {
+    method: 'POST', token, headers,
+    body: JSON.stringify({ ...scopedInput, directImagePublicIds }),
+  });
+  const created = dataOf(response, 'تعذر إنشاء المنتج.');
   await invalidateProductCaches(created.id);
   return created;
 }
-export async function updateProduct(id: string, input: Partial<{ categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity: number | null; discountPrice: number | null; wholesalePrice: number | null; wholesaleMinQty: number | null; costPrice: number | null; attributes: Record<string, string | number | boolean>; status: string }>, token: string, csrfToken?: string | null) {
-  const updated = dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المنتج.');
-  await invalidateProductCaches(id);
-  return updated;
-}
-export async function addProductImages(id: string, images: Array<{ uri: string; fileName: string; mimeType: string }>, token: string, csrfToken?: string | null) {
+export async function addProductImages(id: string, images: Array<{ uri: string; fileName: string; mimeType: string; fileSize?: number | null }>, token: string, csrfToken?: string | null) {
   if (!images.length) return fetchProduct(id);
-  const body = new FormData();
-  for (const image of images) body.append('images', { uri: image.uri, name: image.fileName, type: image.mimeType } as unknown as Blob);
-  const updated = dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}/images`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body }), 'تعذر رفع صور المنتج.');
+  const directImagePublicIds = await uploadMobileImagesDirect(images, 'products', token, csrfToken);
+  const updated = dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}/images`, {
+    method: 'POST', token,
+    headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+    body: JSON.stringify({ directImagePublicIds }),
+  }), 'تعذر رفع صور المنتج.');
   await invalidateProductCaches(id);
   return updated;
 }

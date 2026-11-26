@@ -13,6 +13,8 @@ import {
 import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/auth/requireUser';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { resolveDirectImageUploads } from '../../../shared/media/directImageUpload';
+import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
 
 export const adsController = {
   createAd: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -20,6 +22,13 @@ export const adsController = {
       const user = requireUser(req);
       const { body } = createAdSchema.parse({ body: req.body });
       const files = (req.files as Express.Multer.File[]) || [];
+      const directImagePublicIds = directImagePublicIdsSchema.parse(body.directImagePublicIds) ?? [];
+      if (files.length && directImagePublicIds.length) {
+        throw new BadRequestError('Use multipart files or direct image IDs, not both.', 'MIXED_IMAGE_UPLOAD_MODES');
+      }
+      const directUploads = directImagePublicIds.length
+        ? await resolveDirectImageUploads(user.userId, 'ads', directImagePublicIds)
+        : undefined;
       // the frontend's AdForm.validate() enforces "at
       // least one image" as a UI-only rule (see AdForm.tsx's
       // e.images = 'أضف صورة واحدة على الأقل' check) — nothing on the
@@ -46,14 +55,14 @@ export const adsController = {
       // photo. Now carries its own code so the frontend (see
       // ar/errors.ts's IMAGE_REQUIRED entry) can show a message that
       // actually names the problem.
-      if (files.length === 0)
+      if (files.length === 0 && !directUploads?.length)
         throw new BadRequestError('At least one image is required', 'IMAGE_REQUIRED');
       // forward client offline op id for dedup
       const offlineOpId =
         (req.headers['x-offline-op-id'] as string | undefined) ||
         (req.headers['X-Offline-Op-Id'] as string | undefined) ||
         null;
-      const ad = await adsService.createAd(user.userId, body, files, offlineOpId);
+      const ad = await adsService.createAd(user.userId, body, files, offlineOpId, directUploads, directImagePublicIds);
       res.status(201).json(successResponse('Ad created', ad));
     } catch (error) {
       next(error);
@@ -141,9 +150,16 @@ export const adsController = {
       const user = requireUser(req);
       const { params } = adIdSchema.parse({ params: req.params });
       const files = (req.files as Express.Multer.File[]) || [];
-      if (files.length === 0) throw new BadRequestError('No images provided');
+      const directImagePublicIds = directImagePublicIdsSchema.parse(req.body?.directImagePublicIds) ?? [];
+      if (files.length && directImagePublicIds.length) {
+        throw new BadRequestError('Use multipart files or direct image IDs, not both.', 'MIXED_IMAGE_UPLOAD_MODES');
+      }
+      const directUploads = directImagePublicIds.length
+        ? await resolveDirectImageUploads(user.userId, 'ads', directImagePublicIds)
+        : undefined;
+      if (files.length === 0 && !directUploads?.length) throw new BadRequestError('No images provided');
       const offlineOpId = (req.headers['x-offline-op-id'] as string | undefined) || null;
-      const ad = await adsService.addImages(params.id, user.userId, user.role, files, offlineOpId);
+      const ad = await adsService.addImages(params.id, user.userId, user.role, files, offlineOpId, directUploads, directImagePublicIds);
       res.status(200).json(successResponse('Images added', ad));
     } catch (error) {
       next(error);

@@ -23,6 +23,7 @@ import type {
   AdSearchQuery,
 } from '@/types/ad.types';
 import type { ApiResponse } from '@/types/api.types';
+import { uploadImagesDirect } from './direct-upload';
 
 export const adsApi = {
   /** GET /ads — paginated + filtered list */
@@ -83,16 +84,10 @@ export const adsApi = {
     }>>('/ads/me/stats', config),
 
   /**
-   * POST /ads — create new ad (multipart/form-data).
+   * POST /ads — create new ad using direct Cloudinary uploads (legacy multipart remains supported).
    *
-   * UX-FIX P3-10b: accepts an optional onUploadProgress callback so
-   * ImageUpload can show a real progress bar during the actual upload
-   * (create/edit ad submission) instead of no feedback at all between
-   * "Publish" and the success toast. This is one combined percentage for
-   * the whole multipart request — axios reports progress at the request
-   * level, not per-file within a single FormData — but that's still a
-   * large, honest improvement over a multi-second silent wait on a slow
-   * connection with several photos attached.
+   * The optional progress callback tracks the direct browser-to-Cloudinary
+   * transfer, without routing image bytes through the Express API.
    */
   /**
    * operationId (اختياري): FIX AD-DRAFT-QUEUE-LINK-01 — يُرسَل كـ header
@@ -102,33 +97,21 @@ export const adsApi = {
    * الفعلية بدل أن يكونا مصدرين منفصلين لا يتزامنان أبدًا — انظر
    * lib/offlineAdDraftSync.ts.
    */
-  create: (
+  create: async (
     payload: CreateAdPayload,
     onUploadProgress?: (percent: number) => void,
     operationId?: string,
   ) => {
-    const form = new FormData();
-    (Object.keys(payload) as (keyof CreateAdPayload)[]).forEach((key) => {
-      const value = payload[key];
-      if (value === undefined) return;
-      if (key === 'images' && Array.isArray(value)) {
-        (value as File[]).forEach((file) => form.append('images', file));
-      } else {
-        form.append(key, String(value));
-      }
+    const { images, ...fields } = payload;
+    const directImagePublicIds = await uploadImagesDirect(images ?? [], 'ads', onUploadProgress);
+    const response = await apiClient.post<ApiResponse<Ad>>('/ads', {
+      ...fields,
+      directImagePublicIds,
+    }, {
+      headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined,
     });
-    // FIX MULTIPART-BOUNDARY-01: لا تضبط Content-Type يدويًا.
-    // axios + FormData يضيفان boundary تلقائيًا. التعيين اليدوي
-    // `multipart/form-data` بدون boundary يفسد التحليل على السيرفر
-    // وقد يظهر كـ 503/فشل شبكة رغم أن الـ API يعمل على GET.
-    return apiClient.post<ApiResponse<Ad>>('/ads', form, {
-      headers: {
-        ...(operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : {}),
-      },
-      onUploadProgress: onUploadProgress
-        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
-        : undefined,
-    });
+    onUploadProgress?.(100);
+    return response;
   },
 
   /** PATCH /ads/:id — partial update (status, title, price, etc.) */
@@ -153,16 +136,11 @@ export const adsApi = {
    * UX-FIX P3-10b: same onUploadProgress support as create(), for the
    * edit-ad flow.
    */
-  addImages: (id: string, files: File[], onUploadProgress?: (percent: number) => void) => {
-    const form = new FormData();
-    files.forEach((f) => form.append('images', f));
-    return apiClient.post<ApiResponse<Ad>>(`/ads/${id}/images`, form, {
-      // FIX MULTIPART-BOUNDARY-01: دع axios يضبط boundary
-      headers: {},
-      onUploadProgress: onUploadProgress
-        ? (e) => onUploadProgress(e.total ? Math.round((e.loaded / e.total) * 100) : 0)
-        : undefined,
-    });
+  addImages: async (id: string, files: File[], onUploadProgress?: (percent: number) => void) => {
+    const directImagePublicIds = await uploadImagesDirect(files, 'ads', onUploadProgress);
+    const response = await apiClient.post<ApiResponse<Ad>>(`/ads/${id}/images`, { directImagePublicIds });
+    onUploadProgress?.(100);
+    return response;
   },
 
   /** DELETE /ads/:id/images — remove one image by URL */

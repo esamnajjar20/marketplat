@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ServicePricingType, ServiceLocationType, ServiceListingStatus } from '@prisma/client';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
+import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
 
 const serviceAttributesSchema = z
   .preprocess(
@@ -46,6 +47,7 @@ export const createServiceListingSchema = z.object({
       durationEstimate: z.string().max(100).optional(),
       attributes: serviceAttributesSchema,
       serviceLocation: z.nativeEnum(ServiceLocationType).default('AT_PROVIDER'),
+      directImagePublicIds: directImagePublicIdsSchema,
     })
     .superRefine((data, ctx) => {
       if (data.pricingType !== 'NEGOTIABLE' && data.price === undefined) {

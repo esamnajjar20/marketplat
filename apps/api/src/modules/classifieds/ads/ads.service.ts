@@ -9,7 +9,8 @@ import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../../shared/http/pagination';
 import { PaginatedResult } from '../../../shared/types/pagination.types';
 import { ROLES } from '../../../shared/constants/roles';
-import { uploadImage } from '../../../config/cloudinary';
+import { uploadImageBatch } from '../../../shared/media/uploadImageBatch';
+import type { UploadResult } from '../../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
@@ -39,29 +40,15 @@ import { fraudService } from '../../trust/fraud';
 import { prisma } from '../../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { MAX_IMAGES_PER_ENTITY } from '../../../config/limits';
+import { consumeDirectImageUploadIntents } from '../../../shared/media/directImageUpload';
 import { recordFailedTask } from '../../../shared/jobs/failedBackgroundTasks';
 
 /**
- * Upload ad images without leaking successful Cloudinary uploads when one
- * sibling upload fails. Promise.all rejects early and can hide uploads that
- * finish later; allSettled lets us clean up every successful result first.
+ * Upload ad images with bounded Cloudinary concurrency and clean up every
+ * successful sibling before returning an error for a partially failed batch.
  */
 async function uploadAdImages(files: Express.Multer.File[]) {
-  const results = await Promise.allSettled(files.map(file => uploadImage(file.buffer, 'ads')));
-  const uploads = results
-    .filter(
-      (result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImage>>> =>
-        result.status === 'fulfilled'
-    )
-    .map(result => result.value);
-  const failure = results.find(
-    (result): result is PromiseRejectedResult => result.status === 'rejected'
-  );
-  if (failure) {
-    await cleanupUploadedImages(uploads.map(upload => upload.publicId));
-    throw failure.reason;
-  }
-  return uploads;
+  return uploadImageBatch(files, 'ads');
 }
 
 /**
@@ -159,7 +146,9 @@ export const adsService = {
     input: CreateAdInput,
     files: Express.Multer.File[],
     // FIX OFFLINE-IDEMPOTENCY-01: optional client op id from X-Offline-Op-Id
-    offlineOperationId?: string | null
+    offlineOperationId?: string | null,
+    directUploads?: UploadResult[],
+    directImagePublicIds?: string[]
   ): Promise<AdWithAuthor> => {
     // FIX OFFLINE-IDEMPOTENCY-01: if this offline op already created an ad,
     // return it (idempotent replay after flaky ACK / double Background Sync).
@@ -206,8 +195,11 @@ export const adsService = {
       );
     }
 
-    // P-01: parallel uploads — 10x faster than sequential for loop
-    const uploads = await uploadAdImages(files);
+    // P-01: bounded Cloudinary uploads avoid opening ten provider streams at once
+    if (directUploads && files.length) throw new BadRequestError('Use one image upload mode at a time.', 'MIXED_IMAGE_UPLOAD_MODES');
+    if ((directImagePublicIds?.length ?? 0) !== (directUploads?.length ?? 0)) throw new BadRequestError('Direct image intent metadata is incomplete.', 'DIRECT_UPLOAD_INVALID');
+    const uploads = directUploads ?? await uploadAdImages(files);
+    const cleanupUploads = !directUploads;
     try {
       // Authoritative check-and-insert, serialized per-user so no two
       // concurrent createAd calls for the same user can both pass the
@@ -263,6 +255,9 @@ export const adsService = {
           // totalAds/activeAds can never drift from the actual ad count
           // (seller-profile-design.md §15).
           return prisma.$transaction(async tx => {
+            if (directImagePublicIds?.length) {
+              await consumeDirectImageUploadIntents(tx, userId, 'ads', directImagePublicIds);
+            }
             const created = await tx.ad.create({
               data: {
                 title: input.title,
@@ -421,7 +416,7 @@ export const adsService = {
           if (existing && existing.userId === userId) {
             ad = existing as AdWithAuthor;
             createdNew = false;
-            await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+            if (cleanupUploads) await cleanupUploadedImages(uploads.map(upload => upload.publicId));
           } else {
             throw err;
           }
@@ -490,7 +485,7 @@ export const adsService = {
 
       return ad;
     } catch (error) {
-      await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+      if (cleanupUploads) await cleanupUploadedImages(uploads.map(upload => upload.publicId));
       throw error;
     }
   },
@@ -820,14 +815,20 @@ export const adsService = {
     userId: string,
     userRole: string,
     files: Express.Multer.File[],
-    offlineOperationId?: string | null
+    offlineOperationId?: string | null,
+    directUploads?: UploadResult[],
+    directImagePublicIds?: string[]
   ): Promise<AdWithAuthor> => {
+    if ((directImagePublicIds?.length ?? 0) !== (directUploads?.length ?? 0)) throw new BadRequestError('Direct image intent metadata is incomplete.', 'DIRECT_UPLOAD_INVALID');
+    const incomingImageCount = directUploads?.length ?? files.length;
+    if (directUploads && files.length) throw new BadRequestError('Use one image upload mode at a time.', 'MIXED_IMAGE_UPLOAD_MODES');
+    if ((directImagePublicIds?.length ?? 0) !== (directUploads?.length ?? 0)) throw new BadRequestError('Direct image intent metadata is incomplete.', 'DIRECT_UPLOAD_INVALID');
     const ad = await adsRepository.findById(adId);
     if (!ad || ad.status === 'DELETED') throw new NotFoundError('Ad not found', 'AD_NOT_FOUND');
     if (!(await canManageAd(ad, userId, userRole))) {
       throw new ForbiddenError('You do not have permission to update this ad', 'NOT_YOUR_AD');
     }
-    if (ad.images.length + files.length > MAX_IMAGES_PER_ENTITY) {
+    if (ad.images.length + incomingImageCount > MAX_IMAGES_PER_ENTITY) {
       throw new BadRequestError(`An ad can have a maximum of ${MAX_IMAGES_PER_ENTITY} images`);
     }
 
@@ -864,31 +865,33 @@ export const adsService = {
           return freshAd;
         }
       }
-      if (freshAd.images.length + files.length > MAX_IMAGES_PER_ENTITY) {
+      if (freshAd.images.length + incomingImageCount > MAX_IMAGES_PER_ENTITY) {
         throw new BadRequestError(`An ad can have a maximum of ${MAX_IMAGES_PER_ENTITY} images`);
       }
 
-      // P-01: parallel uploads
-      const uploads = await uploadAdImages(files);
+      // P-01: bounded Cloudinary uploads
+      const uploads = directUploads ?? await uploadAdImages(files);
       try {
-        const updated = offlineOperationId
-          ? await adsRepository.addImagesWithOfflineOperation(
-              adId,
-              userId,
-              offlineOperationId,
-              uploads.map(upload => upload.url)
-            )
-          : await adsRepository.addImages(
-              adId,
-              uploads.map(upload => upload.url)
-            );
+        const imageUrls = uploads.map(upload => upload.url);
+        const updated = directImagePublicIds?.length
+          ? await prisma.$transaction(async tx => {
+              await consumeDirectImageUploadIntents(tx, userId, 'ads', directImagePublicIds);
+              return offlineOperationId
+                ? adsRepository.addImagesWithOfflineOperation(
+                    adId, userId, offlineOperationId, imageUrls, tx
+                  )
+                : adsRepository.addImages(adId, imageUrls, MAX_IMAGES_PER_ENTITY, tx);
+            })
+          : offlineOperationId
+            ? await adsRepository.addImagesWithOfflineOperation(adId, userId, offlineOperationId, imageUrls)
+            : await adsRepository.addImages(adId, imageUrls);
         // FIX AUDIT-V4-06: cached listing payloads include `images` —
         // without this, a newly added photo wouldn't show up in /ads
         // results for up to 30s.
         await bumpAdsCacheVersion({ adId, city: freshAd.city ?? null });
         return updated;
       } catch (error) {
-        await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+        if (!directUploads) await cleanupUploadedImages(uploads.map(upload => upload.publicId));
         throw error;
       }
     });

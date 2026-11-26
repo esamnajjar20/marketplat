@@ -21,9 +21,11 @@ type server struct {
 	redisConfig         *rediswire.Config
 	redisPool           *rediswire.Pool
 	cacheRedisConfig    *rediswire.Config
+	cacheRedisPool      *rediswire.Pool
 	token               string
 	apiBaseURL          string
 	outboxEnabled       bool
+	outboxWorkerActive  atomic.Bool
 	pushDispatchEnabled bool
 	searchIndexEnabled  bool
 	pushDispatchActive  atomic.Bool
@@ -36,12 +38,22 @@ type server struct {
 }
 
 func newServer(cfg config, db *sql.DB, logger *slog.Logger) *server {
+	primaryRedisPool := rediswire.NewPool(cfg.Redis, 2)
+	cacheRedisPool := primaryRedisPool
+	if !sameRedisConfig(cfg.Redis, cfg.CacheRedis) {
+		// Cache-generation bumps are serial in the Outbox worker. A dedicated
+		// cache endpoint therefore needs only one connection; when both roles
+		// use the same Redis service, reuse the primary pool instead of opening
+		// a second pair of TLS/AUTH connections to the same instance.
+		cacheRedisPool = rediswire.NewPool(cfg.CacheRedis, 1)
+	}
 	return &server{
 		db:                  db,
 		load:                loadtracker.New(),
 		redisConfig:         cfg.Redis,
-		redisPool:           rediswire.NewPool(cfg.Redis, 2),
+		redisPool:           primaryRedisPool,
 		cacheRedisConfig:    cfg.CacheRedis,
+		cacheRedisPool:      cacheRedisPool,
 		token:               cfg.Token,
 		apiBaseURL:          cfg.APIBaseURL,
 		outboxEnabled:       cfg.OutboxEnabled,

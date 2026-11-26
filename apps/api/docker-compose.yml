@@ -13,7 +13,11 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=5000
-      - DATABASE_URL=postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-classifieds_db}?connection_limit=${DB_CONNECTION_LIMIT:-20}&pool_timeout=30
+      - DATABASE_URL=postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-classifieds_db}?connection_limit=${DB_CONNECTION_LIMIT:-1}&pool_timeout=${DB_POOL_TIMEOUT_SECONDS:-15}
+      - DB_CONNECTION_LIMIT=${DB_CONNECTION_LIMIT:-1}
+      - DB_POOL_TIMEOUT_SECONDS=${DB_POOL_TIMEOUT_SECONDS:-15}
+      - DB_POOL_INSTANCES=${DB_POOL_INSTANCES:-2}
+      - DB_OTHER_CONNECTIONS=${DB_OTHER_CONNECTIONS:-2}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - JWT_EXPIRES_IN=15m
@@ -67,24 +71,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-classifieds_db}
-    # PROD-FIX-04: max_connections previously ran at Postgres's stock
-    # default (100). capacityCheck.ts (src/shared/observability/capacityCheck.ts)
-    # already computed and warned about this at boot — PM2 cluster mode
-    # (ecosystem.config.js) runs `instances: 'max'` (one process per
-    # CPU core) × connection_limit=20 (.env.example's DATABASE_URL) per
-    # process. On anything above a 4-core host that product exceeds
-    # 100 - the 20-connection safety margin capacityCheck.ts reserves
-    # for migrations/psql/backups, i.e. real connection exhaustion risk
-    # on a common production instance size, not just a 32-core edge
-    # case. 200 gives headroom up to an 8-core host at the documented
-    # connection_limit=20 (8 × 20 = 160, well under 200 - 20 margin)
-    # without raising Postgres's own memory footprint enough to matter
-    # at this traffic scale (each connection reserves ~innodb-style
-    # per-connection working memory; the jump from 100→200 costs low
-    # tens of MB, not GBs). If DB_CONNECTION_LIMIT, PM2_INSTANCES, or
-    # host core count changes, re-run the capacityCheck.ts math (it
-    # logs the exact estimated total at every boot) rather than assuming
-    # 200 is still enough.
+    # Keep Postgres max_connections explicit for local Docker deployments.
+    # Prisma pool size is configured per API process through
+    # DB_CONNECTION_LIMIT (default 1), and capacityCheck.ts estimates
+    # aggregate Node pools using DB_POOL_INSTANCES. The Go Worker and
+    # operational/admin connections must be budgeted separately.
     command: postgres -c max_connections=200
     volumes:
       - postgres_data:/var/lib/postgresql/data

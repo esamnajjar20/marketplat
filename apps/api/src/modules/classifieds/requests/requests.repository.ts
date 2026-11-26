@@ -66,25 +66,26 @@ export const requestsRepository = {
       serviceTypeId?: string | null;
       expiresAt?: Date | null;
       offlineOperationId?: string | null;
-    }
-  ): Promise<RequestRow> =>
-    prisma.request.create({
-      data: {
-        customerId,
-        type: data.type,
-        categoryId: data.categoryId,
-        serviceTypeId: data.serviceTypeId ?? null,
-        title: data.title,
-        description: data.description,
-        city: data.city,
-        attachedImages: data.attachedImages ?? [],
-        budgetMin: data.budgetMin,
-        budgetMax: data.budgetMax,
-        attributes: data.attributes ?? Prisma.JsonNull,
-        expiresAt: data.expiresAt ?? null,
-        ...(data.offlineOperationId ? { offlineOperationId: data.offlineOperationId } : {}),
-      },
-    }),
+    },
+    tx?: Prisma.TransactionClient
+  ): Promise<RequestRow> => {
+    const createData = {
+      customerId,
+      type: data.type,
+      categoryId: data.categoryId,
+      serviceTypeId: data.serviceTypeId ?? null,
+      title: data.title,
+      description: data.description,
+      city: data.city,
+      attachedImages: data.attachedImages ?? [],
+      budgetMin: data.budgetMin,
+      budgetMax: data.budgetMax,
+      attributes: data.attributes ?? Prisma.JsonNull,
+      expiresAt: data.expiresAt ?? null,
+      ...(data.offlineOperationId ? { offlineOperationId: data.offlineOperationId } : {}),
+    };
+    return tx ? tx.request.create({ data: createData }) : prisma.request.create({ data: createData });
+  },
 
   // Count only requests that are still active. The public feed and offer
   // acceptance already treat an OPEN row with an elapsed expiresAt as

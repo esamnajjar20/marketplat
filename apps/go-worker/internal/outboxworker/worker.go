@@ -51,14 +51,14 @@ type Config struct {
 }
 
 type Worker struct {
-	db          *sql.DB
-	cacheRedis  *rediswire.Config
-	logger      *slog.Logger
-	apiBaseURL  string
-	apiToken    string
-	httpClient  *http.Client
-	workerID    string
-	loadTracker *loadtracker.Tracker
+	db             *sql.DB
+	cacheRedisPool *rediswire.Pool
+	logger         *slog.Logger
+	apiBaseURL     string
+	apiToken       string
+	httpClient     *http.Client
+	workerID       string
+	loadTracker    *loadtracker.Tracker
 }
 
 type claimedEvent struct {
@@ -72,20 +72,66 @@ type publishRequest struct {
 	Notifications []outboxevents.Notification `json:"notifications"`
 }
 
-func New(db *sql.DB, cacheRedis *rediswire.Config, logger *slog.Logger, config Config) *Worker {
+func New(db *sql.DB, cacheRedisPool *rediswire.Pool, logger *slog.Logger, config Config) *Worker {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &Worker{
-		db:          db,
-		cacheRedis:  cacheRedis,
-		logger:      logger,
-		apiBaseURL:  strings.TrimRight(strings.TrimSpace(config.APIBaseURL), "/"),
-		apiToken:    strings.TrimSpace(config.APIToken),
-		httpClient:  &http.Client{Timeout: 8 * time.Second},
-		workerID:    fmt.Sprintf("go-outbox-%d-%d", os.Getpid(), time.Now().UnixNano()),
-		loadTracker: config.LoadTracker,
+		db:             db,
+		cacheRedisPool: cacheRedisPool,
+		logger:         logger,
+		apiBaseURL:     strings.TrimRight(strings.TrimSpace(config.APIBaseURL), "/"),
+		apiToken:       strings.TrimSpace(config.APIToken),
+		httpClient:     &http.Client{Timeout: 8 * time.Second},
+		workerID:       fmt.Sprintf("go-outbox-%d-%d", os.Getpid(), time.Now().UnixNano()),
+		loadTracker:    config.LoadTracker,
 	}
+}
+
+// CheckReady verifies the dependencies needed before Express is allowed to
+// pause its fallback poller. Until this passes, the API must keep consuming the
+// queue itself.
+func (w *Worker) CheckReady(ctx context.Context) error {
+	if w.db == nil {
+		return errors.New("outbox worker database is required")
+	}
+	if w.apiBaseURL == "" || w.apiToken == "" {
+		return errors.New("outbox worker API callback URL and token are required")
+	}
+	if err := w.db.PingContext(ctx); err != nil {
+		return fmt.Errorf("outbox worker database is not ready: %w", err)
+	}
+	var outboxTableReady bool
+	if err := w.db.QueryRowContext(ctx, `SELECT to_regclass('"outbox_events"') IS NOT NULL`).Scan(&outboxTableReady); err != nil {
+		return fmt.Errorf("check outbox schema readiness: %w", err)
+	}
+	if !outboxTableReady {
+		return errors.New("outbox_events table is not available")
+	}
+	if err := w.checkCacheRedis(ctx); err != nil {
+		return fmt.Errorf("outbox worker cache Redis is not ready: %w", err)
+	}
+	return nil
+}
+
+func (w *Worker) checkCacheRedis(ctx context.Context) error {
+	if w.cacheRedisPool == nil {
+		return errors.New("cache Redis pool is required")
+	}
+	conn, err := w.cacheRedisPool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	response, commandErr := conn.Do(ctx, "PING")
+	healthy := commandErr == nil && response == "PONG"
+	w.cacheRedisPool.Release(conn, healthy)
+	if commandErr != nil {
+		return commandErr
+	}
+	if response != "PONG" {
+		return fmt.Errorf("unexpected Redis PING response: %v", response)
+	}
+	return nil
 }
 
 func (w *Worker) Run(ctx context.Context) error {
@@ -149,9 +195,9 @@ func (w *Worker) processOne(ctx context.Context) (bool, error) {
 
 	workCtx, workCancel := context.WithTimeout(ctx, processingTimeout)
 	leaseCtx, stopHeartbeat := w.startLeaseHeartbeat(workCtx, event.ID)
-	result, runErr := outboxevents.RunWithCacheRedis(leaseCtx, w.db, outboxevents.Request{
+	result, runErr := outboxevents.RunWithCacheRedisPool(leaseCtx, w.db, outboxevents.Request{
 		EventID: event.ID, WorkerID: w.workerID,
-	}, w.cacheRedis)
+	}, w.cacheRedisPool)
 	stopHeartbeat()
 	workCancel()
 	if runErr != nil {

@@ -10,7 +10,6 @@ import (
 	"marketplat/apps/go-worker/internal/adexpiry"
 	"marketplat/apps/go-worker/internal/mediacleanup"
 	"marketplat/apps/go-worker/internal/promotionlifecycle"
-	"marketplat/apps/go-worker/internal/rediswire"
 	"marketplat/apps/go-worker/internal/requestexpiry"
 	"marketplat/apps/go-worker/internal/salesjobs"
 	"marketplat/apps/go-worker/internal/sellerresponse"

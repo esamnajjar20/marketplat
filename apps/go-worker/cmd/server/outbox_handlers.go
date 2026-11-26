@@ -39,10 +39,10 @@ func (s *server) executeOutboxEvent(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := contextWithOutboxTimeout(r)
 	defer cancel()
-	result, err := outboxevents.RunWithCacheRedis(ctx, s.db, outboxevents.Request{
+	result, err := outboxevents.RunWithCacheRedisPool(ctx, s.db, outboxevents.Request{
 		EventID:  request.EventID,
 		WorkerID: request.WorkerID,
-	}, s.cacheRedisConfig)
+	}, s.cacheRedisPool)
 	if err != nil {
 		if errors.Is(err, outboxevents.ErrEventNotOwned) {
 			writeJSON(w, http.StatusConflict, map[string]string{"status": "lease-not-owned"})
@@ -76,7 +76,7 @@ func (s *server) outboxWorkerStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	enabled := false
-	if s.outboxEnabled {
+	if s.outboxEnabled && s.outboxWorkerActive.Load() {
 		// If an event type has not yet been implemented in Go, let the existing
 		// Express consumer handle the queue. This prevents new event types from
 		// being stranded simply because the Go worker is enabled.

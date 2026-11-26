@@ -14,6 +14,7 @@ import { logger } from '../../src/shared/observability/logger';
 describe('checkConnectionCapacity', () => {
   const originalPm2Instances = process.env.PM2_INSTANCES;
   const originalDbPoolInstances = process.env.DB_POOL_INSTANCES;
+  const originalOtherConnections = process.env.DB_OTHER_CONNECTIONS;
 
   afterEach(() => {
     jest.restoreAllMocks();
@@ -21,6 +22,8 @@ describe('checkConnectionCapacity', () => {
     else process.env.PM2_INSTANCES = originalPm2Instances;
     if (originalDbPoolInstances === undefined) delete process.env.DB_POOL_INSTANCES;
     else process.env.DB_POOL_INSTANCES = originalDbPoolInstances;
+    if (originalOtherConnections === undefined) delete process.env.DB_OTHER_CONNECTIONS;
+    else process.env.DB_OTHER_CONNECTIONS = originalOtherConnections;
   });
 
   it('warns when connection_limit is absent from DATABASE_URL', () => {
@@ -77,7 +80,42 @@ describe('checkConnectionCapacity', () => {
 
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('may exceed'),
-      expect.objectContaining({ instances: 8, connectionLimit: 2, estimatedTotal: 16 })
+      expect.objectContaining({
+        instances: 8,
+        connectionLimit: 2,
+        estimatedNodeTotal: 16,
+        estimatedOtherConnections: 2,
+        estimatedTotal: 18,
+      })
+    );
+  });
+
+  it('includes non-Prisma Go/worker pools in the aggregate connection budget', () => {
+    process.env.PM2_INSTANCES = '8';
+    process.env.DB_OTHER_CONNECTIONS = '7';
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+
+    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=1', 20);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('may exceed'),
+      expect.objectContaining({
+        estimatedNodeTotal: 8,
+        estimatedOtherConnections: 7,
+        estimatedTotal: 15,
+      })
+    );
+  });
+
+  it('warns and falls back when DB_POOL_INSTANCES is malformed', () => {
+    process.env.DB_POOL_INSTANCES = 'many';
+    process.env.PM2_INSTANCES = '2';
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+
+    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=1', 20);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('DB_POOL_INSTANCES must be an integer')
     );
   });
 

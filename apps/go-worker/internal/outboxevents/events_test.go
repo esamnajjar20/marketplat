@@ -26,6 +26,16 @@ func TestCacheGenerationWorkerRejectsMissingLeaseIdentityBeforeDatabaseAccess(t 
 	}
 }
 
+func TestCacheGenerationWorkerPoolRejectsMissingLeaseIdentityBeforeDatabaseAccess(t *testing.T) {
+	_, err := RunWithCacheRedisPool(context.Background(), nil, Request{EventID: "", WorkerID: "worker"}, nil)
+	if err == nil {
+		t.Fatal("expected missing event id to fail")
+	}
+	if errors.Is(err, ErrEventNotOwned) {
+		t.Fatal("validation error must not be reported as a lease conflict")
+	}
+}
+
 func TestSupportedEventTypesAreExplicit(t *testing.T) {
 	if UserActivityEvent != "USER_ACTIVITY_RECORD" ||
 		FollowedActivityEvent != "FOLLOWED_ACTIVITY_NOTIFICATION" ||

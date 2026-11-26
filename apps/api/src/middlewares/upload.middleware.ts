@@ -228,6 +228,12 @@ export const uploadMiddleware = (req: Request, res: Response, next: NextFunction
 
 // Multiple images (up to 10) for ads/products/services.
 export const uploadMultipleMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+  // Direct Cloudinary requests carry only JSON IDs; avoid Multer and its
+  // distributed in-memory upload slot for this path.
+  if (!req.is('multipart/form-data')) {
+    next();
+    return;
+  }
   rejectOversizedContentLength(req, res, (sizeError?: unknown) => {
     if (sizeError) return next(sizeError);
 

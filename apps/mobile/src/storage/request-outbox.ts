@@ -3,7 +3,7 @@ import { ApiError, apiRequest } from '@/api/client';
 import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 import { uploadRequestImages, type RequestImageUpload } from '@/features/requests/requests.api';
 
-type RequestPayload = { type: 'SERVICE' | 'PRODUCT' | 'RENTAL'; categoryId: string; title: string; description: string; city?: string; budgetMin?: number; budgetMax?: number; expiresInDays?: number; attachedImages?: string[]; images?: RequestImageUpload[] };
+type RequestPayload = { type: 'SERVICE' | 'PRODUCT' | 'RENTAL'; categoryId: string; title: string; description: string; city?: string; budgetMin?: number; budgetMax?: number; expiresInDays?: number; attachedImages?: string[]; directImagePublicIds?: string[]; images?: RequestImageUpload[] };
 export type PendingRequestOutboxItem = { id: string; ownerId: string; payload: RequestPayload; createdAt: number; attempts: number; lastError: string | null; nextAttemptAt: number };
 type Row = { id: string; owner_id: string; payload_json: string; created_at: number; attempts: number; last_error: string | null; next_attempt_at: number; state: string };
 const DB_NAME = 'marketplat-public-cache.db';
@@ -24,11 +24,54 @@ async function database() {
   return dbPromise;
 }
 function map(row: Row, payload: RequestPayload): PendingRequestOutboxItem { return { id: row.id, ownerId: row.owner_id, payload, createdAt: row.created_at, attempts: row.attempts, lastError: row.last_error, nextAttemptAt: row.next_attempt_at }; }
-function validatePayload(value: unknown): asserts value is RequestPayload {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('بيانات الطلب المحفوظ غير صالحة.');
-  const p = value as Record<string, unknown>;
-  if (!['SERVICE', 'PRODUCT', 'RENTAL'].includes(String(p.type)) || typeof p.categoryId !== 'string' || !p.categoryId.trim() || typeof p.title !== 'string' || p.title.trim().length < 5 || typeof p.description !== 'string' || p.description.trim().length < 10 || (p.city !== undefined && typeof p.city !== 'string') || (p.budgetMin !== undefined && (typeof p.budgetMin !== 'number' || !Number.isFinite(p.budgetMin) || p.budgetMin < 0)) || (p.budgetMax !== undefined && (typeof p.budgetMax !== 'number' || !Number.isFinite(p.budgetMax) || p.budgetMax <= 0)) || (p.expiresInDays !== undefined && (typeof p.expiresInDays !== 'number' || !Number.isInteger(p.expiresInDays) || p.expiresInDays < 1 || p.expiresInDays > 60)) || (p.attachedImages !== undefined && (!Array.isArray(p.attachedImages) || p.attachedImages.length > 5 || p.attachedImages.some(url => typeof url !== 'string' || !/^https?:\/\//.test(url)))) || (p.images !== undefined && (!Array.isArray(p.images) || p.images.length > 5 || p.images.some(image => !image || typeof image !== 'object' || typeof (image as RequestImageUpload).uri !== 'string' || typeof (image as RequestImageUpload).fileName !== 'string' || !/^image\/(jpeg|jpg|png|webp)$/.test((image as RequestImageUpload).mimeType))))) throw new Error('بيانات الطلب لا تطابق قواعد الحفظ دون اتصال.');
+function isValidRequestImage(value: unknown): value is RequestImageUpload {
+  if (!value || typeof value !== 'object') return false;
+  const image = value as Partial<RequestImageUpload>;
+  if (
+    typeof image.uri !== 'string' ||
+    !image.uri.trim() ||
+    typeof image.fileName !== 'string' ||
+    !image.fileName.trim() ||
+    typeof image.mimeType !== 'string' ||
+    !/^image\/(jpeg|jpg|png|webp)$/i.test(image.mimeType)
+  ) {
+    return false;
+  }
+  const fileSize = image.fileSize;
+  return fileSize === undefined || fileSize === null ||
+    (typeof fileSize === 'number' && Number.isFinite(fileSize) && fileSize >= 1 && fileSize <= 5 * 1024 * 1024);
 }
+
+function validatePayload(value: unknown): asserts value is RequestPayload {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('بيانات الطلب المحفوظ غير صالحة.');
+  }
+  const p = value as Record<string, unknown>;
+  const attachedImagesValid = p.attachedImages === undefined || (
+    Array.isArray(p.attachedImages) &&
+    p.attachedImages.length <= 5 &&
+    p.attachedImages.every(url => typeof url === 'string' && /^https?:\/\//.test(url))
+  );
+  const imagesValid = p.images === undefined || (
+    Array.isArray(p.images) && p.images.length <= 5 && p.images.every(isValidRequestImage)
+  );
+
+  if (
+    !['SERVICE', 'PRODUCT', 'RENTAL'].includes(String(p.type)) ||
+    typeof p.categoryId !== 'string' || !p.categoryId.trim() ||
+    typeof p.title !== 'string' || p.title.trim().length < 5 ||
+    typeof p.description !== 'string' || p.description.trim().length < 10 ||
+    (p.city !== undefined && typeof p.city !== 'string') ||
+    (p.budgetMin !== undefined && (typeof p.budgetMin !== 'number' || !Number.isFinite(p.budgetMin) || p.budgetMin < 0)) ||
+    (p.budgetMax !== undefined && (typeof p.budgetMax !== 'number' || !Number.isFinite(p.budgetMax) || p.budgetMax <= 0)) ||
+    (p.expiresInDays !== undefined && (typeof p.expiresInDays !== 'number' || !Number.isInteger(p.expiresInDays) || p.expiresInDays < 1 || p.expiresInDays > 60)) ||
+    !attachedImagesValid ||
+    !imagesValid
+  ) {
+    throw new Error('بيانات الطلب لا تطابق قواعد الحفظ دون اتصال.');
+  }
+}
+
 export async function enqueueMarketplaceRequest(ownerId: string, id: string, payload: RequestPayload): Promise<void> {
   if (!ownerId.trim() || ownerId.length > 160 || !/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(id)) throw new Error('معرّف الحساب أو العملية غير صالح.');
   validatePayload(payload);
@@ -86,16 +129,17 @@ export async function syncNextMarketplaceRequest(input: { isOnline: boolean; tok
     try {
       const payload: unknown = JSON.parse(head.payload_json); validatePayload(payload);
       const prepared = { ...(payload as RequestPayload) };
+      const requestBody: RequestPayload = { ...prepared };
+      delete requestBody.images;
+      delete requestBody.directImagePublicIds;
       if (prepared.images?.length && !prepared.attachedImages?.length) {
-        // Persist uploaded URLs before creating the request. A retry after an
-        // ambiguous request response must not upload the same files repeatedly.
-        prepared.attachedImages = await uploadRequestImages(prepared.images, input.token, input.csrfToken);
-        delete prepared.images;
-        await db.runAsync("UPDATE request_create_outbox SET payload_json=? WHERE id=? AND owner_id=? AND state='processing'", JSON.stringify(prepared), head.id, input.ownerId);
-      } else {
-        delete prepared.images;
+        // Intent IDs expire and are single-use. Keep the original local files
+        // in SQLite and upload a fresh batch on each retry. If the previous
+        // create committed but its response was lost, offlineOperationId
+        // returns the already-created request before attempting consumption.
+        requestBody.directImagePublicIds = await uploadRequestImages(prepared.images, input.token, input.csrfToken);
       }
-      const response = await apiRequest<{ success: boolean; message?: string; data?: unknown }>('/api/v1/requests', { method: 'POST', token: input.token, headers: { 'X-Offline-Op-Id': head.id, ...(input.csrfToken ? { 'X-CSRF-Token': input.csrfToken } : {}) }, body: JSON.stringify(prepared), timeoutMs: 12_000 });
+      const response = await apiRequest<{ success: boolean; message?: string; data?: unknown }>('/api/v1/requests', { method: 'POST', token: input.token, headers: { 'X-Offline-Op-Id': head.id, ...(input.csrfToken ? { 'X-CSRF-Token': input.csrfToken } : {}) }, body: JSON.stringify(requestBody), timeoutMs: 12_000 });
       if (!response || response.success !== true || response.data === undefined) throw new Error(response?.message || 'لم يؤكد الخادم إنشاء الطلب.');
       await db.runAsync('DELETE FROM request_create_outbox WHERE id=? AND owner_id=? AND state=\'processing\'', head.id, input.ownerId);
       return 'synced' as const;

@@ -38,7 +38,9 @@ describe('serviceListingsController', () => {
         'user-1',
         expect.objectContaining({ title: 'Home cleaning' }),
         files,
-        null
+        null,
+        undefined,
+        []
       );
     });
 
@@ -54,7 +56,9 @@ describe('serviceListingsController', () => {
         'user-1',
         expect.anything(),
         [],
-        null
+        null,
+        undefined,
+        []
       );
     });
 

@@ -482,7 +482,8 @@ export const adsRepository = {
   addImages: async (
     id: string,
     newImages: string[],
-    maxImages = MAX_IMAGES_PER_ENTITY
+    maxImages = MAX_IMAGES_PER_ENTITY,
+    tx?: Prisma.TransactionClient
   ): Promise<AdWithAuthor> => {
     // Enforce the dynamic SQL bounds at the repository boundary. The number
     // of bound image placeholders is capped by MAX_IMAGES_PER_ENTITY; the
@@ -524,7 +525,7 @@ export const adsRepository = {
     // RAWUNSAFE-SAFETY-NOTE-01: same pattern as service-listings —
     // only the placeholder COUNT is interpolated (bounded by
     // MAX_IMAGES_PER_ENTITY), all values are bound parameters.
-    await prisma.$executeRawUnsafe(
+    await (tx ?? prisma).$executeRawUnsafe(
       `UPDATE "ads"
        SET "images" = (
          SELECT array_agg(img ORDER BY rn)
@@ -546,7 +547,7 @@ export const adsRepository = {
       ...newImages
     );
 
-    const updated = await prisma.ad.findUniqueOrThrow({ where: { id }, include: adWithRelations });
+    const updated = await (tx ?? prisma).ad.findUniqueOrThrow({ where: { id }, include: adWithRelations });
     return updated;
   },
 
@@ -557,21 +558,27 @@ export const adsRepository = {
     id: string,
     userId: string,
     operationId: string,
-    newImages: string[]
+    newImages: string[],
+    tx?: Prisma.TransactionClient
   ): Promise<AdWithAuthor> => {
-    await prisma.$transaction(async tx => {
-      const existing = await tx.adImageOfflineOperation.findUnique({ where: { operationId } });
+    const apply = async (db: Prisma.TransactionClient) => {
+      const existing = await db.adImageOfflineOperation.findUnique({ where: { operationId } });
       if (existing) {
         if (existing.adId !== id || existing.userId !== userId) {
           throw new Error('OFFLINE_IMAGE_OP_ID_CONFLICT');
         }
         return;
       }
-      await tx.$executeRaw`UPDATE "ads" SET "images" = array_cat("images", ${newImages}::text[]) WHERE "id" = ${id}`;
-      await tx.adImageOfflineOperation.create({
+      await db.$executeRaw`UPDATE "ads" SET "images" = array_cat("images", ${newImages}::text[]) WHERE "id" = ${id}`;
+      await db.adImageOfflineOperation.create({
         data: { operationId, adId: id, userId, imageUrls: newImages },
       });
-    });
+    };
+    if (tx) {
+      await apply(tx);
+      return tx.ad.findUniqueOrThrow({ where: { id }, include: adWithRelations });
+    }
+    await prisma.$transaction(apply);
     return prisma.ad.findUniqueOrThrow({ where: { id }, include: adWithRelations });
   },
 

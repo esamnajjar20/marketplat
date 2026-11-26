@@ -11,6 +11,8 @@ import {
 import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/auth/requireUser';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { resolveDirectImageUploads } from '../../../shared/media/directImageUpload';
+import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
 import { serviceListingMatchesService } from './service-listing-matches.service';
 
 export const serviceListingsController = {
@@ -19,6 +21,13 @@ export const serviceListingsController = {
       const user = requireUser(req);
       const { body } = createServiceListingSchema.parse({ body: req.body });
       const files = (req.files as Express.Multer.File[]) || [];
+      const directImagePublicIds = directImagePublicIdsSchema.parse(body.directImagePublicIds) ?? [];
+      if (files.length && directImagePublicIds.length) {
+        throw new BadRequestError('Use multipart files or direct image IDs, not both.', 'MIXED_IMAGE_UPLOAD_MODES');
+      }
+      const directUploads = directImagePublicIds.length
+        ? await resolveDirectImageUploads(user.userId, 'service-listings', directImagePublicIds)
+        : undefined;
       const offlineOpId =
         (req.headers['x-offline-op-id'] as string | undefined) ||
         (req.headers['X-Offline-Op-Id'] as string | undefined) ||
@@ -27,7 +36,9 @@ export const serviceListingsController = {
         user.userId,
         body,
         files,
-        offlineOpId
+        offlineOpId,
+        directUploads,
+        directImagePublicIds
       );
       res.status(201).json(successResponse('Service listing created', listing));
     } catch (error) {
@@ -124,8 +135,15 @@ export const serviceListingsController = {
       const user = requireUser(req);
       const { params } = serviceListingIdSchema.parse({ params: req.params });
       const files = (req.files as Express.Multer.File[]) || [];
-      if (files.length === 0) throw new BadRequestError('No images provided');
-      const listing = await serviceListingsService.addImages(params.id, user.userId, files);
+      const directImagePublicIds = directImagePublicIdsSchema.parse(req.body?.directImagePublicIds) ?? [];
+      if (files.length && directImagePublicIds.length) {
+        throw new BadRequestError('Use multipart files or direct image IDs, not both.', 'MIXED_IMAGE_UPLOAD_MODES');
+      }
+      const directUploads = directImagePublicIds.length
+        ? await resolveDirectImageUploads(user.userId, 'service-listings', directImagePublicIds)
+        : undefined;
+      if (files.length === 0 && !directUploads?.length) throw new BadRequestError('No images provided');
+      const listing = await serviceListingsService.addImages(params.id, user.userId, files, directUploads, directImagePublicIds);
       res.status(200).json(successResponse('Images added', listing));
     } catch (error) {
       next(error);

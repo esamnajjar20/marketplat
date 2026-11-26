@@ -13,6 +13,8 @@ import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/auth/requireUser';
 import { paginationQuerySchema } from '../../../shared/http/pagination';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
+import { resolveDirectImageUploads } from '../../../shared/media/directImageUpload';
+import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
 
 export const productsController = {
   createProduct: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -20,6 +22,13 @@ export const productsController = {
       const user = requireUser(req);
       const { body } = createProductSchema.parse({ body: req.body });
       const files = (req.files as Express.Multer.File[]) || [];
+      const directImagePublicIds = directImagePublicIdsSchema.parse(body.directImagePublicIds) ?? [];
+      if (files.length && directImagePublicIds.length) {
+        throw new BadRequestError('Use multipart files or direct image IDs, not both.', 'MIXED_IMAGE_UPLOAD_MODES');
+      }
+      const directUploads = directImagePublicIds.length
+        ? await resolveDirectImageUploads(user.userId, 'products', directImagePublicIds)
+        : undefined;
       const offlineOpId =
         (req.headers['x-offline-op-id'] as string | undefined) ||
         (req.headers['X-Offline-Op-Id'] as string | undefined) ||
@@ -30,7 +39,9 @@ export const productsController = {
         body,
         files,
         offlineOpId,
-        storeId
+        storeId,
+        directUploads,
+        directImagePublicIds
       );
       res.status(201).json(successResponse('Product created', product));
     } catch (error) {
@@ -101,8 +112,15 @@ export const productsController = {
       const user = requireUser(req);
       const { params } = productIdSchema.parse({ params: req.params });
       const files = (req.files as Express.Multer.File[]) || [];
-      if (files.length === 0) throw new BadRequestError('No images provided');
-      const product = await productsService.addImages(params.id, user.userId, files);
+      const directImagePublicIds = directImagePublicIdsSchema.parse(req.body?.directImagePublicIds) ?? [];
+      if (files.length && directImagePublicIds.length) {
+        throw new BadRequestError('Use multipart files or direct image IDs, not both.', 'MIXED_IMAGE_UPLOAD_MODES');
+      }
+      const directUploads = directImagePublicIds.length
+        ? await resolveDirectImageUploads(user.userId, 'products', directImagePublicIds)
+        : undefined;
+      if (files.length === 0 && !directUploads?.length) throw new BadRequestError('No images provided');
+      const product = await productsService.addImages(params.id, user.userId, files, directUploads, directImagePublicIds);
       res.status(200).json(successResponse('Images added', product));
     } catch (error) {
       next(error);

@@ -233,6 +233,9 @@ func (c *Conn) Do(ctx context.Context, args ...string) (any, error) {
 	if len(args) == 0 {
 		return nil, errors.New("Redis command is empty")
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	deadline := time.Now().Add(10 * time.Second)
 	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
 		deadline = ctxDeadline
@@ -240,6 +243,21 @@ func (c *Conn) Do(ctx context.Context, args ...string) (any, error) {
 	if err := c.netConn.SetDeadline(deadline); err != nil {
 		return nil, err
 	}
+
+	// net.Conn deadlines enforce context deadlines, but do not react to a
+	// context that is cancelled before its deadline. Interrupt the socket on
+	// cancellation so shutdown and failed requests promptly release pooled
+	// connections instead of holding them for the full command timeout.
+	cancelDone := make(chan struct{})
+	stopCancel := context.AfterFunc(ctx, func() {
+		defer close(cancelDone)
+		_ = c.netConn.SetDeadline(time.Now())
+	})
+	defer func() {
+		if !stopCancel() {
+			<-cancelDone
+		}
+	}()
 	var request strings.Builder
 	request.WriteByte('*')
 	request.WriteString(strconv.Itoa(len(args)))
@@ -252,12 +270,22 @@ func (c *Conn) Do(ctx context.Context, args ...string) (any, error) {
 		request.WriteString("\r\n")
 	}
 	if _, err := c.writer.WriteString(request.String()); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, err
 	}
 	if err := c.writer.Flush(); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, err
 	}
-	return readReply(c.reader, 0)
+	value, err := readReply(c.reader, 0)
+	if err != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return value, err
 }
 
 func readReply(reader *bufio.Reader, depth int) (any, error) {

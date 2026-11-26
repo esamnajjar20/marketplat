@@ -42,6 +42,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  // Bound each Prisma process explicitly; a PM2 worker owns its own pool.
+  DB_CONNECTION_LIMIT: z.string().regex(/^\d+$/).transform(Number).refine(v => v >= 1 && v <= 100).default('1'),
+  DB_POOL_TIMEOUT_SECONDS: z.string().regex(/^\d+$/).transform(Number).refine(v => v >= 1 && v <= 300).default('15'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: z.string().default('15m'),
@@ -710,7 +713,11 @@ export const env = {
   // auth failure with the literal malformed password in the log, so
   // it's self-diagnosing — but the trim is free and removes the
   // diagnostic burden entirely.
-  database: { url: _env.DATABASE_URL.trim() },
+  database: {
+    url: _env.DATABASE_URL.trim(),
+    connectionLimit: _env.DB_CONNECTION_LIMIT,
+    poolTimeoutSeconds: _env.DB_POOL_TIMEOUT_SECONDS,
+  },
   jwt: {
     secret: _env.JWT_SECRET,
     refreshSecret: _env.JWT_REFRESH_SECRET,

@@ -117,15 +117,15 @@ export default function RequestCreateScreen() {
         showToast('حُفظ الطلب للمزامنة', 'لم يُنشر الطلب على الخادم بعد. سيُرسل عند عودة الاتصال وتوفر جلسة الدخول بالحساب نفسه.', 'info', { label: 'عرض العمليات', onPress: () => router.replace('/offline-queue') });
         return;
       }
-      let attachedImages: string[] = [];
-      if (images.length) attachedImages = await uploadRequestImages(images, accessToken, csrfToken);
+      let directImagePublicIds: string[] = [];
+      if (images.length) directImagePublicIds = await uploadRequestImages(images, accessToken, csrfToken);
       try {
-        const item = await createMarketplaceRequest({ ...payload, ...(attachedImages.length ? { attachedImages } : {}) }, accessToken, csrfToken, operationIdRef.current);
+        const item = await createMarketplaceRequest({ ...payload, ...(directImagePublicIds.length ? { directImagePublicIds } : {}) }, accessToken, csrfToken, operationIdRef.current);
         await clearEntityFormDraft(String(user.id), 'request-form', 'new').catch(() => undefined);
         router.replace({ pathname: '/requests/[id]', params: { id: item.id } });
       } catch (e) {
         if (e instanceof ApiError && e.status == null && user?.id) {
-          await enqueueMarketplaceRequest(String(user.id), operationIdRef.current, { ...payload, ...(attachedImages.length ? { attachedImages } : {}), ...(!attachedImages.length && images.length ? { images: images.map(({ uri, fileName, mimeType }) => ({ uri, fileName, mimeType })) } : {}) });
+          await enqueueMarketplaceRequest(String(user.id), operationIdRef.current, { ...payload, ...(images.length ? { images: images.map(({ uri, fileName, mimeType }) => ({ uri, fileName, mimeType })) } : {}) });
           await clearEntityFormDraft(String(user.id), 'request-form', 'new').catch(() => undefined);
           showToast('حُفظ الطلب للمزامنة', 'انقطع الاتصال قبل تأكيد الخادم. حُفظت العملية بالمعرّف نفسه لتجنب التكرار.', 'warning', { label: 'عرض العمليات', onPress: () => router.replace('/offline-queue') });
         } else {

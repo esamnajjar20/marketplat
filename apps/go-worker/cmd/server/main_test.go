@@ -129,6 +129,20 @@ func TestOutboxWorkerStatusRequiresAuthorization(t *testing.T) {
 	}
 }
 
+func TestOutboxWorkerStatusKeepsExpressFallbackUntilGoWorkerIsActive(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/internal/outbox/worker-status", nil)
+	req.Header.Set("Authorization", "Bearer test-secret")
+	recorder := httptest.NewRecorder()
+	server := &server{token: "test-secret", outboxEnabled: true}
+	server.outboxWorkerStatus(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"enabled":false`) {
+		t.Fatalf("Express fallback must remain enabled before Go worker readiness, got %s", recorder.Body.String())
+	}
+}
+
 func TestOutboxWorkerStatusReportsDisabledWithoutDatabaseAccess(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/internal/outbox/worker-status", nil)
 	req.Header.Set("Authorization", "Bearer test-secret")
@@ -1128,4 +1142,30 @@ func TestFraudMonitorEndpointHandlesMissingDatabaseWithoutPanic(t *testing.T) {
 	if strings.Contains(strings.ToLower(recorder.Body.String()), "database is required") {
 		t.Fatalf("internal error details must not be exposed: %s", recorder.Body.String())
 	}
+}
+
+func TestNewServerSharesRedisPoolWhenPrimaryAndCacheRedisMatch(t *testing.T) {
+	primary := &rediswire.Config{
+		Addr: "redis.example:6379", Username: "app", Password: "secret", TLS: true, DB: 2,
+	}
+	cache := &rediswire.Config{
+		Addr: "redis.example:6379", Username: "app", Password: "secret", TLS: true, DB: 2,
+	}
+	server := newServer(config{Redis: primary, CacheRedis: cache}, nil, nil)
+	if server.redisPool != server.cacheRedisPool {
+		t.Fatal("expected primary and cache roles to share one pool when Redis config matches")
+	}
+	server.redisPool.Close()
+}
+
+func TestNewServerUsesSeparateCachePoolWhenRedisConfigsDiffer(t *testing.T) {
+	server := newServer(config{
+		Redis:      &rediswire.Config{Addr: "primary.example:6379"},
+		CacheRedis: &rediswire.Config{Addr: "cache.example:6379"},
+	}, nil, nil)
+	if server.redisPool == server.cacheRedisPool {
+		t.Fatal("expected a dedicated cache Redis endpoint to receive its own pool")
+	}
+	server.redisPool.Close()
+	server.cacheRedisPool.Close()
 }

@@ -369,7 +369,7 @@ export type NearbyServiceProviderRow = ServiceProviderDetails & {
   distanceKm: number;
 };
 
-/** POST /service-listings (multipart/form-data — images come from files, not this payload). */
+/** POST /service-listings — image bytes are uploaded directly to Cloudinary; IDs travel in JSON. */
 export interface CreateServiceListingPayload {
   serviceTypeId: string;
   categoryId: string;

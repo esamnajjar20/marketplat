@@ -85,14 +85,21 @@ type followedPayload struct {
 }
 
 func Run(ctx context.Context, db *sql.DB, request Request) (Result, error) {
-	return run(ctx, db, request, nil)
+	return run(ctx, db, request, nil, nil)
 }
 
+// RunWithCacheRedis preserves the one-shot connection entry point for small
+// tools and compatibility callers. Long-running workers should use the pool
+// variant below to avoid a TCP/TLS/AUTH handshake for every cache event.
 func RunWithCacheRedis(ctx context.Context, db *sql.DB, request Request, cacheConfig *rediswire.Config) (Result, error) {
-	return run(ctx, db, request, cacheConfig)
+	return run(ctx, db, request, cacheConfig, nil)
 }
 
-func run(ctx context.Context, db *sql.DB, request Request, cacheConfig *rediswire.Config) (Result, error) {
+func RunWithCacheRedisPool(ctx context.Context, db *sql.DB, request Request, cachePool *rediswire.Pool) (Result, error) {
+	return run(ctx, db, request, nil, cachePool)
+}
+
+func run(ctx context.Context, db *sql.DB, request Request, cacheConfig *rediswire.Config, cachePool *rediswire.Pool) (Result, error) {
 	if strings.TrimSpace(request.EventID) == "" || len(request.EventID) > 128 ||
 		strings.TrimSpace(request.WorkerID) == "" || len(request.WorkerID) > 120 {
 		return Result{}, errors.New("eventId and workerId are required")
@@ -141,7 +148,7 @@ func run(ctx context.Context, db *sql.DB, request Request, cacheConfig *rediswir
 	case FollowedActivityEvent:
 		err = processFollowedActivity(ctx, tx, event)
 	case CacheGenerationBumpEvent:
-		err = processCacheGenerationBump(ctx, tx, event, cacheConfig)
+		err = processCacheGenerationBump(ctx, tx, event, cacheConfig, cachePool)
 	default:
 		return Result{}, fmt.Errorf("%w: %s", ErrUnsupportedEvent, event.EventType)
 	}
@@ -378,8 +385,8 @@ type cacheGenerationPayload struct {
 	RetryDependentGenKeys []string `json:"retryDependentGenKeys"`
 }
 
-func processCacheGenerationBump(ctx context.Context, tx *sql.Tx, event eventRow, config *rediswire.Config) error {
-	if config == nil {
+func processCacheGenerationBump(ctx context.Context, tx *sql.Tx, event eventRow, config *rediswire.Config, pool *rediswire.Pool) error {
+	if config == nil && pool == nil {
 		return errors.New("cache Redis is not configured")
 	}
 	var payload cacheGenerationPayload
@@ -412,14 +419,27 @@ func processCacheGenerationBump(ctx context.Context, tx *sql.Tx, event eventRow,
 		}
 		args = append(args, key, hex.EncodeToString(token[:]))
 	}
-	redis, err := rediswire.Dial(ctx, config)
+	var redisConn *rediswire.Conn
+	var err error
+	pooled := pool != nil
+	if pooled {
+		redisConn, err = pool.Acquire(ctx)
+	} else {
+		redisConn, err = rediswire.Dial(ctx, config)
+	}
 	if err != nil {
 		return fmt.Errorf("connect cache Redis: %w", err)
 	}
-	defer redis.Close()
-	if _, err := redis.Do(ctx, args...); err != nil {
+	healthy := false
+	if pooled {
+		defer func() { pool.Release(redisConn, healthy) }()
+	} else {
+		defer redisConn.Close()
+	}
+	if _, err := redisConn.Do(ctx, args...); err != nil {
 		return fmt.Errorf("bump cache generations: %w", err)
 	}
+	healthy = true
 	return nil
 }
 

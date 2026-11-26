@@ -1,5 +1,6 @@
 import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
 import { apiRequest } from '@/api/client';
+import { uploadMobileImagesDirect } from '../media/direct-upload.api';
 import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry, readPublicCache, writePublicCache } from '@/storage/public-cache';
 import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
 
@@ -214,11 +215,13 @@ export type ServiceListingWriteInput = {
   attributes?: Record<string, unknown>;
   status?: 'ACTIVE'|'PAUSED';
 };
-export async function createMyServiceListing(input: ServiceListingWriteInput, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string}> = []): Promise<ServiceListing> {
+export async function createMyServiceListing(input: ServiceListingWriteInput, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string;fileSize?:number|null}> = []): Promise<ServiceListing> {
   const headers = { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}) };
-  let body: FormData | string = JSON.stringify(input);
-  if (images.length) { const form = new FormData(); for (const [key,value] of Object.entries(input)) if (value !== undefined) form.append(key, value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value)); for (const image of images) form.append('images', {uri:image.uri,name:image.fileName,type:image.mimeType} as unknown as Blob); body = form; }
-  const response = await apiRequest<Envelope<ServiceListing>>('/api/v1/service-listings', { method: 'POST', token, headers, body });
+  const directImagePublicIds = await uploadMobileImagesDirect(images, 'service-listings', token, csrfToken);
+  const response = await apiRequest<Envelope<ServiceListing>>('/api/v1/service-listings', {
+    method: 'POST', token, headers,
+    body: JSON.stringify({ ...input, directImagePublicIds }),
+  });
   const created = readData(response, 'تعذر إنشاء الخدمة.');
   await invalidateServiceListingCaches(created.id);
   return created;

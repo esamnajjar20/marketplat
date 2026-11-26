@@ -158,7 +158,8 @@ export const serviceListingsRepository = {
   addImages: async (
     id: string,
     newImages: string[],
-    maxImages = MAX_IMAGES_PER_ENTITY
+    maxImages = MAX_IMAGES_PER_ENTITY,
+    tx?: Prisma.TransactionClient
   ): Promise<ServiceListing> => {
     // Enforce the dynamic SQL bounds at the repository boundary. The number
     // of bound image placeholders is capped by MAX_IMAGES_PER_ENTITY; the
@@ -170,7 +171,7 @@ export const serviceListingsRepository = {
       );
     }
     if (newImages.length === 0) {
-      return prisma.serviceListing.findUniqueOrThrow({ where: { id } });
+      return (tx ?? prisma).serviceListing.findUniqueOrThrow({ where: { id } });
     }
     const safeMaxImages =
       Number.isInteger(maxImages) && maxImages > 0 && maxImages <= MAX_IMAGES_PER_ENTITY
@@ -185,7 +186,7 @@ export const serviceListingsRepository = {
     // newImages, plus the row id) is passed as a bound parameter. Do
     // NOT replace with a literal by editing this into
     // $executeRaw — that form can't express a dynamic-length IN list.
-    await prisma.$executeRawUnsafe(
+    await (tx ?? prisma).$executeRawUnsafe(
       `UPDATE "service_listings"
        SET "images" = (
          SELECT array_agg(img ORDER BY rn)
@@ -207,7 +208,7 @@ export const serviceListingsRepository = {
       ...newImages
     );
 
-    return prisma.serviceListing.findUniqueOrThrow({ where: { id } });
+    return (tx ?? prisma).serviceListing.findUniqueOrThrow({ where: { id } });
   },
 
   // Gap #3 fix: mirrors ads.repository.ts's removeImage — atomic, no

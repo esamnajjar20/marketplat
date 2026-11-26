@@ -42,6 +42,7 @@ func run() int {
 
 	s := newServer(cfg, db, logger)
 	defer s.redisPool.Close()
+	defer s.cacheRedisPool.Close()
 	httpServer := s.newHTTPServer(cfg.Addr)
 	logger.Info("MarketPlat Go worker listening", "addr", cfg.Addr, "retentionDays", cfg.RetentionDays, "batchSize", cfg.BatchSize, "outboxEnabled", cfg.OutboxEnabled, "pushDispatchEnabled", cfg.PushDispatchEnabled, "searchIndexEnabled", cfg.SearchIndexEnabled)
 
@@ -76,7 +77,17 @@ func run() int {
 	case err := <-serverErr:
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("HTTP server failed", "error", err)
+			// A Serve failure can leave established connections alive even though
+			// no new requests are accepted. Close them before dependencies drain.
+			if closeErr := httpServer.Close(); closeErr != nil {
+				logger.Warn("HTTP server close after listener failure failed", "error", closeErr)
+			}
 			stopWorkers()
+			select {
+			case <-workersDone:
+			case <-time.After(workerStopTimeout):
+				logger.Warn("timed out waiting for Go background workers after HTTP server failure")
+			}
 			return 1
 		}
 	}

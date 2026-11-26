@@ -10,7 +10,8 @@ import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../../shared/http/pagination';
 import { PaginatedResult } from '../../../shared/types/pagination.types';
-import { uploadImage } from '../../../config/cloudinary';
+import { uploadImageBatch } from '../../../shared/media/uploadImageBatch';
+import type { UploadResult } from '../../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
@@ -31,6 +32,7 @@ import { promotionsService, EffectivePrice } from '../promotions/promotions.serv
 import { fraudService } from '../../trust/fraud';
 import { followsService } from '../../engagement/follows/follows.service';
 import { MAX_IMAGES_PER_ENTITY } from '../../../config/limits';
+import { consumeDirectImageUploadIntents } from '../../../shared/media/directImageUpload';
 import {
   cachedPublicList,
   bumpPublicListCache,
@@ -120,7 +122,9 @@ export const productsService = {
     input: CreateProductInput,
     files: Express.Multer.File[],
     offlineOperationId?: string | null,
-    storeId?: string
+    storeId?: string,
+    directUploads?: UploadResult[],
+    directImagePublicIds?: string[]
   ): Promise<Product> => {
     const requestedStoreId = storeId ?? input.storeId;
     if (offlineOperationId) {
@@ -154,7 +158,10 @@ export const productsService = {
 
     // AUDIT-FIX (#3): require at least one image (Cloudinary path is live;
     // same rule as createAd).
-    if (!files?.length) {
+    if (directUploads && files.length) throw new BadRequestError('Use one image upload mode at a time.', 'MIXED_IMAGE_UPLOAD_MODES');
+    if ((directImagePublicIds?.length ?? 0) !== (directUploads?.length ?? 0)) throw new BadRequestError('Direct image intent metadata is incomplete.', 'DIRECT_UPLOAD_INVALID');
+    const incomingImageCount = directUploads?.length ?? files.length;
+    if (incomingImageCount < 1) {
       throw new BadRequestError(
         'At least one product image is required.',
         'PRODUCT_IMAGE_REQUIRED'
@@ -194,11 +201,12 @@ export const productsService = {
       }
     }
 
-    if (files.length > MAX_PRODUCT_IMAGES) {
+    if (incomingImageCount > MAX_PRODUCT_IMAGES) {
       throw new BadRequestError(`You can upload at most ${MAX_PRODUCT_IMAGES} images.`);
     }
 
-    const uploads = await Promise.all(files.map(file => uploadImage(file.buffer, 'products')));
+    const uploads = directUploads ?? await uploadImageBatch(files, 'products');
+    const cleanupUploads = !directUploads;
 
     let product: Product;
     // A concurrent replay can reach the unique index after both requests
@@ -226,6 +234,9 @@ export const productsService = {
         }
 
         return prisma.$transaction(async tx => {
+          if (directImagePublicIds?.length) {
+            await consumeDirectImageUploadIntents(tx, userId, 'products', directImagePublicIds);
+          }
           const created = await productsRepository.create(tx, store.id, {
             categoryId: input.categoryId,
             name: input.name,
@@ -270,13 +281,13 @@ export const productsService = {
         if (existing && existing.storeId === store.id) {
           product = existing;
           createdNew = false;
-          await cleanupUploadedImages(uploads.map(u => u.publicId));
+          if (cleanupUploads) await cleanupUploadedImages(uploads.map(u => u.publicId));
         } else {
-          await cleanupUploadedImages(uploads.map(u => u.publicId));
+          if (cleanupUploads) await cleanupUploadedImages(uploads.map(u => u.publicId));
           throw error;
         }
       } else {
-        await cleanupUploadedImages(uploads.map(u => u.publicId));
+        if (cleanupUploads) await cleanupUploadedImages(uploads.map(u => u.publicId));
         throw error;
       }
     }
@@ -734,15 +745,22 @@ export const productsService = {
   addImages: async (
     productId: string,
     userId: string,
-    files: Express.Multer.File[]
+    files: Express.Multer.File[],
+    directUploads?: UploadResult[],
+    directImagePublicIds?: string[]
   ): Promise<Product> => {
+    if ((directImagePublicIds?.length ?? 0) !== (directUploads?.length ?? 0)) throw new BadRequestError('Direct image intent metadata is incomplete.', 'DIRECT_UPLOAD_INVALID');
     const target = await productsRepository.findById(productId);
     if (!target) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
     const store = await requireStoreAccessForProducts(userId, 'manageProducts', target.storeId);
     return productImageOperations.addImages(
       productId,
       product => product.storeId === store.id,
-      files
+      files,
+      directUploads,
+      directImagePublicIds,
+      userId,
+      'products'
     );
   },
 

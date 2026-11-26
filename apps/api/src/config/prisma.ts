@@ -1,14 +1,23 @@
 import { PrismaClient } from '@prisma/client';
 import { recordPrismaQuery } from '../shared/observability/dbQueryTelemetry';
+import { env } from './env';
+import { buildPrismaDatabaseUrl } from '../shared/db/prismaPoolConfig';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
   dbQueryMetricsMiddlewareInstalled?: boolean;
 };
 
+export const prismaDatabaseUrl = buildPrismaDatabaseUrl(
+  env.database.url,
+  env.database.connectionLimit,
+  env.database.poolTimeoutSeconds
+);
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasources: { db: { url: prismaDatabaseUrl } },
     log:
       process.env.NODE_ENV === 'test'
         ? []

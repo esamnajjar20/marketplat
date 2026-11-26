@@ -77,6 +77,7 @@ describe('requestsService.create category guard', () => {
     expect(requestsRepository.create).toHaveBeenCalledWith(
       'u1',
       expect.objectContaining({ serviceTypeId: 'st-digital' }),
+      expect.any(Object),
     );
   });
 

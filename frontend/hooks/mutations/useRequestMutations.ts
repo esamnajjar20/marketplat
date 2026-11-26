@@ -32,12 +32,9 @@ export function useCreateRequest() {
   return useMutation({
     mutationFn: async (input: CreateRequestBody & { files?: File[] }) => {
       operationIdRef.current = newOfflineOperationId();
-      // FIX REQ-IMAGE-OFFLINE-01: the mutation now takes the raw File[]
-      // alongside the JSON fields, and lets createWithImages run the
-      // /media/images upload INSIDE this mutation — so an upload
-      // failure lands in onError below (which saves the draft) instead
-      // of short-circuiting at the form layer (which used to just
-      // toast + return, losing everything).
+      // Keep the original File[] inside the mutation so failed signed
+      // direct uploads can be stored in the offline draft and retried with
+      // fresh one-time intents instead of persisting expiring public IDs.
       const { files, ...body } = input;
       // FIX OFFLINE-QUEUE-RELIABILITY-01: ضغط صور الطلب أوفلاين قبل الرفع
       // FIX TRIPLE-COMPRESS-01: removed the compress-every-File loop

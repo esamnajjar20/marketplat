@@ -35,6 +35,8 @@ import { PaginatedResult } from '../../../shared/types/pagination.types';
 import { logger } from '../../../shared/observability/logger';
 import { getServiceTypeCapabilities } from '../../services/service-types/service-types.service';
 import { serviceTypesRepository } from '../../services/service-types/service-types.repository';
+import type { UploadResult } from '../../../config/cloudinary';
+import { consumeDirectImageUploadIntents } from '../../../shared/media/directImageUpload';
 
 /** Max simultaneous OPEN requests per customer (spam guard). */
 const MAX_OPEN_REQUESTS = 5;
@@ -112,7 +114,9 @@ export const requestsService = {
   create: async (
     customerId: string,
     input: CreateRequestInput,
-    offlineOperationId?: string | null
+    offlineOperationId?: string | null,
+    directUploads?: UploadResult[],
+    directImagePublicIds?: string[]
   ): Promise<RequestRow> => {
     if (offlineOperationId) {
       const existing = await prisma.request.findUnique({ where: { offlineOperationId } });
@@ -168,20 +172,33 @@ export const requestsService = {
       );
     }
 
+    if ((directImagePublicIds?.length ?? 0) !== (directUploads?.length ?? 0)) {
+      throw new BadRequestError('Direct image intent metadata is incomplete.', 'DIRECT_UPLOAD_INVALID');
+    }
+    if (directUploads?.length && input.attachedImages?.length) {
+      throw new BadRequestError('Use attachedImages or directImagePublicIds, not both.', 'MIXED_IMAGE_UPLOAD_MODES');
+    }
+    const attachedImages = directUploads?.map(upload => upload.url) ?? input.attachedImages;
+
     try {
-      return await requestsRepository.create(customerId, {
+      return await prisma.$transaction(async tx => {
+        if (directImagePublicIds?.length) {
+          await consumeDirectImageUploadIntents(tx, customerId, 'requests', directImagePublicIds);
+        }
+        return requestsRepository.create(customerId, {
         type: input.type,
         categoryId: input.categoryId,
         serviceTypeId,
         title: input.title,
         description: input.description,
         city: input.city,
-        attachedImages: input.attachedImages,
+        attachedImages,
         budgetMin: input.budgetMin,
         budgetMax: input.budgetMax,
         attributes: input.attributes as Prisma.InputJsonValue | undefined,
         expiresAt: resolveExpiresAt(input.expiresInDays),
         offlineOperationId: offlineOperationId ?? null,
+        }, tx);
       });
     } catch (err: unknown) {
       // P2002 race: concurrent replay of the same offline op id

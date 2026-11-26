@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client';
+import { uploadMobileImagesDirect } from '../media/direct-upload.api';
 type Envelope<T> = { success:boolean; message?:string; data?:T; meta?:{pagination?:{page?:number;limit?:number;total?:number;totalPages?:number}} };
 function unwrap<T>(r:Envelope<T>,fallback:string):T{if(!r||r.success!==true||r.data===undefined)throw new Error(r?.message||fallback);return r.data;}
 export type MarketplaceRequest={id:string;type:'SERVICE'|'PRODUCT'|'RENTAL';title:string;description:string;city?:string|null;status?:string;budgetMin?:number|string|null;budgetMax?:number|string|null;createdAt?:string;expiresAt?:string;attachedImages?:string[];categoryId:string;customerId?:string;customer?:{name?:string};offers?:RequestOffer[];acceptedOffer?:RequestOffer|null;_count?:{offers?:number}};
@@ -9,20 +10,15 @@ export async function fetchOpenRequests(o:{page?:number;limit?:number;type?:stri
 export async function fetchMarketplaceRequest(id:string,token?:string|null):Promise<MarketplaceRequest>{return unwrap(await apiRequest<Envelope<MarketplaceRequest>>(`/api/v1/requests/${encodeURIComponent(id)}`,token?{token}:{}),'تعذر تحميل تفاصيل الطلب.');}
 export async function fetchMyRequests(token:string,ownerId?:string|null,pageNum=1,limit=50,signal?:AbortSignal):Promise<Page<MarketplaceRequest>>{return page(await apiRequest<Envelope<MarketplaceRequest[]>>(`/api/v1/requests/me?page=${pageNum}&limit=${Math.min(50,Math.max(1,limit))}`,{token,cacheOwnerId:ownerId??undefined,signal}),'تعذر تحميل طلباتك.',pageNum);}
 export async function fetchMyOffers(token:string,ownerId?:string|null,pageNum=1,limit=50,signal?:AbortSignal):Promise<Page<RequestOffer>>{return page(await apiRequest<Envelope<RequestOffer[]>>(`/api/v1/requests/offers/me?page=${pageNum}&limit=${Math.min(50,Math.max(1,limit))}`,{token,cacheOwnerId:ownerId??undefined,signal}),'تعذر تحميل عروضك.',pageNum);}
-export type RequestImageUpload = { uri: string; fileName: string; mimeType: string };
-export type CreateMarketplaceRequestInput = { type: 'SERVICE'|'PRODUCT'|'RENTAL'; categoryId: string; title: string; description: string; city?: string; budgetMin?: number; budgetMax?: number; expiresInDays?: number; attachedImages?: string[] };
+export type RequestImageUpload = { uri: string; fileName: string; mimeType: string; fileSize?: number | null };
+export type CreateMarketplaceRequestInput = { type: 'SERVICE'|'PRODUCT'|'RENTAL'; categoryId: string; title: string; description: string; city?: string; budgetMin?: number; budgetMax?: number; expiresInDays?: number; attachedImages?: string[]; directImagePublicIds?: string[] };
 export async function uploadRequestImages(images: RequestImageUpload[], token: string, csrfToken?: string | null): Promise<string[]> {
   if (!images.length) return [];
   if (images.length > 5) throw new Error('يمكن إرفاق خمس صور كحد أقصى.');
-  const form = new FormData();
   for (const image of images) {
-    if (!/^image\/(jpeg|jpg|png|webp)$/.test(image.mimeType) || !image.uri.trim()) throw new Error('إحدى الصور المرفقة غير صالحة.');
-    form.append('images', { uri: image.uri, name: image.fileName, type: image.mimeType } as unknown as Blob);
+    if (!/^image\/(jpeg|jpg|png|webp)$/i.test(image.mimeType) || !image.uri.trim()) throw new Error('إحدى الصور المرفقة غير صالحة.');
   }
-  const response = unwrap(await apiRequest<Envelope<Array<{ url?: string }>>>('/api/v1/media/images', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: form }), 'تعذر رفع صور الطلب.');
-  const urls = Array.isArray(response) ? response.map(item => item?.url).filter((url): url is string => typeof url === 'string' && /^https:\/\//.test(url)) : [];
-  if (urls.length !== images.length) throw new Error('لم يؤكد الخادم رفع جميع صور الطلب.');
-  return urls;
+  return uploadMobileImagesDirect(images, 'requests', token, csrfToken);
 }
 export async function createMarketplaceRequest(i:CreateMarketplaceRequestInput,token:string,csrfToken?:string|null,offlineOperationId?:string):Promise<MarketplaceRequest>{const headers={...(csrfToken?{'X-CSRF-Token':csrfToken}:{}),...(offlineOperationId?{'X-Offline-Op-Id':offlineOperationId}:{})};return unwrap(await apiRequest<Envelope<MarketplaceRequest>>('/api/v1/requests',{method:'POST',token,headers,body:JSON.stringify(i)}),'تعذر إنشاء الطلب.');}
 export async function submitRequestOffer(id:string,i:{price:number;message?:string},token:string,csrfToken?:string|null,offlineOperationId?:string):Promise<RequestOffer>{const headers={...(csrfToken?{'X-CSRF-Token':csrfToken}:{}),...(offlineOperationId?{'X-Offline-Op-Id':offlineOperationId}:{})};return unwrap(await apiRequest<Envelope<RequestOffer>>(`/api/v1/requests/${encodeURIComponent(id)}/offers`,{method:'POST',token,headers,body:JSON.stringify(i)}),'تعذر إرسال العرض.');}

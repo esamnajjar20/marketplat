@@ -161,6 +161,7 @@ model User {
   createdAt                 DateTime                  @default(now())
   updatedAt                 DateTime                  @updatedAt
   ads                       Ad[]
+  directUploadIntents       DirectUploadIntent[]
   auditLogs                 AuditLog[]
   conversationsAsBuyer      Conversation[]            @relation("ConversationsAsBuyer")
   conversationsAsSeller     Conversation[]            @relation("ConversationsAsSeller")
@@ -206,6 +207,22 @@ model User {
 
   @@index([isActive, createdAt])
   @@map("users")
+}
+
+model DirectUploadIntent {
+  id         String   @id @default(cuid())
+  publicId   String   @unique
+  userId     String
+  purpose    String
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, status, expiresAt])
+  @@index([expiresAt])
+  @@map("direct_upload_intents")
 }
 
 model Category {

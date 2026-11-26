@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client';
+import { uploadMobileImagesDirect } from '../media/direct-upload.api';
 import { criticalAdEnvelopeResponseSchema } from '@/api/response-schemas';
 import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry } from '@/storage/public-cache';
 import type { AdListItem } from './ads.api';
@@ -98,20 +99,20 @@ export async function fetchMyAds(token: string): Promise<ManagedAd[]> {
 }
 
 export async function createAd(draft: AdDraft, token: string, csrfToken?: string | null, offlineOperationId?: string): Promise<ManagedAd> {
-  const body = new FormData();
-  for (const image of draft.images) {
-    body.append('images', { uri: image.uri, name: image.fileName, type: image.mimeType } as unknown as Blob);
-  }
-  body.append('title', draft.title.trim());
-  body.append('description', draft.description.trim());
-  body.append('city', draft.city.trim());
-  if (draft.price.trim()) body.append('price', draft.price.trim());
-  if (draft.categoryId.trim()) body.append('categoryId', draft.categoryId.trim());
-  body.append('isNegotiable', String(draft.isNegotiable));
-  if (draft.condition) body.append('condition', draft.condition);
-  if (draft.storeId) body.append('storeId', draft.storeId);
+  const directImagePublicIds = await uploadMobileImagesDirect(draft.images, 'ads', token, csrfToken);
+  const body = {
+    title: draft.title.trim(),
+    description: draft.description.trim(),
+    city: draft.city.trim(),
+    ...(draft.price.trim() ? { price: draft.price.trim() } : {}),
+    ...(draft.categoryId.trim() ? { categoryId: draft.categoryId.trim() } : {}),
+    isNegotiable: draft.isNegotiable,
+    ...(draft.condition ? { condition: draft.condition } : {}),
+    ...(draft.storeId ? { storeId: draft.storeId } : {}),
+    directImagePublicIds,
+  };
   const response = await apiRequest<Envelope<ManagedAd>>('/api/v1/ads', {
-    method: 'POST', body, token, headers: {
+    method: 'POST', body: JSON.stringify(body), token, headers: {
       ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
       ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}),
     },
@@ -139,16 +140,13 @@ export async function updateAd(id: string, draft: AdDraft, token: string, csrfTo
   // The fields PATCH has already succeeded, even if the subsequent image upload fails.
   await invalidateAdCaches(id);
   if (draft.images.length) {
-    const form = new FormData();
-    for (const image of draft.images) {
-      form.append('images', { uri: image.uri, name: image.fileName, type: image.mimeType } as unknown as Blob);
-    }
-    const imageResponse = await apiRequest<Envelope<ManagedAd>>(`/api/v1/ads/${encodeURIComponent(id)}/images`, {
-      method: 'POST', body: form, token,
-      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
-      responseSchema: criticalAdEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<ManagedAd>>,
-    });
     try {
+      const directImagePublicIds = await uploadMobileImagesDirect(draft.images, 'ads', token, csrfToken);
+      const imageResponse = await apiRequest<Envelope<ManagedAd>>(`/api/v1/ads/${encodeURIComponent(id)}/images`, {
+        method: 'POST', body: JSON.stringify({ directImagePublicIds }), token,
+        headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+        responseSchema: criticalAdEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<ManagedAd>>,
+      });
       const imageUpdated = requireEnvelopeData(imageResponse, 'تم تحديث البيانات لكن تعذّر رفع الصور. افتح التعديل مجددًا للتحقق من الإعلان.');
       await invalidateAdCaches(id);
       return imageUpdated;

@@ -26,8 +26,21 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../shared/auth/hash';
+import { buildPrismaDatabaseUrl } from '../shared/db/prismaPoolConfig';
 
-const prisma = new PrismaClient();
+// Keep one-off Prisma scripts inside the same explicit pool budget as the API.
+// This script still refuses non-test/e2e databases before performing writes.
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: buildPrismaDatabaseUrl(
+        process.env.DATABASE_URL ?? '',
+        Number(process.env.DB_CONNECTION_LIMIT ?? '1'),
+        Number(process.env.DB_POOL_TIMEOUT_SECONDS ?? '15'),
+      ),
+    },
+  },
+});
 
 const DB_NAME_SAFETY_PATTERN = /test|e2e/i;
 

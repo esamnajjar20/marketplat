@@ -6,7 +6,7 @@ import './instrument';
 
 import { app } from './app';
 import { env } from './config/env';
-import { prisma } from './config/prisma';
+import { prisma, prismaDatabaseUrl } from './config/prisma';
 import { criticalRedisServiceClients, closeRedisServiceClients } from './config/redis';
 import { logger } from './shared/observability/logger';
 import { viewsBuffer } from './shared/buffers/viewsBuffer';
@@ -149,7 +149,7 @@ const bootstrap = async (): Promise<void> => {
       SELECT setting AS max_connections FROM pg_settings WHERE name = 'max_connections'
     `;
     const actualMaxConnections = Number(postgresSettings[0]?.max_connections);
-    checkConnectionCapacity(env.database.url, actualMaxConnections);
+    checkConnectionCapacity(prismaDatabaseUrl, actualMaxConnections);
     for (const [index, client] of criticalRedisServiceClients.entries()) {
       const serviceLabel = index === 0 ? 'Redis (core)' : `Redis (critical service ${index + 1})`;
       await withRetry(serviceLabel, () => client.ping());

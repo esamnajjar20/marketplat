@@ -1,4 +1,5 @@
-import { uploadImage } from '../../config/cloudinary';
+import { uploadImageBatch } from './uploadImageBatch';
+import type { UploadResult } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
@@ -9,11 +10,14 @@ import { ForbiddenError } from '../errors/ForbiddenError';
 import { BadRequestError } from '../errors/BadRequestError';
 import { ErrorCode } from '../errors/errorCodes';
 import { logger } from '../observability/logger';
+import { prisma } from '../../config/prisma';
+import type { Prisma } from '@prisma/client';
+import { consumeDirectImageUploadIntents, type DirectImagePurpose } from './directImageUpload';
 
 /**
  * products.service.ts and service-listings.service.ts each
  * hand-rolled their own addImages/removeImage — ownership check, 10-image
- * cap, lock-guarded re-check, parallel uploads, cleanup-on-failure,
+ * cap, lock-guarded re-check, bounded uploads, cleanup-on-failure,
  * "can't remove the last image" guard — with the code close to
  * byte-for-byte identical between the two modules (see the original
  * report's finding). ads.service.ts has the same shape but also carries
@@ -39,7 +43,7 @@ interface ImageOwningEntity {
 
 interface ImageOwningRepository<TEntity extends ImageOwningEntity> {
   findById: (id: string) => Promise<TEntity | null>;
-  addImages: (id: string, newImages: string[]) => Promise<TEntity>;
+  addImages: (id: string, newImages: string[], maxImages?: number, tx?: Prisma.TransactionClient) => Promise<TEntity>;
   removeImage: (id: string, imageUrl: string) => Promise<TEntity>;
   reorderImages: (id: string, orderedImages: string[]) => Promise<TEntity>;
 }
@@ -61,7 +65,11 @@ export interface EntityImageOperations<TEntity extends ImageOwningEntity> {
   addImages: (
     entityId: string,
     ownerCheck: (entity: TEntity) => boolean,
-    files: Express.Multer.File[]
+    files: Express.Multer.File[],
+    directUploads?: UploadResult[],
+    directImagePublicIds?: string[],
+    intentOwnerId?: string,
+    intentPurpose?: DirectImagePurpose
   ) => Promise<TEntity>;
   removeImage: (
     entityId: string,
@@ -97,12 +105,15 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
   };
 
   return {
-    addImages: async (entityId, ownerCheck, files) => {
+    addImages: async (entityId, ownerCheck, files, directUploads, directImagePublicIds, intentOwnerId, intentPurpose) => {
+      if (directUploads && files.length) throw new BadRequestError('Use one image upload mode at a time.', 'MIXED_IMAGE_UPLOAD_MODES');
+      const incomingImageCount = directUploads?.length ?? files.length;
+      if (incomingImageCount < 1) throw new BadRequestError('At least one image is required.', 'IMAGE_REQUIRED');
       const entity = await findActiveOrThrow(entityId);
       if (!ownerCheck(entity)) {
         throw new ForbiddenError(`You do not own this ${entityLabel}.`, notOwnedCode);
       }
-      if (entity.images.length + files.length > maxImages) {
+      if (entity.images.length + incomingImageCount > maxImages) {
         throw new BadRequestError(`A ${entityLabel} can have at most ${maxImages} images`);
       }
 
@@ -118,50 +129,30 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
         if (!ownerCheck(fresh)) {
           throw new ForbiddenError(`You do not own this ${entityLabel}.`, notOwnedCode);
         }
-        if (fresh.images.length + files.length > maxImages) {
+        if (fresh.images.length + incomingImageCount > maxImages) {
           throw new BadRequestError(`A ${entityLabel} can have at most ${maxImages} images`);
         }
 
-        // Promise.all rejects as soon as one upload fails, but sibling uploads
-        // may still succeed and leave untracked Cloudinary assets. Wait for all
-        // attempts to settle so every successful upload can be cleaned up.
-        const uploadResults = await Promise.allSettled(
-          files.map(file => uploadImage(file.buffer, uploadFolder))
-        );
-        const uploads = uploadResults
-          .filter(
-            (result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadImage>>> =>
-              result.status === 'fulfilled'
-          )
-          .map(result => result.value);
-        const uploadFailure = uploadResults.find(
-          (result): result is PromiseRejectedResult => result.status === 'rejected'
-        );
-
-        if (uploadFailure) {
-          if (uploads.length > 0) {
-            try {
-              await cleanupUploadedImages(uploads.map(upload => upload.publicId));
-            } catch (cleanupError) {
-              logger.warn(
-                `Failed to clean up successful uploads after ${entityLabel} image upload failure`,
-                {
-                  entityId,
-                  cleanupError,
-                }
-              );
-            }
-          }
-          throw uploadFailure.reason;
-        }
+        // The shared helper bounds simultaneous Cloudinary streams and waits
+        // for all attempts before cleaning successful siblings on failure.
+        const uploads = directUploads ?? await uploadImageBatch(files, uploadFolder);
 
         try {
-          return await repository.addImages(
-            entityId,
-            uploads.map(upload => upload.url)
-          );
+          const imageUrls = uploads.map(upload => upload.url);
+          if (directImagePublicIds?.length) {
+            if (!intentOwnerId || !intentPurpose || directImagePublicIds.length !== uploads.length) {
+              throw new BadRequestError('Direct image intent metadata is incomplete.', 'DIRECT_UPLOAD_INVALID');
+            }
+            return await prisma.$transaction(async tx => {
+              await consumeDirectImageUploadIntents(tx, intentOwnerId, intentPurpose, directImagePublicIds);
+              return repository.addImages(entityId, imageUrls, maxImages, tx);
+            });
+          }
+          return await repository.addImages(entityId, imageUrls);
         } catch (error) {
-          await cleanupUploadedImages(uploads.map(upload => upload.publicId));
+          // Direct assets may be re-used by a later request from the same owner.
+          // Avoid deleting an asset that might already be referenced elsewhere.
+          if (!directUploads) await cleanupUploadedImages(uploads.map(upload => upload.publicId));
           throw error;
         }
       });

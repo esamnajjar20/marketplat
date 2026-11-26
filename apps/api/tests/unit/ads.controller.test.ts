@@ -37,7 +37,7 @@ describe('adsController', () => {
 
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: mockAd }));
-      expect(adsService.createAd).toHaveBeenCalledWith('user-1', expect.any(Object), [mockFile], null);
+      expect(adsService.createAd).toHaveBeenCalledWith('user-1', expect.any(Object), [mockFile], null, undefined, []);
     });
 
     // / TRACK-IMG-HOSTING: re-enabled under
@@ -313,7 +313,7 @@ describe('adsController', () => {
       await adsController.addImages(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(adsService.addImages).toHaveBeenCalledWith('ad-1', 'user-1', 'USER', [mockFile]);
+      expect(adsService.addImages).toHaveBeenCalledWith('ad-1', 'user-1', 'USER', [mockFile], null, undefined, []);
     });
 
     it('calls next(error) with BadRequestError when no files are attached', async () => {

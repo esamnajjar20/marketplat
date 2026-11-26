@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
+import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
 
 const requestTypeEnum = z.enum(['SERVICE', 'PRODUCT', 'RENTAL']);
+const attachedImageUrlSchema = z.string().url().refine(
+  url => !/\/classifieds\/(?:ads|products|service-listings|requests)\//i.test(url),
+  'MarketPlat Cloudinary assets must be submitted as directImagePublicIds so their one-time intent can be consumed atomically'
+);
 
 export const createRequestSchema = z.object({
   body: z
@@ -11,7 +16,11 @@ export const createRequestSchema = z.object({
       title: z.string().min(5, 'Title must be at least 5 characters').max(150),
       description: z.string().min(10, 'Description must be at least 10 characters').max(1000),
       city: z.string().min(1).max(100).optional(),
-      attachedImages: z.array(z.string().url()).max(5, 'At most 5 attached images').optional(),
+      attachedImages: z.array(attachedImageUrlSchema).max(5, 'At most 5 attached images').optional(),
+      directImagePublicIds: directImagePublicIdsSchema.refine(
+        ids => ids === undefined || ids.length <= 5,
+        'At most 5 direct image uploads are allowed for a request'
+      ),
       // Optional budgets — product decision: not required for every type.
       budgetMin: z.coerce.number().nonnegative().multipleOf(0.01).optional(),
       budgetMax: z.coerce.number().positive().multipleOf(0.01).optional(),
@@ -27,6 +36,10 @@ export const createRequestSchema = z.object({
     .refine(b => b.serviceTypeId === undefined || b.type === 'SERVICE', {
       message: 'serviceTypeId requires type=SERVICE',
       path: ['serviceTypeId'],
+    })
+    .refine(b => !(b.attachedImages?.length && b.directImagePublicIds?.length), {
+      message: 'Use attachedImages or directImagePublicIds, not both',
+      path: ['directImagePublicIds'],
     }),
 });
 

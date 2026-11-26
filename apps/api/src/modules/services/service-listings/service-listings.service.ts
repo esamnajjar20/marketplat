@@ -16,7 +16,8 @@ import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../../shared/http/pagination';
 import { PaginatedResult } from '../../../shared/types/pagination.types';
-import { uploadImage } from '../../../config/cloudinary';
+import { uploadImageBatch } from '../../../shared/media/uploadImageBatch';
+import type { UploadResult } from '../../../config/cloudinary';
 import { cleanupUploadedImages } from '../../../shared/media/cloudinaryHelpers';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
@@ -34,6 +35,7 @@ import { withServiceListingImagesLock } from '../../../shared/locks/adLock';
 import { createEntityImageOperations } from '../../../shared/media/entityImageOperations';
 import { logger } from '../../../shared/observability/logger';
 import { MAX_IMAGES_PER_ENTITY } from '../../../config/limits';
+import { consumeDirectImageUploadIntents } from '../../../shared/media/directImageUpload';
 import {
   cachedPublicList,
   bumpPublicListCache,
@@ -85,7 +87,9 @@ export const serviceListingsService = {
     userId: string,
     input: CreateServiceListingInput,
     files: Express.Multer.File[],
-    offlineOperationId?: string | null
+    offlineOperationId?: string | null,
+    directUploads?: UploadResult[],
+    directImagePublicIds?: string[]
   ): Promise<ServiceListing> => {
     if (offlineOperationId) {
       const existing = await prisma.serviceListing.findUnique({
@@ -106,7 +110,10 @@ export const serviceListingsService = {
     const provider = await requireOwnProvider(userId);
 
     // AUDIT-FIX (#3): require at least one image at create time.
-    if (!files?.length) {
+    if (directUploads && files.length) throw new BadRequestError('Use one image upload mode at a time.', 'MIXED_IMAGE_UPLOAD_MODES');
+    if ((directImagePublicIds?.length ?? 0) !== (directUploads?.length ?? 0)) throw new BadRequestError('Direct image intent metadata is incomplete.', 'DIRECT_UPLOAD_INVALID');
+    const incomingImageCount = directUploads?.length ?? files.length;
+    if (incomingImageCount < 1) {
       throw new BadRequestError(
         'At least one service image is required.',
         'LISTING_IMAGE_REQUIRED'
@@ -147,20 +154,22 @@ export const serviceListingsService = {
     validateServiceTypeCapabilities(serviceType, input.pricingType, input.serviceLocation);
     await validateServiceListingAttributes(serviceTypeId, input.attributes);
 
-    if (files.length > MAX_LISTING_IMAGES) {
+    if (incomingImageCount > MAX_LISTING_IMAGES) {
       throw new BadRequestError(`You can upload at most ${MAX_LISTING_IMAGES} images.`);
     }
 
-    // P-01 pattern (ads.service.ts): parallel uploads before the DB write.
-    const uploads = await Promise.all(
-      files.map(file => uploadImage(file.buffer, 'service-listings'))
-    );
+    // P-01 pattern (ads.service.ts): bounded uploads before the DB write.
+    const uploads = directUploads ?? await uploadImageBatch(files, 'service-listings');
+    const cleanupUploads = !directUploads;
 
     let listing: ServiceListing;
     // Only the request that wins the unique insert should publish create side effects.
     let createdNew = true;
     try {
       listing = await prisma.$transaction(async tx => {
+        if (directImagePublicIds?.length) {
+          await consumeDirectImageUploadIntents(tx, userId, 'service-listings', directImagePublicIds);
+        }
         const lockedCategory = await serviceCategoriesRepository.lockForListingCreation(
           tx,
           input.categoryId
@@ -226,15 +235,15 @@ export const serviceListingsService = {
         if (existing && existing.providerId === provider.id) {
           listing = existing;
           createdNew = false;
-          await cleanupUploadedImages(uploads.map(u => u.publicId));
+          if (cleanupUploads) await cleanupUploadedImages(uploads.map(u => u.publicId));
         } else {
-          await cleanupUploadedImages(uploads.map(u => u.publicId));
+          if (cleanupUploads) await cleanupUploadedImages(uploads.map(u => u.publicId));
           throw error;
         }
       } else {
         // Same failure-cleanup convention as ads.service.ts's createAd —
         // if the DB write fails after upload, don't leave orphaned assets.
-        await cleanupUploadedImages(uploads.map(u => u.publicId));
+        if (cleanupUploads) await cleanupUploadedImages(uploads.map(u => u.publicId));
         throw error;
       }
     }
@@ -622,13 +631,20 @@ export const serviceListingsService = {
   addImages: async (
     listingId: string,
     userId: string,
-    files: Express.Multer.File[]
+    files: Express.Multer.File[],
+    directUploads?: UploadResult[],
+    directImagePublicIds?: string[]
   ): Promise<ServiceListing> => {
+    if ((directImagePublicIds?.length ?? 0) !== (directUploads?.length ?? 0)) throw new BadRequestError('Direct image intent metadata is incomplete.', 'DIRECT_UPLOAD_INVALID');
     const provider = await requireOwnProvider(userId);
     return listingImageOperations.addImages(
       listingId,
       listing => listing.providerId === provider.id,
-      files
+      files,
+      directUploads,
+      directImagePublicIds,
+      userId,
+      'service-listings'
     );
   },
 
