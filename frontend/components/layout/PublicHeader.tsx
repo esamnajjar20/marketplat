@@ -3,7 +3,7 @@
 /**
  * PublicHeader — top navigation for all public-facing pages.
  *
- * Contains: Logo, main nav links, search bar, auth buttons (or user menu).
+ * Contains: Logo, main nav links, search icon, auth buttons (or user menu).
  * Responsive: collapses to a hamburger menu below the desktop breakpoint (including narrow tablet/split-screen widths).
  */
 
@@ -12,7 +12,6 @@ import { useEffect, useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { usePathname } from 'next/navigation';
 import { Logo }           from './Logo';
-import { SearchBar }      from './SearchBar';
 import { ThemeToggle }    from './ThemeToggle';
 // PERF-BUNDLE-HEADER-01: MobileNav/UserMenu/NotificationBell/MessagesLink كسولة — انظر LazyHeaderParts.
 import {
@@ -61,32 +60,9 @@ export function PublicHeader({ showSearch = true, showMenuTrigger = false }: Pro
   useEffect(() => setMounted(true), []);
   const isAuthenticated = mounted && isAuthenticatedRaw;
   const [createOpen, setCreateOpen] = useState(false);
-  // FIX UI-REVIEW-SEARCH-DUP: /search renders its own SearchBox in a
-  // dedicated brand band right below this header (see
-  // app/(public)/search/page.tsx) — a more capable control on that
-  // page specifically (query suggestions dropdown, preserves the
-  // page's existing city/type/sort/category filters on submit,
-  // matching SearchFilters' own update() convention) rather than a
-  // plain duplicate. With this header's own SearchBar still rendered
-  // unconditionally too, every visitor to /search saw two full-width
-  // search fields stacked directly on top of each other doing
-  // functionally the same thing — reported as a literal duplicate
-  // input, not just a visual near-miss. Hiding this header's copy
-  // specifically on /search (its result subpages like /search?q=...
-  // still match, since ROUTES.search has no trailing segment here)
-  // rather than touching SearchBox/SearchBar's own behavior, since
-  // both remain correct, distinct components used correctly in every
-  // other context (SearchBar also drives HeroBanner's desktop search).
+  // Search is a single icon (no inline field) — it opens /search, which owns the input.
   const pathname = usePathname();
   const onSearchPage = pathname === ROUTES.search;
-  // UI-REVIEW-HOME-SEARCH-DUP: the homepage renders its own SearchBox
-  // inside HomeDiscoverHero — a richer control with quick-shortcut chips
-  // (خدمات/منتجات/إعلانات/متاجر) that appear directly under the hero.
-  // Without this guard, / (home) showed the same field twice: once in
-  // this header, once in the hero. Hide the header copy on the homepage
-  // only; every other public route keeps it (there is no hero SearchBox
-  // anywhere else).
-  const isHomePage = pathname === '/';
   // @418-FIX: useSearchParams() here wrapped every public route in
   // a Suspense boundary; Next streamed the loading shell and then
   // hydrated against a different tree — React #418 args[]=HTML on
@@ -172,11 +148,22 @@ export function PublicHeader({ showSearch = true, showMenuTrigger = false }: Pro
           </Button>
         </nav>
 
-        <div className="hidden flex-1 lg:block">
-          {!onSearchPage && !isHomePage && showSearch && <SearchBar />}
-        </div>
+        <div className="hidden flex-1 lg:block" />
 
         <nav className="hidden items-center gap-1 lg:flex">
+          {showSearch && (
+            <IntentPrefetchLink
+              prefetch={false}
+              href={ROUTES.search}
+              aria-label="بحث"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-3-3" />
+              </svg>
+            </IntentPrefetchLink>
+          )}
           {/* FIX UX-03: theme is a device preference, not tied to an
               account — sits outside the isAuthenticated branch so
               guests can switch it too, not just logged-in users. */}
@@ -213,18 +200,7 @@ export function PublicHeader({ showSearch = true, showMenuTrigger = false }: Pro
         </nav>
       </div>
 
-      {/* Compact-header search bar — kept as its own row (not merged into the
-          title row above) since the title row's job is brand + quick
-          actions (theme/bell/menu), while search needs its full
-          width to stay comfortably usable. Hidden on /search itself
-          for the same reason as the desktop copy above — see this
-          component's top-level comment. */}
-      {!onSearchPage && !isHomePage && showSearch && (
-        <div className="border-t px-4 py-2 lg:hidden">
-          <SearchBar />
-        </div>
-      )}
-          <LazyCreateSheet open={createOpen} onOpenChange={setCreateOpen} />
+      <LazyCreateSheet open={createOpen} onOpenChange={setCreateOpen} />
     </header>
   );
 }

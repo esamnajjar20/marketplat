@@ -26,8 +26,8 @@ describe('homepage visual hierarchy — phase 62', () => {
     expect(screen.getByText('سوقك المحلي')).toBeInTheDocument();
   });
 
-  it('keeps search discoverable as the primary action', () => {
+  it('does not render an inline search field (search lives in the header icon)', () => {
     render(<HomeDiscoverHero />);
-    expect(screen.getByTestId('home-search')).toBeInTheDocument();
+    expect(screen.queryByTestId('home-search')).not.toBeInTheDocument();
   });
 });

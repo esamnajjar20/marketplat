@@ -365,7 +365,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
       <button type="button"
         id={TOGGLE_ID}
         onClick={toggleMobileNav}
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 hover:bg-muted"
+        className="inline-flex min-h-11 min-w-11 flex-col items-center justify-center rounded-lg p-2 hover:bg-muted"
         aria-label={isMobileNavOpen ? 'أغلق القائمة' : 'افتح القائمة'}
         aria-expanded={isMobileNavOpen}
         aria-controls={NAV_ID}

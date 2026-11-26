@@ -8,7 +8,7 @@
  * started opening CreateSheet's three-destination picker instead of
  * linking straight to /ads/create), since that's
  * the component's only real conditional logic — everything else is
- * static markup delegated to child components (Logo, SearchBar,
+ * static markup delegated to child components (Logo,
  * UserMenu, MobileNav), which are mocked here since each either has
  * its own dedicated test file or is trivial presentational markup.
  */
@@ -38,9 +38,6 @@ vi.mock('@/store/auth.store', () => ({
   selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
 }));
 
-vi.mock('@/components/layout/SearchBar', () => ({
-  SearchBar: () => <div data-testid="search-bar" />,
-}));
 
 vi.mock('@/components/layout/UserMenu', () => ({
   UserMenu: () => <div data-testid="user-menu" />,
@@ -111,12 +108,14 @@ describe('PublicHeader', () => {
     expect(homeLink).toBeDefined();
   });
 
-  it('renders both a desktop and a mobile search bar', () => {
+  it('renders search icon links (desktop + mobile) and no inline search field', () => {
     mockAuthState(false);
     render(<PublicHeader />);
 
-    // One SearchBar for md+ screens, one for the mobile row below the header.
-    expect(screen.getAllByTestId('search-bar')).toHaveLength(2);
+    const searchLinks = screen.getAllByRole('link', { name: 'بحث' });
+    expect(searchLinks).toHaveLength(2);
+    searchLinks.forEach((a) => expect(a).toHaveAttribute('href', '/search'));
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
   it('hides the header menu trigger when the public BottomNav owns the menu entry', () => {
@@ -145,10 +144,10 @@ describe('PublicHeader', () => {
   // UX-FIX: showSearch={false} is (auth)/layout.tsx's own opt-out for
   // login/register/forgot-password/reset-password — a search bar makes
   // no sense mid-auth-flow.
-  it('hides both search bars when showSearch is false', () => {
+  it('hides the search icons when showSearch is false', () => {
     mockAuthState(false);
     render(<PublicHeader showSearch={false} />);
 
-    expect(screen.queryByTestId('search-bar')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'بحث' })).not.toBeInTheDocument();
   });
 });

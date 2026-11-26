@@ -1,6 +1,7 @@
 'use client';
 
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
+import { useIsSelf } from '@/hooks/useIsSelf';
 import { useMemo, useState, useEffect, type ReactNode } from 'react';
 import { Clock, Eye } from 'lucide-react';
 import { ServiceListingGallery } from '@/components/services/ServiceListingGallery';
@@ -60,6 +61,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
   const shareUrl = `${APP_URL}${ROUTES.serviceDetail(listing.id)}`;
 
   const providerUserId = listing.provider.sellerProfile?.userId;
+  const isOwnListing = useIsSelf(providerUserId);
 
   return (
     <>
@@ -195,11 +197,11 @@ export function ServiceListingDetail({ listing, action }: Props) {
 
 
       {/* Mobile sticky CTA — primary action only (no pinned price) */}
-      {(providerUserId || action) && (
+      {(action || (providerUserId && !isOwnListing)) && (
         <div className={cn(STICKY_BAR, 'md:hidden', stickyCta.transitionClass, stickyCta.hiddenClass)}>
           {action ? (
             <div className="w-full flex-1">{action}</div>
-          ) : providerUserId ? (
+          ) : providerUserId && !isOwnListing ? (
             <MessageUserButtonGate
               targetUserId={providerUserId}
               size="lg"

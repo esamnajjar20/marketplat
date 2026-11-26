@@ -16,13 +16,13 @@ vi.mock('@/store/auth.store', () => ({
   selectUser: (s: any) => s?.user,
   selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
 }));
-vi.mock('@/components/search/SearchBox', () => ({ SearchBox: () => <div data-testid="home-search" /> }));
 vi.mock('@/components/home/WelcomeBar', () => ({ WelcomeBar: () => <div data-testid="welcome-bar" /> }));
 
 describe('homepage discovery hero — phase 60', () => {
-  it('keeps search first and shows the discovery headline', () => {
+  it('shows the discovery headline without an inline search field', () => {
     render(<HomeDiscoverHero />);
-    expect(screen.getByTestId('home-search')).toBeInTheDocument();
+    expect(screen.queryByTestId('home-search')).not.toBeInTheDocument();
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
     expect(screen.getByText('السوق المحلي — ابحث، قارن، واكتشف')).toBeInTheDocument();
     // Marketplace type shortcuts were removed from the hero; search remains primary.
     expect(screen.queryByRole('navigation', { name: 'استكشف حسب النوع' })).not.toBeInTheDocument();

@@ -80,7 +80,7 @@ export function LazyMobileNav({ hideTrigger = false }: { hideTrigger?: boolean }
         <button type="button"
           id={TOGGLE_ID}
           onClick={toggleMobileNav}
-          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 hover:bg-muted"
+          className="inline-flex min-h-11 min-w-11 flex-col items-center justify-center rounded-lg p-2 hover:bg-muted"
           aria-label={isOpen ? 'أغلق القائمة' : 'افتح القائمة'}
           aria-expanded={isOpen}
           aria-controls={NAV_ID}
@@ -133,7 +133,7 @@ export function LazyProtectedMobileNav() {
       <button type="button"
         id={P_TOGGLE_ID}
         onClick={toggleMobileNav}
-        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 hover:bg-muted lg:hidden"
+        className="inline-flex min-h-11 min-w-11 flex-col items-center justify-center rounded-lg p-2 hover:bg-muted lg:hidden"
         aria-label={isOpen ? 'أغلق القائمة' : 'افتح القائمة'}
         aria-expanded={isOpen}
         aria-controls={P_NAV_ID}

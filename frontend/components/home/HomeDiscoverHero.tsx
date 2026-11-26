@@ -2,15 +2,12 @@
 
 import { cn } from '@/lib/utils';
 import { WelcomeBar } from '@/components/home/WelcomeBar';
-import { SearchBox } from '@/components/search/SearchBox';
 import { useAuthStore, selectIsAuthenticated, selectIsHydrated } from '@/store/auth.store';
 import { useMounted } from '@/hooks/useMounted';
 
 /**
- * Homepage discovery hero: one primary search field under a clear headline and
- * one-line value proposition. Type shortcuts were deliberately removed from
- * the hero (see homepageDiscoverPhase60.test) and creation CTAs are not
- * duplicated here.
+ * Homepage discovery hero: clear headline and one-line value proposition.
+ * Search lives in the header icon; type shortcuts live in the Explore tab.
  */
 export function HomeDiscoverHero({ className }: { className?: string }) {
   // FIX HYDRATION-418-HOME-01: the persisted auth store is already hydrated on
@@ -38,7 +35,7 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
         className="pointer-events-none absolute -end-24 top-1/2 hidden h-56 w-56 rounded-full bg-accent/10 blur-3xl lg:block"
       />
       <div className="relative container mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-8 lg:py-10">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1fr)] lg:items-center lg:gap-12">
+        <div className="grid gap-5">
           <div className="min-w-0">
             <span className="mb-2.5 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/[0.06] px-3 py-1 text-2xs-tight font-bold text-primary sm:mb-3 sm:text-xs">
               <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-primary" />
@@ -59,11 +56,6 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
             {isHydrated && isAuthenticated ? <div className="mt-3 sm:mt-4"><WelcomeBar /></div> : null}
           </div>
 
-          <div className="min-w-0">
-            <div className="max-w-3xl rounded-2xl bg-background/70 p-1 shadow-sm ring-1 ring-border/60 backdrop-blur-sm">
-              <SearchBox />
-            </div>
-          </div>
         </div>
       </div>
     </section>

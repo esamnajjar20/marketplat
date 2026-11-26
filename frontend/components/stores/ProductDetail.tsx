@@ -17,6 +17,7 @@ import {
  */
 
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
+import { useIsSelf } from '@/hooks/useIsSelf';
 import { useMemo } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
@@ -103,10 +104,13 @@ export function ProductDetail({ product, related = [] }: Props) {
   const store = product.store;
   const shareUrl = `${APP_URL}${ROUTES.productDetail(product.id)}`;
   const ownerId = store.sellerProfile?.userId;
+  // Owner viewing their own product: no contact button → no sticky bar, no reserved space.
+  const isOwnProduct = useIsSelf(ownerId);
+  const showStickyContact = Boolean(ownerId) && !isOwnProduct;
 
   return (
     <>
-      <div className={cn('flex flex-col gap-6 md:flex-row md:gap-8', ownerId ? 'pb-sticky-contact' : 'pb-8' /* FIX PB-STICKY-FALLBACK */)}>
+      <div className={cn('flex flex-col gap-6 md:flex-row md:gap-8', showStickyContact ? 'pb-sticky-contact' : 'pb-8' /* FIX PB-STICKY-FALLBACK */)}>
         {/* Gallery + description */}
         <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
           <ProductDetailGallery
@@ -170,7 +174,7 @@ export function ProductDetail({ product, related = [] }: Props) {
       </div>
 
       {/* Mobile sticky contact CTA — action only (no pinned price) */}
-      {ownerId && (
+      {showStickyContact && (
         <div className={cn(STICKY_BAR, 'md:hidden', stickyCta.transitionClass, stickyCta.hiddenClass)}>
           <MessageUserButtonGate
             targetUserId={ownerId}

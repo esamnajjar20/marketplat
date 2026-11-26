@@ -5,7 +5,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MAX_HOME_CATEGORIES } from '@/components/home/CategoriesRow';
 import { SectionHeader } from '@/components/home/SectionHeader';
-import { HomeTypeShortcuts } from '@/components/home/HomeTypeShortcuts';
 import { HomeContextStrip } from '@/components/home/HomeContextStrip';
 import { EagerHomeSections } from '@/components/home/EagerHomeSections';
 import { CAROUSEL_ASPECT } from '@/components/home/FeaturedCarousel';
@@ -87,16 +86,6 @@ describe('SectionHeader tones', () => {
     expect(screen.getByText('لك')).toBeInTheDocument();
     rerender(<SectionHeader tone="nearby" eyebrow="قريب" title="في مدينتك" />);
     expect(screen.getByText('في مدينتك')).toBeInTheDocument();
-  });
-});
-
-describe('HomeTypeShortcuts', () => {
-  it('links to the four primary marketplace surfaces', () => {
-    render(<HomeTypeShortcuts />);
-    expect(screen.getByRole('link', { name: /إعلانات/ })).toHaveAttribute('href', '/ads');
-    expect(screen.getByRole('link', { name: /منتجات/ })).toHaveAttribute('href', '/products');
-    expect(screen.getByRole('link', { name: /خدمات/ })).toHaveAttribute('href', '/services');
-    expect(screen.getByRole('link', { name: /متاجر/ })).toHaveAttribute('href', '/stores');
   });
 });
 
