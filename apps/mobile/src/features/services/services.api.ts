@@ -3,6 +3,7 @@ import { ApiError, apiRequest } from '@/api/client';
 import { uploadMobileImagesDirect } from '../media/direct-upload.api';
 import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry, readPublicCache, writePublicCache } from '@/storage/public-cache';
 import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
+import { buildFilterParams } from '../../../../../shared/filters';
 
 type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
 export type ServiceTypeListingField = { id: string; key: string; scope: string; type: string; labelAr?: string; pageLabelAr?: string | null; showOnPage?: boolean; isActive?: boolean; options?: Array<{ value: string; labelAr?: string; label?: string }> | null };
@@ -43,15 +44,22 @@ export type ServiceBrowseFilters = { serviceTypeId?: string; categoryId?: string
 export type ServiceListingsOptions = { page?: number; limit?: number; search?: string; signal?: AbortSignal } & ServiceBrowseFilters;
 
 export function serviceListingsCacheKey(options: ServiceListingsOptions = {}): string {
-  const params = new URLSearchParams({ page: String(options.page ?? 1), limit: String(options.limit ?? 20), sortBy: options.sortBy ?? 'createdAt', sortOrder: options.sortOrder ?? 'desc' });
-  if (options.search?.trim()) params.set('search', options.search.trim());
-  if (options.serviceTypeId) params.set('serviceTypeId', options.serviceTypeId);
-  if (options.categoryId) params.set('categoryId', options.categoryId);
-  if (options.serviceLocation) params.set('serviceLocation', options.serviceLocation);
-  if (options.attributeFilters && Object.keys(options.attributeFilters).length) params.set('attributeFilters', JSON.stringify(options.attributeFilters));
-  if (options.city?.trim()) params.set('city', options.city.trim());
-  if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
-  if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));
+  const params = buildFilterParams({
+    page: options.page ?? 1,
+    limit: options.limit ?? 20,
+    sortBy: options.sortBy ?? 'createdAt',
+    sortOrder: options.sortOrder ?? 'desc',
+    search: options.search,
+    serviceTypeId: options.serviceTypeId,
+    categoryId: options.categoryId,
+    serviceLocation: options.serviceLocation,
+    attributeFilters: options.attributeFilters && Object.keys(options.attributeFilters).length
+      ? JSON.stringify(options.attributeFilters)
+      : undefined,
+    city: options.city,
+    minPrice: options.minPrice,
+    maxPrice: options.maxPrice,
+  }, { profile: 'servicesBrowse' });
   return `service-listings:${params.toString()}`;
 }
 export async function getCachedServiceListings(options: ServiceListingsOptions = {}): Promise<ServiceListing[] | null> {
@@ -71,15 +79,22 @@ export async function getCachedServiceListingsPage(options: ServiceListingsOptio
 export async function fetchServiceListingsPage(options: ServiceListingsOptions = {}): Promise<ServiceListingPage> {
   const page = options.page ?? 1;
   const limit = options.limit ?? 30;
-  const params = new URLSearchParams({ page: String(page), limit: String(limit), sortBy: options.sortBy ?? 'createdAt', sortOrder: options.sortOrder ?? 'desc' });
-  if (options.search?.trim()) params.set('search', options.search.trim());
-  if (options.serviceTypeId) params.set('serviceTypeId', options.serviceTypeId);
-  if (options.categoryId) params.set('categoryId', options.categoryId);
-  if (options.serviceLocation) params.set('serviceLocation', options.serviceLocation);
-  if (options.attributeFilters && Object.keys(options.attributeFilters).length) params.set('attributeFilters', JSON.stringify(options.attributeFilters));
-  if (options.city?.trim()) params.set('city', options.city.trim());
-  if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
-  if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));
+  const params = buildFilterParams({
+    page,
+    limit,
+    sortBy: options.sortBy ?? 'createdAt',
+    sortOrder: options.sortOrder ?? 'desc',
+    search: options.search,
+    serviceTypeId: options.serviceTypeId,
+    categoryId: options.categoryId,
+    serviceLocation: options.serviceLocation,
+    attributeFilters: options.attributeFilters && Object.keys(options.attributeFilters).length
+      ? JSON.stringify(options.attributeFilters)
+      : undefined,
+    city: options.city,
+    minPrice: options.minPrice,
+    maxPrice: options.maxPrice,
+  }, { profile: 'servicesBrowse' });
   const cacheKey = serviceListingsCacheKey({ ...options, page, limit });
   let response: Envelope<ServiceListing[]>;
   try { response = await apiRequest<Envelope<ServiceListing[]>>(`/api/v1/service-listings?${params.toString()}`, { signal: options.signal }); }
@@ -137,7 +152,7 @@ export async function fetchServiceRequest(id: string, token: string, signal?: Ab
 export async function fetchServiceRequests(token: string, incoming = false, page = 1, limit = 50, signal?: AbortSignal): Promise<{ items: ServiceRequest[]; page: number; totalPages: number; total: number }> {
   const safePage = Math.max(1, Math.floor(Number(page) || 1));
   const safeLimit = Math.min(50, Math.max(1, Math.floor(Number(limit) || 50)));
-  const response = await apiRequest<Envelope<ServiceRequest[]>>(`/api/v1/service-requests/${incoming ? 'incoming' : 'me'}?page=${safePage}&limit=${safeLimit}`, { token, signal });
+  const response = await apiRequest<Envelope<ServiceRequest[]>>(`/api/v1/service-requests/${incoming ? 'incoming' : 'me'}?${buildFilterParams({ page: safePage, limit: safeLimit }, { profile: incoming ? 'incomingServiceRequests' : 'myServiceRequests' })}`, { token, signal });
   const items = readData(response, 'تعذر تحميل طلبات الخدمات.');
   if (!Array.isArray(items)) throw new Error('استجابة الطلبات غير صالحة.');
   const pagination = response.meta?.pagination;
@@ -202,7 +217,7 @@ export async function fetchServiceCategoryOptions(): Promise<ServiceCategoryOpti
 export async function fetchMyServiceListingsPage(token: string, page = 1, limit = 30, signal?: AbortSignal): Promise<{ items: ServiceListing[]; page: number; totalPages: number; total: number }> {
   const safePage = Math.max(1, Math.floor(page));
   const safeLimit = Math.min(50, Math.max(1, Math.floor(limit)));
-  const response = await apiRequest<Envelope<ServiceListing[]>>(`/api/v1/service-listings/me?page=${safePage}&limit=${safeLimit}&sortBy=createdAt&sortOrder=desc`, { token, signal });
+  const response = await apiRequest<Envelope<ServiceListing[]>>(`/api/v1/service-listings/me?${buildFilterParams({ page: safePage, limit: safeLimit, sortBy: 'createdAt', sortOrder: 'desc' }, { profile: 'myServices' })}`, { token, signal });
   const items = readData(response, 'تعذر تحميل خدماتك.');
   if (!Array.isArray(items)) throw new Error('استجابة خدماتك غير صالحة.');
   const pagination = response.meta?.pagination;

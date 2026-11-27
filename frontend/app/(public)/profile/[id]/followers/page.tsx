@@ -1,3 +1,4 @@
+import { normalizeFilterPage } from '../../../../../../shared/filters';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { followsApi } from '@/api/follows.api';
@@ -18,8 +19,7 @@ export const metadata: Metadata = { title: 'المتابعون' };
 
 export default async function FollowersPage({ params, searchParams }: Props) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const requestedPage = Number(query.page);
-  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const page = normalizeFilterPage(query.page);
 
   let data: PaginatedResponse<FollowItem>;
   try {

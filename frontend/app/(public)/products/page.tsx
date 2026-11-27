@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import { ProductsPageClient } from '@/components/stores/ProductsPageClient';
 import { fetchPublicBrowsePage } from '@/lib/prefetch';
-import { getBrowseParam, SSR_BROWSE_MAX_CACHE_AGE_MS, SSR_BROWSE_PAGE_SIZE, SSR_BROWSE_REVALIDATE_SECONDS, type BrowseSearchParams } from '@/lib/browseSearchParams';
+import { getBrowseNumber, getBrowseParam, SSR_BROWSE_MAX_CACHE_AGE_MS, SSR_BROWSE_PAGE_SIZE, SSR_BROWSE_REVALIDATE_SECONDS, type BrowseSearchParams } from '@/lib/browseSearchParams';
 import { buildMetadata } from '@/lib/seo';
 import type { BrowsePage } from '@/types/browse.types';
-import type { ProductWithStore } from '@/types/product.types';
+import type { ProductAvailability, ProductWithStore } from '@/types/product.types';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = buildMetadata({ title: 'المنتجات', path: '/products' });
@@ -16,6 +16,7 @@ type ProductsPageProps = {
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const params: BrowseSearchParams = searchParams ? await searchParams : {};
   const hasPromotion = getBrowseParam(params, 'hasPromotion') === 'true' ? true : undefined;
+  const availability = getBrowseParam(params, 'availability') as ProductAvailability | undefined;
   const browseParams = {
     page: 1,
     limit: SSR_BROWSE_PAGE_SIZE,
@@ -25,6 +26,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     sortBy: getBrowseParam(params, 'sortBy') ?? 'createdAt',
     sortOrder: getBrowseParam(params, 'sortOrder') ?? 'desc',
     hasPromotion,
+    availability,
+    minPrice: getBrowseNumber(params, 'minPrice'),
+    maxPrice: getBrowseNumber(params, 'maxPrice'),
   };
 
   let initialPage: BrowsePage<ProductWithStore> | null = null;

@@ -1,3 +1,4 @@
+import { buildFilterParams } from '../../../../../shared/filters';
 import { apiRequest } from '@/api/client';
 
 export type FavoriteRecord = {
@@ -29,7 +30,7 @@ export async function fetchFavoriteAdIds(token: string): Promise<string[]> {
   // The API is paginated; walk pages so accounts with more than one page are not truncated.
   for (let page = 1; page <= 100; page += 1) {
     const response = await apiRequest<Envelope<FavoriteRecord[]>>(
-      `/api/v1/favorites?page=${page}&limit=100`,
+      `/api/v1/favorites?${buildFilterParams({ page, limit: 100 }, { profile: 'favorites' })}`,
       { token },
     );
     if (response?.success !== true || !Array.isArray(response.data)) {
@@ -103,7 +104,7 @@ export async function fetchFavoriteAdsPage(
   const safePage = Math.max(1, Math.floor(page));
   const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
   const response = await apiRequest<Envelope<FavoriteRecord[]>>(
-    `/api/v1/favorites?page=${safePage}&limit=${safeLimit}`,
+    `/api/v1/favorites?${buildFilterParams({ page: safePage, limit: safeLimit }, { profile: 'favorites' })}`,
     { token },
   );
   const result = favoritePage(response, safePage, 'استجابة المفضلة من الخادم غير متوقعة.');
@@ -149,7 +150,7 @@ export async function fetchFavoriteEntityPage(
 ): Promise<FavoritePage<FavoriteEntityRecord>> {
   const safePage = Math.max(1, Math.floor(page));
   const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
-  const params = new URLSearchParams({ type, page: String(safePage), limit: String(safeLimit) });
+  const params = buildFilterParams({ type, page: safePage, limit: safeLimit }, { profile: 'favorites' });
   const response = await apiRequest<Envelope<FavoriteEntityRecord[]>>(`/api/v1/favorites?${params.toString()}`, { token });
   const result = favoritePage(response, safePage, 'تعذر تحميل هذا النوع من المفضلة.');
   return {

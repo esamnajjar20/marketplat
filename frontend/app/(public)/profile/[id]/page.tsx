@@ -13,6 +13,7 @@ import { getQueryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
 import type { AdListItem } from '@/types/ad.types';
 import type { PaginationMeta } from '@/types/api.types';
+import { buildFilterParams, normalizeFilterPage } from '../../../../../shared/filters';
 
 const PublicProfileClient = dynamic(
   () =>
@@ -30,10 +31,6 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function positivePage(value: string | undefined): number {
-  const parsed = Number(value ?? 1);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, 10_000) : 1;
-}
 
 /**
  * Use the shared Server Component API reader for both metadata and page
@@ -70,7 +67,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   const { id } = await params;
   const rawSearch = searchParams ? await searchParams : {};
   const requestedTab = first(rawSearch.tab);
-  const requestedPage = positivePage(first(rawSearch.page));
+  const requestedPage = normalizeFilterPage(first(rawSearch.page));
   let user: PublicUser | null = null;
   let loadFailed = false;
   let accountBlocked = false;
@@ -109,7 +106,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   // initial tab (including deep links to ?tab=ads), not every profile section.
   // This keeps tab code lazy while avoiding a client GET on the first view.
   if (selectedTab === 'overview' || selectedTab === 'ads') {
-    const query = new URLSearchParams({ page: String(requestedPage) });
+    const query = buildFilterParams({ page: requestedPage }, { profile: 'publicProfileAds' });
     try {
       const response = await fetchServerApi<AdListItem[]>(
         `/users/${encodeURIComponent(id)}/ads?${query.toString()}`,

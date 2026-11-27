@@ -1,9 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useSearchParams } from 'next/navigation';
 import { ProfileTabs, type ProfileTabValue } from '@/components/profile/ProfileTabs';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { ErrorBoundary } from '@/components/shared/feedback/ErrorBoundary';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { PublicUser } from '@/types/user.types';
@@ -54,7 +53,8 @@ const TAB_LABEL: Record<ProfileTabValue, string> = {
  * straight to the ads tab instead of a redundant duplicate.
  */
 export function ProfileTabsSection({ user }: Props) {
-  const sp = useSearchParams();
+  const filters = useUnifiedFilters({ basePath: `/profile/${user.id}`, mode: 'push' });
+  const sp = filters.params;
   const currentUser = useAuthStore(selectUser);
   const isOwnProvider = currentUser?.id === user.id;
 
@@ -83,11 +83,7 @@ export function ProfileTabsSection({ user }: Props) {
     requested && available.includes(requested) ? requested : defaultTab;
 
   function handleChange(next: ProfileTabValue) {
-    const params = new URLSearchParams(sp.toString());
-    if (next === defaultTab) params.delete('tab');
-    else params.set('tab', next);
-    params.delete('page');
-    writeClientUrl(`/profile/${user.id}${params.toString() ? `?${params.toString()}` : ''}`, 'push');
+    filters.update('tab', next === defaultTab ? null : next, { mode: 'push' });
   }
 
   return (

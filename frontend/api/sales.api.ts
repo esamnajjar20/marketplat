@@ -1,5 +1,6 @@
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { AxiosRequestConfig } from 'axios';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 import type { CreateSalePayload, SaleRecord, SalesSummary, SalesDashboard, SalesReport, SalesSmartInsights, SalesListQueryParams, SalesReportQueryParams } from '@/types/sale.types';
@@ -15,26 +16,26 @@ export const salesApi = {
   // NOT a bare array + meta.pagination — so unwrapPaginated must NOT be used here
   // (it would nest { items, meta } inside items and the list would render empty).
   list: (params?: SalesListQueryParams, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<{ items: SaleRecord[]; meta: PaginationMeta }>>('/sales', { ...config, params }),
+    apiClient.get<ApiResponse<{ items: SaleRecord[]; meta: PaginationMeta }>>('/sales', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'salesBrowse' }) : undefined }),
   getById: (id: string) => apiClient.get<ApiResponse<SaleRecord>>(`/sales/${id}`),
   create: (payload: CreateSalePayload, operationId?: string) => apiClient.post<ApiResponse<SaleRecord>>('/sales', payload, { headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined }),
   summary: (period: 'day' | 'week' | 'month' | 'year' = 'month', config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<SalesSummary>>('/sales/summary', { ...config, params: { period } }),
+    apiClient.get<ApiResponse<SalesSummary>>('/sales/summary', { ...config, params: buildFilterParams({ period }, { profile: 'salesSummary' }) }),
   dashboard: (config?: SalesRequestConfig) => (config ? apiClient.get<ApiResponse<SalesDashboard>>('/sales/dashboard', config) : apiClient.get<ApiResponse<SalesDashboard>>('/sales/dashboard')),
-  report: (params?: SalesReportQueryParams, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<SalesReport>>('/sales/reports', { ...config, params }),
-  exportReportCsv: (params?: SalesReportQueryParams, config?: AxiosRequestConfig) => apiClient.get<Blob>('/sales/reports.csv', { ...config, params, responseType: 'blob' }),
+  report: (params?: SalesReportQueryParams, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<SalesReport>>('/sales/reports', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'salesReports' }) : undefined }),
+  exportReportCsv: (params?: SalesReportQueryParams, config?: AxiosRequestConfig) => apiClient.get<Blob>('/sales/reports.csv', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'salesReports' }) : undefined, responseType: 'blob' }),
   debtSummary: (config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<{totalDue:number;overdueDue:number;dueToday:number;debtorCount:number}>>('/sales/debts/summary', config) : apiClient.get<ApiResponse<{totalDue:number;overdueDue:number;dueToday:number;debtorCount:number}>>('/sales/debts/summary')),
-  debts: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ rows: SaleRecord[]; totalCount: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean }>>('/sales/debts', { ...config, params }),
-  debtOverview: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ summary: { totalDue:number; overdueDue:number; dueToday:number; debtorCount:number } | null; debts: { rows: SaleRecord[]; totalCount:number; page:number; limit:number; totalPages:number; hasNextPage:boolean; hasPrevPage:boolean } | null; failures: { summary:boolean; debts:boolean } }>>('/sales/debts/overview', { ...config, params }),
+  debts: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ rows: SaleRecord[]; totalCount: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean }>>('/sales/debts', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'salesDebts' }) : undefined }),
+  debtOverview: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ summary: { totalDue:number; overdueDue:number; dueToday:number; debtorCount:number } | null; debts: { rows: SaleRecord[]; totalCount:number; page:number; limit:number; totalPages:number; hasNextPage:boolean; hasPrevPage:boolean } | null; failures: { summary:boolean; debts:boolean } }>>('/sales/debts/overview', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'salesDebts' }) : undefined }),
   addPayment: (id: string, payload: { amount: number; method: import('@/types/sale.types').SaleTransferMethod; transferRef?: string; note?: string; offlineOperationId?: string }) => apiClient.post<ApiResponse<SaleRecord>>(`/sales/${id}/payments`, payload),
   receipt: (id: string, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ invoiceNumber: string | null; sale: SaleRecord }>>(`/sales/${encodeURIComponent(id)}/receipt`, config),
   chart: (params?: { from?: string; to?: string; period?: 'day' | 'week' | 'month' | 'year' }, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<Array<{ date: string; revenue: number; paid: number; due: number; count: number }>>>('/sales/chart', { ...config, params }),
-  compare: (period: 'week'|'month'|'year' = 'month', config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{period:string;current:SalesSummary;previous:SalesSummary;samePeriodLastYear:SalesSummary;revenueChangePercentage:number|null;lastYearRevenueChangePercentage:number|null}>>('/sales/compare', { ...config, params: { period }}),
+    apiClient.get<ApiResponse<Array<{ date: string; revenue: number; paid: number; due: number; count: number }>>>('/sales/chart', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'salesChart' }) : undefined }),
+  compare: (period: 'week'|'month'|'year' = 'month', config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{period:string;current:SalesSummary;previous:SalesSummary;samePeriodLastYear:SalesSummary;revenueChangePercentage:number|null;lastYearRevenueChangePercentage:number|null}>>('/sales/compare', { ...config, params: buildFilterParams({ period }, { profile: 'salesSummary' }) }),
   costSettings: (config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<{ enabled: boolean }>>('/sales/cost-settings', config) : apiClient.get<ApiResponse<{ enabled: boolean }>>('/sales/cost-settings')),
   updateCostSettings: (enabled: boolean) => apiClient.patch<ApiResponse<{ enabled: boolean }>>('/sales/cost-settings', { enabled }),
   costProducts: (params?: { page?: number; limit?: number; q?: string }, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<Array<{ id:string; storeId:string; name:string; price:string; costPrice:string|null; stockQuantity:number|null; availability:string; store:{id:string;name:string} }>> & { meta?: { pagination?: PaginationMeta } }>('/sales/cost-products', { ...config, params }),
+    apiClient.get<ApiResponse<Array<{ id:string; storeId:string; name:string; price:string; costPrice:string|null; stockQuantity:number|null; availability:string; store:{id:string;name:string} }>> & { meta?: { pagination?: PaginationMeta } }>('/sales/cost-products', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'salesCostProducts' }) : undefined }),
   updateProductCost: (productId:string, costPrice:number|null) => apiClient.patch<ApiResponse<unknown>>(`/sales/cost-products/${productId}`, { costPrice }),
   smartInsights: (config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<SalesSmartInsights>>('/sales/smart-insights', config) : apiClient.get<ApiResponse<SalesSmartInsights>>('/sales/smart-insights')),
   runAutomation: () => apiClient.post<ApiResponse<{ scanned: Record<string, number>; notificationsSent: number }>>('/sales/automation/run', {}),

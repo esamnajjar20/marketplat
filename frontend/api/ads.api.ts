@@ -11,6 +11,7 @@
  *   via unwrapPaginated — see lib/apiPagination.ts for the full story.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
@@ -29,7 +30,7 @@ export const adsApi = {
   /** GET /ads — paginated + filtered list */
   getAll: (params?: AdSearchParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdListItem[]>>('/ads', { ...config, params })
+      .get<ApiResponse<AdListItem[]>>('/ads', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adsBrowse' }) : undefined })
       .then((r) => unwrapPaginated<AdListItem>(r)),
 
   /**
@@ -39,7 +40,7 @@ export const adsApi = {
    */
   searchAds: (params: AdSearchQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdListItem[]>>('/ads/search', { ...config, params })
+      .get<ApiResponse<AdListItem[]>>('/ads/search', { ...config, params: buildFilterParams({ ...params } as FilterPatch, { profile: 'adsBrowse' }) })
       .then((r) => unwrapPaginated<AdListItem>(r)),
 
   /** GET /ads/:id — full detail */
@@ -66,7 +67,7 @@ export const adsApi = {
    */
   getMyAds: (params?: Pick<AdSearchParams, 'page' | 'limit' | 'status'>, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdListItem[]>>('/ads/me', { ...config, params })
+      .get<ApiResponse<AdListItem[]>>('/ads/me', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'myAds' }) : undefined })
       .then((r) => unwrapPaginated<AdListItem>(r)),
 
   /**

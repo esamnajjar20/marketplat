@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { AxiosRequestConfig } from 'axios';
 import { mediaApi } from './media.api';
 import type { ApiResponse } from '@/types/api.types';
@@ -42,13 +43,13 @@ export const requestsApi = {
     q?: string;
     /** Server-side sort — newest | expiring | budget_high | fewest_offers */
     sort?: 'newest' | 'expiring' | 'budget_high' | 'fewest_offers';
-  }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<RequestListItem[]>>('/requests', { ...config, params }),
+  }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<RequestListItem[]>>('/requests', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'openRequests' }) : undefined }),
 
   getMyRequests: (params?: { page?: number; limit?: number; status?: string }, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<RequestListItem[]>>('/requests/me', { ...config, params }),
+    apiClient.get<ApiResponse<RequestListItem[]>>('/requests/me', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'myOpenRequests' }) : undefined }),
 
   getMyOffers: (params?: { page?: number; limit?: number; status?: RequestOfferStatus }, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<RequestOfferListItem[]>>('/requests/offers/me', { ...config, params }),
+    apiClient.get<ApiResponse<RequestOfferListItem[]>>('/requests/offers/me', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'myRequestOffers' }) : undefined }),
 
   getById: (id: string, config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<RequestDetail>>(`/requests/${id}`, config) : apiClient.get<ApiResponse<RequestDetail>>(`/requests/${id}`)),
 

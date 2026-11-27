@@ -4,6 +4,7 @@
  * not a Role, so there is no separate "become seller" role-change call.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
@@ -51,6 +52,6 @@ export const sellersApi = {
   /** GET /sellers/:id/ratings — paginated, public. Same unwrapPaginated shape as serviceReviewsApi.getForSeller/storeReviewsApi's own. */
   getRatings: (sellerProfileId: string, params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<SellerRating[]>>(`/sellers/${sellerProfileId}/ratings`, { ...config, params })
+      .get<ApiResponse<SellerRating[]>>(`/sellers/${sellerProfileId}/ratings`, { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'sellerRatings' }) : undefined })
       .then((r) => unwrapPaginated<SellerRating>(r)),
 };

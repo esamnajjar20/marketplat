@@ -15,15 +15,15 @@ describe('serviceProvidersApi.getMyDashboard', () => {
 
   it('requests analytics and the selected own-listings page together with the abort signal', async () => {
     const signal = new AbortController().signal;
-    const params = { period: '30d' as const, page: 2, limit: 10, status: 'ACTIVE' as const, search: 'مكيف' };
+    const params = { period: '30d' as const, page: 2, limit: 10, status: 'ACTIVE' as const, search: 'hvac' };
     const response = { data: { success: true, data: { analytics: { pendingRequests: 2 }, listings: { items: [], meta: {} } } } };
     vi.mocked(apiClient.get).mockResolvedValue(response as never);
 
     await serviceProvidersApi.getMyDashboard(params, { signal });
 
-    expect(apiClient.get).toHaveBeenCalledWith('/service-providers/me/dashboard', {
-      signal,
-      params,
-    });
+    const [url, config] = vi.mocked(apiClient.get).mock.calls[0] as [string, { signal: AbortSignal; params: URLSearchParams }];
+    expect(url).toBe('/service-providers/me/dashboard');
+    expect(config.signal).toBe(signal);
+    expect(config.params.toString()).toBe('period=30d&page=2&limit=10&status=ACTIVE&search=hvac');
   });
 });

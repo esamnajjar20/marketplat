@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { ApiRequestConfig } from './requestConfig';
@@ -28,13 +29,13 @@ export const followsApi = {
   status: (targetType: FollowTargetType, targetId: string, config?: ApiRequestConfig) =>
     apiClient.get<ApiResponse<{ following: boolean }>>(`/follows/status/${targetType}/${targetId}`, config),
   myFollowing: (params?: { type?: FollowTargetType; page?: number; limit?: number }, config?: ApiRequestConfig) =>
-    apiClient.get<ApiResponse<FollowItem[]>>('/follows/me', { ...config, params }).then((r) => unwrapPaginated<FollowItem>(r)),
+    apiClient.get<ApiResponse<FollowItem[]>>('/follows/me', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'myFollowing' }) : undefined }).then((r) => unwrapPaginated<FollowItem>(r)),
   userFollowers: (id: string, params?: { page?: number; limit?: number }, config?: ApiRequestConfig) =>
-    apiClient.get<ApiResponse<FollowItem[]>>(`/follows/users/${id}/followers`, { ...config, params }).then((r) => unwrapPaginated<FollowItem>(r)),
+    apiClient.get<ApiResponse<FollowItem[]>>(`/follows/users/${id}/followers`, { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'followList' }) : undefined }).then((r) => unwrapPaginated<FollowItem>(r)),
   userFollowing: (id: string, params?: { page?: number; limit?: number }, config?: ApiRequestConfig) =>
-    apiClient.get<ApiResponse<FollowItem[]>>(`/follows/users/${id}/following`, { ...config, params }).then((r) => unwrapPaginated<FollowItem>(r)),
+    apiClient.get<ApiResponse<FollowItem[]>>(`/follows/users/${id}/following`, { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'followList' }) : undefined }).then((r) => unwrapPaginated<FollowItem>(r)),
   targetFollowers: (targetType: FollowTargetType, targetId: string, params?: { page?: number; limit?: number }) =>
-    apiClient.get<ApiResponse<FollowItem[]>>(`/follows/target/${targetType}/${targetId}/followers`, { params }).then((r) => unwrapPaginated<FollowItem>(r)),
+    apiClient.get<ApiResponse<FollowItem[]>>(`/follows/target/${targetType}/${targetId}/followers`, { params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'followList' }) : undefined }).then((r) => unwrapPaginated<FollowItem>(r)),
   feed: (params?: { page?: number; limit?: number }, config?: ApiRequestConfig) =>
-    apiClient.get<ApiResponse<FollowingFeedItem[]>>('/follows/feed', { ...config, params }).then((r) => unwrapPaginated<FollowingFeedItem>(r)),
+    apiClient.get<ApiResponse<FollowingFeedItem[]>>('/follows/feed', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'followingFeed' }) : undefined }).then((r) => unwrapPaginated<FollowingFeedItem>(r)),
 };

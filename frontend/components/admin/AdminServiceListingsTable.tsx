@@ -63,6 +63,7 @@ export const AdminServiceListingsTable = memo(function AdminServiceListingsTable
     <div className="space-y-4">
       <AdminFilterBar
         searchPlaceholder="بحث عن خدمة…"
+        profile="adminServiceListings"
         tabParam="status"
         defaultTab="ACTIVE"
         tabs={[

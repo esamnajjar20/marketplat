@@ -5,6 +5,7 @@
  * "one route, always private" shape as notifications.routes.ts).
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { UserActivity, ActivityQuery } from '@/types/activity.types';
@@ -24,6 +25,6 @@ export const activityApi = {
   /** GET /activity */
   getMine: (params?: ActivityQuery, config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<UserActivity[]>>('/activity', { ...config, params })
+      .get<ApiResponse<UserActivity[]>>('/activity', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'activity' }) : undefined })
       .then((r) => unwrapPaginated<UserActivity>(r)),
 };

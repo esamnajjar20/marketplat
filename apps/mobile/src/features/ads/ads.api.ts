@@ -6,6 +6,7 @@ import {
   prunePublicImageCacheIfNeeded,
 } from '@/storage/public-image-cache';
 import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
+import { buildFilterParams } from '../../../../../shared/filters';
 import {
   applyCachedPublicAdImages,
   getPublicAdImageCacheCandidates,
@@ -55,18 +56,19 @@ export type AdListResult = {
 type PublicAdsOptions = { page?: number; limit?: number; search?: string; categoryId?: string; storeId?: string; city?: string; minPrice?: number; maxPrice?: number; condition?: 'NEW' | 'USED' | 'REFURBISHED'; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal };
 
 export function publicAdsCacheKey(options: PublicAdsOptions = {}): string {
-  const params = new URLSearchParams();
-  params.set('page', String(options.page ?? 1));
-  params.set('limit', String(options.limit ?? 8));
-  if (options.search?.trim()) params.set('search', options.search.trim());
-  if (options.categoryId) params.set('categoryId', options.categoryId);
-  if (options.storeId) params.set('storeId', options.storeId);
-  if (options.condition) params.set('condition', options.condition);
-  if (options.city?.trim()) params.set('city', options.city.trim());
-  if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
-  if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));
-  if (options.sortBy) params.set('sortBy', options.sortBy);
-  if (options.sortOrder) params.set('sortOrder', options.sortOrder);
+  const params = buildFilterParams({
+    page: options.page ?? 1,
+    limit: options.limit ?? 8,
+    search: options.search,
+    categoryId: options.categoryId,
+    storeId: options.storeId,
+    condition: options.condition,
+    city: options.city,
+    minPrice: options.minPrice,
+    maxPrice: options.maxPrice,
+    sortBy: options.sortBy,
+    sortOrder: options.sortOrder,
+  }, { profile: 'adsBrowse' });
   return `ads:${params.toString()}`;
 }
 
@@ -85,18 +87,19 @@ export async function getCachedPublicAdsWithMetadata(options: PublicAdsOptions =
 
 /** Reads the existing backend route; does not create or alter any backend endpoint. */
 export async function fetchPublicAds(options: PublicAdsOptions = {}): Promise<AdListResult> {
-  const params = new URLSearchParams();
-  params.set('page', String(options.page ?? 1));
-  params.set('limit', String(options.limit ?? 8));
-  if (options.search?.trim()) params.set('search', options.search.trim());
-  if (options.categoryId) params.set('categoryId', options.categoryId);
-  if (options.storeId) params.set('storeId', options.storeId);
-  if (options.condition) params.set('condition', options.condition);
-  if (options.city?.trim()) params.set('city', options.city.trim());
-  if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
-  if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));
-  if (options.sortBy) params.set('sortBy', options.sortBy);
-  if (options.sortOrder) params.set('sortOrder', options.sortOrder);
+  const params = buildFilterParams({
+    page: options.page ?? 1,
+    limit: options.limit ?? 8,
+    search: options.search,
+    categoryId: options.categoryId,
+    storeId: options.storeId,
+    condition: options.condition,
+    city: options.city,
+    minPrice: options.minPrice,
+    maxPrice: options.maxPrice,
+    sortBy: options.sortBy,
+    sortOrder: options.sortOrder,
+  }, { profile: 'adsBrowse' });
 
   const cacheKey = publicAdsCacheKey(options);
   let response: ApiEnvelope<AdListItem[]>;

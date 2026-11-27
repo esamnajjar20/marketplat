@@ -12,6 +12,7 @@
  *   real response shape via unwrapPaginated — see lib/apiPagination.ts.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type {
   AdminUser,
@@ -280,7 +281,7 @@ export const adminApi = {
   // not exported from the frontend types yet) while still giving
   // Array.isArray(data.data) meaning.
   getAdminProducts: (params?: { page?: number; limit?: number; status?: string; q?: string }, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<unknown[]>>('/admin/products', { ...config, params }),
+    apiClient.get<ApiResponse<unknown[]>>('/admin/products', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminProducts' }) : undefined }),
 
   // FIX ADMIN-API-TYPING-01: explicit ApiResponse<unknown> instead of
   // the implicit `any` — the write response body is not read by any
@@ -293,7 +294,7 @@ export const adminApi = {
 
   // FIX ADMIN-API-TYPING-01: see getAdminProducts above.
   getAdminServiceListings: (params?: { page?: number; limit?: number; status?: string; q?: string }, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<unknown[]>>('/admin/service-listings', { ...config, params }),
+    apiClient.get<ApiResponse<unknown[]>>('/admin/service-listings', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminServiceListings' }) : undefined }),
 
   // FIX ADMIN-API-TYPING-01: see setProductStatus above.
   setServiceListingStatus: (id: string, body: { status: string; reason?: string }) =>
@@ -301,7 +302,7 @@ export const adminApi = {
 
 
   getServiceRequestDisputes: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<unknown[]>>('/admin/service-request-disputes', { ...config, params }),
+    apiClient.get<ApiResponse<unknown[]>>('/admin/service-request-disputes', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminServiceRequestDisputes' }) : undefined }),
 
   resolveServiceRequestDispute: (id: string, body: { resolution: 'COMPLETED' | 'CANCELLED'; note?: string }) =>
     apiClient.patch<ApiResponse<unknown>>(`/admin/service-request-disputes/${id}/resolve`, body),
@@ -313,7 +314,7 @@ export const adminApi = {
     status?: string;
     type?: string;
     q?: string;
-  }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<unknown[]>>('/admin/open-requests', { ...config, params }),
+  }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<unknown[]>>('/admin/open-requests', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminOpenRequests' }) : undefined }),
 
   // FIX ADMIN-API-TYPING-01: see setProductStatus above.
   cancelOpenRequest: (id: string, body?: { reason?: string }) =>
@@ -409,7 +410,7 @@ export const adminApi = {
 
   getAds: (params?: AdminGetAdsParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdminAd[]>>('/admin/ads', { ...config, params })
+      .get<ApiResponse<AdminAd[]>>('/admin/ads', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminAds' }) : undefined })
       .then((r) => unwrapPaginated<AdminAd>(r)),
 
   setFeatured: (adId: string, payload: SetFeaturedPayload) =>
@@ -436,7 +437,7 @@ export const adminApi = {
 
   getUsers: (params?: AdminGetUsersParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdminUser[]>>('/admin/users', { ...config, params })
+      .get<ApiResponse<AdminUser[]>>('/admin/users', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminUsers' }) : undefined })
       .then((r) => unwrapPaginated<AdminUser>(r)),
 
   toggleUserActive: (userId: string, payload: ToggleActivePayload) =>
@@ -464,7 +465,7 @@ export const adminApi = {
 
   getSellers: (params?: AdminGetSellersParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdminSeller[]>>('/admin/sellers', { ...config, params })
+      .get<ApiResponse<AdminSeller[]>>('/admin/sellers', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminSellers' }) : undefined })
       .then((r) => unwrapPaginated<AdminSeller>(r)),
 
   setSellerVerified: (sellerProfileId: string, payload: SetSellerVerifiedPayload) =>
@@ -497,7 +498,7 @@ export const adminApi = {
 
   getStores: (params?: AdminGetStoresParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdminStore[]>>('/admin/stores', { ...config, params })
+      .get<ApiResponse<AdminStore[]>>('/admin/stores', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminStores' }) : undefined })
       .then((r) => unwrapPaginated<AdminStore>(r)),
 
   updateStoreStatus: (storeId: string, payload: UpdateStoreStatusPayload) =>
@@ -545,7 +546,7 @@ export const adminApi = {
     limit?: number;
   }, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<Report[]>>('/reports', { ...config, params })
+      .get<ApiResponse<Report[]>>('/reports', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminReports' }) : undefined })
       .then((r) => unwrapPaginated<Report>(r)),
 
   getReportById: (reportId: string, config?: AxiosRequestConfig) =>
@@ -585,7 +586,7 @@ export const adminApi = {
 
   getAuditLogs: (params?: AdminGetAuditLogsParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AuditLog[]>>('/admin/audit-logs', { ...config, params })
+      .get<ApiResponse<AuditLog[]>>('/admin/audit-logs', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminAuditLogs' }) : undefined })
       .then((r) => unwrapPaginated<AuditLog>(r)),
 
   // ── Fraud detection ──────────────────────────────────────────────
@@ -603,7 +604,7 @@ export const adminApi = {
 
   getFlaggedAds: (params?: AdminGetFlaggedAdsParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<FlaggedAd[]>>('/admin/fraud/ads', { ...config, params })
+      .get<ApiResponse<FlaggedAd[]>>('/admin/fraud/ads', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminFlaggedAds' }) : undefined })
       .then((r) => unwrapPaginated<FlaggedAd>(r)),
 
   clearAdFraudFlag: (adId: string) =>
@@ -614,7 +615,7 @@ export const adminApi = {
 
   getFraudSignals: (params?: AdminGetFraudSignalsParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<FraudSignal[]>>('/admin/fraud/signals', { ...config, params })
+      .get<ApiResponse<FraudSignal[]>>('/admin/fraud/signals', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'adminFraudSignals' }) : undefined })
       .then((r) => unwrapPaginated<FraudSignal>(r)),
 
   reviewFraudSignal: (signalId: string) =>

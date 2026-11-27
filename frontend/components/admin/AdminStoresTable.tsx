@@ -26,7 +26,7 @@
  */
 
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { CheckCircle2, Ban, RotateCcw, Search, Star } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
@@ -46,8 +46,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
 import { STORE_STATUS_LABELS, STORE_STATUS_VARIANT } from '@/lib/storeStatus';
 import type { AdminStoreStatus } from '@/types/admin.types';
-import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { adminPagination } from '@/lib/adminHubTabs';
 import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
 
 const STATUS_TABS: { value: AdminStoreStatus | 'ALL'; label: string }[] = [
@@ -74,7 +73,8 @@ function isAdminStoreStatus(value: string | null): value is AdminStoreStatus {
 // (MyStoreCard used a coincidentally-identical local copy).
 
 export const AdminStoresTable = memo(function AdminStoresTable() {
-  const sp     = useSearchParams();
+  const filters = useUnifiedFilters({ basePath: '/admin', profile: 'adminStores', mode: 'replace' });
+  const sp = filters.params;
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
   // ?page=NaN — a guaranteed 400 for what looks like a
@@ -152,12 +152,7 @@ export const AdminStoresTable = memo(function AdminStoresTable() {
   }
 
   function updateParams(next: Record<string, string | undefined>) {
-    const params = new URLSearchParams(sp.toString());
-    for (const [key, value] of Object.entries(next)) {
-      if (value) params.set(key, value); else params.delete(key);
-    }
-    params.delete('page');
-    writeClientUrl(adminListHref('stores', params), 'replace');
+    filters.updateMany(next, { mode: 'replace' });
   }
 
   const updateStatusForRow = useCallback((storeId: string, status: AdminStoreStatus) => {

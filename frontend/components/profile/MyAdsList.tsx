@@ -31,10 +31,12 @@ import type { AdStatus } from '@/types/ad.types';
 import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
 import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
 import { Spinner } from '@/components/ui/spinner';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
+
 export function MyAdsList() {
   // Page/status logic shared with MyServiceListingsList and
   // MyProductsList — see useOwnedListPage.
-  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<AdStatus>(ROUTES.myAds);
+  const { page, status, setStatus, setPage, searchParams: sp } = useOwnedListPage<AdStatus>(ROUTES.myAds, ['ACTIVE', 'SOLD', 'EXPIRED', 'DELETED'], 'myAds');
   const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
 
   const { data, isLoading, isError, refetch } = useMyAds({ page, limit: 10, status });
@@ -199,11 +201,10 @@ export function MyAdsList() {
   // Out-of-range-page recovery — shared with MyServiceListingsList and
   // MyProductsList. See useOwnedListPage.ts (was FIX I-09 here originally).
   const isOutOfRange = useOutOfRangeRedirect({
-    baseUrl: ROUTES.myAds,
     page,
     totalPages: data?.meta?.totalPages,
     hasData: !!data,
-    searchParams: sp,
+    setPage,
   });
 
   // FIX P1-9: LoadingSpinner previously wiped the whole list (title,
@@ -250,19 +251,19 @@ export function MyAdsList() {
       {/* Status filter tabs */}
       {/* BULK-ADS-01-JSX */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 pb-3">
-        <div className="flex gap-2 overflow-x-auto overscroll-x-contain" role="group" aria-label="تصفية الإعلانات حسب الحالة">
-          {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['SOLD', 'مباعة'], ['EXPIRED', 'منتهية'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
-            <button type="button" key={val} onClick={() => setStatus(val)}
-              aria-pressed={(status ?? '') === val}
-              className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors ${
-                (status ?? '') === val
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
-              }`}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <FilterChipGroup
+          label="تصفية الإعلانات حسب الحالة"
+          value={status ?? ''}
+          options={[
+            { value: '', label: 'الكل' },
+            { value: 'ACTIVE', label: 'نشطة' },
+            { value: 'SOLD', label: 'مباعة' },
+            { value: 'EXPIRED', label: 'منتهية' },
+            { value: 'DELETED', label: 'محذوفة' },
+          ]}
+          onChange={setStatus}
+          className="min-w-0 flex-1"
+        />
         <Button
           type="button"
           variant={selectionMode ? 'default' : 'outline'}

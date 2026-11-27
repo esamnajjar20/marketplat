@@ -7,6 +7,7 @@ import { buildMetadata } from '@/lib/seo';
 import type { SearchQuery, SearchResult, SearchSort, SearchType } from '@/types/search.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { SearchPageClient } from '@/components/search/SearchPageClient';
+import { buildFilterParams } from '../../../../shared/filters';
 
 export const metadata: Metadata = buildMetadata({ title: 'البحث', noIndex: true });
 
@@ -57,11 +58,10 @@ function makeSearchQuery(raw: Record<string, string | string[] | undefined>): Se
 }
 
 function toSearchPath(query: SearchQuery): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries({ ...query, page: 1, limit: INITIAL_SEARCH_PAGE_SIZE })) {
-    if (value === undefined || value === null || value === '') continue;
-    params.set(key, String(value));
-  }
+  const params = buildFilterParams(
+    { ...query, page: 1, limit: INITIAL_SEARCH_PAGE_SIZE },
+    { profile: 'globalSearch' },
+  );
   return `/search?${params.toString()}`;
 }
 

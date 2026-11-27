@@ -90,6 +90,16 @@ describe('SearchFilters', () => {
     expect(mockPush).toHaveBeenCalledWith('/categories/phones');
   });
 
+  it('does not repeat root categories in the /ads panel when category chips are present', async () => {
+    mockPathname = '/ads';
+    const user = setupUser();
+    render(<SearchFilters />);
+
+    await user.click(getCombobox('category'));
+    expect(screen.queryByRole('option', { name: 'إلكترونيات' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: '— هواتف' })).toBeInTheDocument();
+  });
+
   it('navigates to /search when "كل الفئات" is chosen while on a category page', async () => {
     // Radix Select only fires onValueChange on an actual value change, so
     // the category combobox must start on a real selection (not already

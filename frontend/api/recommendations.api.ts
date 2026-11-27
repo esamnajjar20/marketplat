@@ -15,6 +15,7 @@
  * preserving getRecommendations()'s exact existing contract/callers.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { AxiosRequestConfig } from 'axios';
 import type { AdListItem } from '@/types/ad.types';
 import type { ProductWithStore } from '@/types/product.types';
@@ -86,35 +87,35 @@ export interface MixedRecommendations {
 
 export const recommendationsApi = {
   getRecommendations: (params?: GetRecommendationsParams, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<AdListItem[]>>('/recommendations', { ...config, params }),
+    apiClient.get<ApiResponse<AdListItem[]>>('/recommendations', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'recommendations' }) : undefined }),
 
   getProductRecommendations: (params?: GetProductRecommendationsParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<ProductWithStore[]>>('/recommendations', {
       ...config,
-      params: { ...params, type: 'product' },
+      params: buildFilterParams({ ...params, type: 'product' } as FilterPatch, { profile: 'recommendations' }),
     }),
 
   getServiceRecommendations: (params?: GetServiceRecommendationsParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<ServiceListingWithProvider[]>>('/recommendations', {
       ...config,
-      params: { ...params, type: 'service' },
+      params: buildFilterParams({ ...params, type: 'service' } as FilterPatch, { profile: 'recommendations' }),
     }),
 
   getStoreRecommendations: (params?: GetStoreRecommendationsParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<StoreWithSeller[]>>('/recommendations', {
       ...config,
-      params: { ...params, type: 'store' },
+      params: buildFilterParams({ ...params, type: 'store' } as FilterPatch, { profile: 'recommendations' }),
     }),
 
   getProviderRecommendations: (params?: GetProviderRecommendationsParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<ServiceProviderDetails[]>>('/recommendations', {
       ...config,
-      params: { ...params, type: 'provider' },
+      params: buildFilterParams({ ...params, type: 'provider' } as FilterPatch, { profile: 'recommendations' }),
     }),
 
   getMixedRecommendations: (params?: GetMixedRecommendationsParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<MixedRecommendations>>('/recommendations', {
       ...config,
-      params: { ...params, type: 'mixed' },
+      params: buildFilterParams({ ...params, type: 'mixed' } as FilterPatch, { profile: 'recommendations' }),
     }),
 };

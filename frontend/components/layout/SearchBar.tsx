@@ -7,6 +7,7 @@ import { Input } from '@/components/shared/ui/Input';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { addRecentSearch, suggestRecentSearches } from '@/lib/recentSearches';
+import { buildFilterHref, buildFilterParams } from '../../../shared/filters';
 
 /**
  * SearchBar — controlled input that pushes query params to /search.
@@ -37,7 +38,8 @@ export function SearchBar({ className }: { className?: string }) {
     const trimmed = q.trim();
     if (trimmed) addRecentSearch(trimmed);
     setOpen(false);
-    router.push(`${ROUTES.search}${trimmed ? `?q=${encodeURIComponent(trimmed)}` : ''}`);
+    const params = buildFilterParams({ q: trimmed }, { profile: 'globalSearch' });
+    router.push(buildFilterHref(ROUTES.search, params));
   }
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {

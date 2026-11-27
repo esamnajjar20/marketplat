@@ -13,6 +13,7 @@ import type { ApiRequestConfig } from './requestConfig';
  *     the "cancel" naming in promotions.service.ts.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import type {
   Promotion,
@@ -28,7 +29,7 @@ export const promotionsApi = {
   /** GET /promotions/me — bounded, paginated store-owner promotion history. */
   getMine: (params?: { page?: number; limit?: number }, config?: ApiRequestConfig) =>
     apiClient.get<ApiResponse<Promotion[]> & { meta?: { pagination?: PaginationMeta } }>(
-      '/promotions/me', { ...config, params }
+      '/promotions/me', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'promotions' }) : undefined }
     ),
 
   /** GET /promotions/:id */

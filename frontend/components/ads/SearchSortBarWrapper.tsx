@@ -17,6 +17,7 @@ export function SearchSortBarWrapper() {
   return (
     <SearchSortBar
       basePath={pathname}
+      profile="adsCategoryBrowse"
       config={{
         mode: 'combined',
         options: AD_SORT_OPTIONS,

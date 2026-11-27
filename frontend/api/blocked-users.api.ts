@@ -11,6 +11,7 @@
  */
 import type { ApiRequestConfig } from "./requestConfig";
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type {
@@ -23,7 +24,7 @@ export const blockedUsersApi = {
   /** GET /blocked-users — the caller's blocked users, paginated. */
   getMine: (params?: BlockedUsersQuery, config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<UserBlockWithBlockedUser[]>>('/blocked-users', { ...config, params })
+      .get<ApiResponse<UserBlockWithBlockedUser[]>>('/blocked-users', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'blockedUsers' }) : undefined })
       .then((r) => unwrapPaginated<UserBlockWithBlockedUser>(r)),
 
   /** GET /blocked-users/:userId/status — one directional status, not the full list. */

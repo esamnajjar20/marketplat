@@ -10,6 +10,7 @@
  */
 import { apiClient } from './client';
 import type { AxiosRequestConfig } from 'axios';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type {
@@ -31,13 +32,13 @@ export const serviceRequestsApi = {
   /** GET /service-requests/me — caller's requests as customer, paginated. */
   getMineAsCustomer: (params?: ServiceRequestsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<ServiceRequest[]>>('/service-requests/me', { ...config, params })
+      .get<ApiResponse<ServiceRequest[]>>('/service-requests/me', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'myServiceRequests' }) : undefined })
       .then((r) => unwrapPaginated<ServiceRequest>(r)),
 
   /** GET /service-requests/incoming — caller's requests as provider, paginated. */
   getIncomingAsProvider: (params?: ServiceRequestsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<ServiceRequest[]>>('/service-requests/incoming', { ...config, params })
+      .get<ApiResponse<ServiceRequest[]>>('/service-requests/incoming', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'incomingServiceRequests' }) : undefined })
       .then((r) => unwrapPaginated<ServiceRequest>(r)),
 
   /** PATCH /service-requests/:id/respond — action-driven state transition. */

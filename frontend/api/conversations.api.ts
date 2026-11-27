@@ -2,6 +2,7 @@
  * Conversations API — maps to backend /api/v1/conversations/*.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { AxiosRequestConfig } from 'axios';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 import { unwrapPaginated } from '@/lib/apiPagination';
@@ -19,7 +20,7 @@ import type {
 export const conversationsApi = {
   getMine: (params?: ConversationsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<ConversationListItem[]>>('/conversations', { ...config, params })
+      .get<ApiResponse<ConversationListItem[]>>('/conversations', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'conversations' }) : undefined })
       .then((r) => unwrapPaginated<ConversationListItem>(r)),
 
   getUnreadCount: (config?: AxiosRequestConfig) =>

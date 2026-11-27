@@ -1,24 +1,28 @@
 'use client';
 
-import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { useRouter } from 'next/navigation';
-import { type FormEvent, useEffect, useState } from 'react';
-import { Search, X } from 'lucide-react';
-import { ROUTES, CITIES } from '@/lib/constants';
+import { useState } from 'react';
+import { ROUTES } from '@/lib/constants';
 import type { RequestType } from '@/types/request.types';
 import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import { buildFilterHref, buildFilterParams } from '../../../shared/filters';
+import { FilterSearchInput } from '@/components/shared/filters/FilterSearchInput';
+import { FilterCitySelect } from '@/components/shared/filters/FilterCitySelect';
+import { FilterSelect } from '@/components/shared/filters/FilterSelect';
+import { FilterResetButton } from '@/components/shared/filters/FilterResetButton';
 import { cn } from '@/lib/utils';
 
 /** ترتيب قائمة الطلبات (واجهة — يُطبَّق على الصفحة الحالية) */
 export type RequestSort = 'newest' | 'expiring' | 'budget_high' | 'fewest_offers';
 
-export const REQUEST_SORT_OPTIONS: { value: RequestSort; label: string }[] = [
+export const REQUEST_SORT_OPTIONS = [
   { value: 'newest', label: 'الأحدث' },
   { value: 'expiring', label: 'الأقرب للانتهاء' },
   { value: 'budget_high', label: 'الأعلى ميزانية' },
   { value: 'fewest_offers', label: 'أقل عروضًا' },
-];
+] as const;
 
+/** Compatibility serializer backed by the monorepo filter core. */
 export function buildRequestsHref(opts: {
   type?: RequestType;
   city?: string;
@@ -28,22 +32,19 @@ export function buildRequestsHref(opts: {
   page?: number;
   base?: string;
 }): string {
-  const base = opts.base ?? ROUTES.requests;
-  const p = new URLSearchParams();
-  if (opts.type) p.set('type', opts.type);
-  if (opts.city) p.set('city', opts.city);
-  if (opts.serviceTypeId && opts.type === 'SERVICE') p.set('serviceTypeId', opts.serviceTypeId);
-  if (opts.q) p.set('q', opts.q);
-  if (opts.sort && opts.sort !== 'newest') p.set('sort', opts.sort);
-  if (opts.page && opts.page > 1) p.set('page', String(opts.page));
-  const qs = p.toString();
-  return qs ? `${base}?${qs}` : base;
+  const params = buildFilterParams({
+    type: opts.type,
+    city: opts.city,
+    serviceTypeId: opts.type === 'SERVICE' ? opts.serviceTypeId : undefined,
+    q: opts.q,
+    sort: opts.sort && opts.sort !== 'newest' ? opts.sort : undefined,
+    page: opts.page && opts.page > 1 ? opts.page : undefined,
+  }, { profile: 'openRequests' });
+  return buildFilterHref(opts.base ?? ROUTES.requests, params);
 }
 
 export function parseRequestSort(raw: string | null | undefined): RequestSort {
-  if (raw === 'expiring' || raw === 'budget_high' || raw === 'fewest_offers' || raw === 'newest') {
-    return raw;
-  }
+  if (raw === 'expiring' || raw === 'budget_high' || raw === 'fewest_offers' || raw === 'newest') return raw;
   return 'newest';
 }
 
@@ -54,12 +55,8 @@ type Props = {
   q?: string;
   sort?: RequestSort;
   className?: string;
-  /** عدد النتائج للعرض بجانب الترتيب */
   totalLabel?: string;
 };
-
-const pill =
-  'h-10 w-full rounded-full border border-[var(--color-border)] bg-card px-3 text-sm font-semibold text-foreground dark:border-border dark:bg-card';
 
 export function RequestFilters({
   type,
@@ -70,153 +67,78 @@ export function RequestFilters({
   className,
   totalLabel,
 }: Props) {
-  const router = useRouter();
-  const [searchInput, setSearchInput] = useState(q ?? '');
+  const filters = useUnifiedFilters({
+    basePath: ROUTES.requests,
+    mode: 'replace',
+    profile: 'openRequests',
+  });
   const [serviceTypesRequested, setServiceTypesRequested] = useState(false);
   const shouldLoadServiceTypes = type === 'SERVICE' && (Boolean(serviceTypeId) || serviceTypesRequested);
-  const { data: serviceTypes, isLoading: isLoadingServiceTypes } = useServiceTypes({
-    enabled: shouldLoadServiceTypes,
-  });
-  const hasFilters = Boolean(type || city || serviceTypeId || q || (sort && sort !== 'newest'));
-
-  useEffect(() => {
-    setSearchInput(q ?? '');
-  }, [q]);
-
-  function onSearch(e: FormEvent) {
-    e.preventDefault();
-    router.replace(
-      buildRequestsHref({
-        type,
-        city,
-        serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined,
-        q: searchInput.trim() || undefined,
-        sort,
-        page: 1,
-      }),
-    );
-  }
+  const { data: serviceTypes, isLoading: isLoadingServiceTypes } = useServiceTypes({ enabled: shouldLoadServiceTypes });
+  const sortValue = parseRequestSort(filters.get('sort') ?? sort);
 
   return (
     <div className={cn('space-y-2.5', className)}>
-      <form onSubmit={onSearch} className="relative">
-        <Search
-          className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
-        <input
-          className={cn(pill, 'ps-9 pe-3')}
-          placeholder="ابحث في العنوان أو الوصف…"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          aria-label="بحث في الطلبات"
-          enterKeyHint="search"
-        />
-      </form>
+      <FilterSearchInput
+        id="requests-filter-search"
+        value={q ?? ''}
+        placeholder="ابحث في العنوان أو الوصف…"
+        label="بحث"
+        onApply={(value) => filters.update('q', value, { mode: 'replace' })}
+      />
 
       <div className="grid grid-cols-2 gap-2">
-        <select
-          id="req-city-filter"
-          className={pill}
+        <FilterCitySelect
+          id="requests-filter-city"
+          label="المدينة"
           value={city ?? ''}
-          aria-label="المدينة"
-          onChange={(e) => {
-            const next = e.target.value || undefined;
-            router.replace(
-              buildRequestsHref({
-                type,
-                city: next,
-                serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined,
-                q,
-                sort,
-                page: 1,
-              }),
-            );
-          }}
-        >
-          <option value="">كل المدن</option>
-          {CITIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-
+          onChange={(value) => filters.update('city', value, { mode: 'replace' })}
+        />
         {type === 'SERVICE' ? (
-          <select
-            id="req-service-type-filter"
-            className={pill}
+          <FilterSelect
+            id="requests-filter-service-type"
+            label="المجال"
             value={serviceTypeId ?? ''}
-            onFocus={() => setServiceTypesRequested(true)}
-            aria-label="المجال"
-            onChange={(e) => {
-              const next = e.target.value || undefined;
-              router.replace(buildRequestsHref({ type, city, serviceTypeId: next, q, sort, page: 1 }));
-            }}
-          >
-            <option value="">كل المجالات</option>
-            {shouldLoadServiceTypes && isLoadingServiceTypes && !(serviceTypes as any)?.length ? (
-              <option value="__loading__" disabled>جارٍ تحميل المجالات…</option>
-            ) : null}
-            {(serviceTypes ?? [])
-              .filter((t) => t.isActive)
-              .map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nameAr}
-                </option>
-              ))}
-          </select>
+            allLabel="كل المجالات"
+            onOpenChange={(open) => { if (open) setServiceTypesRequested(true); }}
+            options={(serviceTypes ?? []).filter((item) => item.isActive).map((item) => ({ value: item.id, label: item.nameAr }))}
+            onChange={(value) => filters.update('serviceTypeId', value, { mode: 'replace' })}
+          />
         ) : (
-          <select className={cn(pill, 'opacity-60')} disabled aria-label="المجال" value="">
-            <option value="">كل المجالات</option>
-          </select>
+          <FilterSelect
+            id="requests-filter-service-type-disabled"
+            label="المجال"
+            value=""
+            allLabel="كل المجالات"
+            disabled
+            options={[]}
+            onChange={() => undefined}
+          />
         )}
+        {type === 'SERVICE' && isLoadingServiceTypes && !serviceTypes?.length ? (
+          <p className="col-span-2 text-xs text-muted-foreground" role="status">جارٍ تحميل المجالات…</p>
+        ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {totalLabel ? (
-          <p className="text-sm-tight font-extrabold text-foreground">{totalLabel}</p>
-        ) : (
-          <span />
-        )}
-        <div className="flex items-center gap-2">
-          <select
-            id="req-sort-filter"
-            className="h-9 rounded-full border border-[var(--color-border)] bg-card px-3 text-xs font-bold text-foreground dark:border-border dark:bg-card"
-            value={sort}
-            aria-label="الترتيب"
-            onChange={(e) => {
-              const next = parseRequestSort(e.target.value);
-              router.replace(
-                buildRequestsHref({
-                  type,
-                  city,
-                  serviceTypeId: type === 'SERVICE' ? serviceTypeId : undefined,
-                  q,
-                  sort: next,
-                  page: 1,
-                }),
-              );
-            }}
-          >
-            {REQUEST_SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          {hasFilters ? (
-            <IntentPrefetchLink
-              href={ROUTES.requests}
-              className="inline-flex h-9 items-center gap-1 rounded-full px-2 text-xs font-semibold text-muted-foreground hover:text-foreground" prefetch={false}
-            >
-              <X className="h-3.5 w-3.5" aria-hidden />
-              مسح
-            </IntentPrefetchLink>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        {totalLabel ? <p className="min-w-0 text-sm-tight font-extrabold text-foreground">{totalLabel}</p> : <span />}
+        <div className="flex items-end gap-2">
+          <div className="w-44">
+            <FilterSelect
+              id="requests-filter-sort"
+              label="الترتيب"
+              value={sortValue}
+              options={REQUEST_SORT_OPTIONS}
+              onChange={(value) => filters.update('sort', value === 'newest' ? null : value, { mode: 'replace' })}
+            />
+          </div>
+          {filters.activeCount > 0 ? (
+            <div className="w-40">
+              <FilterResetButton onClick={() => filters.clear([], 'replace')} label="مسح الفلاتر" />
+            </div>
           ) : null}
         </div>
       </div>
-
     </div>
   );
 }

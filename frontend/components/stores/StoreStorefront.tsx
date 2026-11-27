@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useRef, type KeyboardEvent } from 'react';
 
-import { useSearchParams } from 'next/navigation';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { Star } from 'lucide-react';
 // PERF-04: StoreProducts lazy-loaded — default tab but heavy (grid, search, sort, pagination, recommendations)
 // Using dynamic with SuspenseFallback to avoid blocking initial render on /stores/[id]
@@ -14,7 +14,6 @@ const StoreProducts = dynamic(
 import { StoreReviewButton } from '@/components/stores/StoreReviewButton';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
-import { writeClientUrl } from '@/lib/urlWithParams';
 import { getStoreTypePresentation, type StoreWithSellerAndCounts } from '@/types/store.types';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 import {
@@ -63,7 +62,8 @@ interface Props {
 }
 
 export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Props) {
-  const sp = useSearchParams();
+  const filters = useUnifiedFilters({ basePath: ROUTES.storeDetail(storeId), profile: 'storeProducts', mode: 'push' });
+  const sp = filters.params;
   const tab = (sp.get('tab') as Tab | null) ?? 'products';
   const presentation = getStoreTypePresentation(store?.storeType);
   const active: Tab = TABS.some((t) => t.id === tab) ? tab : 'products';
@@ -87,11 +87,10 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   }
 
   function setTab(next: Tab) {
-    const params = new URLSearchParams(sp.toString());
-    if (next === 'products') params.delete('tab');
-    else params.set('tab', next);
-    params.delete('productsPage');
-    writeClientUrl(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, 'push');
+    filters.updateMany({
+      tab: next === 'products' ? null : next,
+      productsPage: null,
+    }, { resetPage: false, mode: 'push' });
   }
 
   return (

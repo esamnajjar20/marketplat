@@ -38,6 +38,7 @@ export function SearchSortBarWrapper() {
   return (
     <SearchSortBar
       basePath={ROUTES.search}
+      profile="globalSearch"
       config={{ mode: 'single', paramKey: 'sort', defaultValue: 'relevance', options }}
     />
   );

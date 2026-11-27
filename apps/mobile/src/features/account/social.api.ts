@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client';
+import { buildFilterParams } from '../../../../../shared/filters';
 
 type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: PaginationMeta } };
 export type PaginationMeta = { page?: number; limit?: number; total?: number; totalPages?: number; hasNextPage?: boolean };
@@ -28,7 +29,7 @@ export async function fetchPublicUser(id: string): Promise<PublicUser> {
   return unwrap(response, 'تعذر تحميل الملف العام للمستخدم.');
 }
 export async function fetchPublicUserAds(id: string, page = 1, limit = 12): Promise<{ items: PublicAd[]; meta?: PaginationMeta }> {
-  const response = await apiRequest<Envelope<PublicAd[]>>(`/api/v1/users/${encodeURIComponent(id)}/ads?page=${page}&limit=${limit}`);
+  const response = await apiRequest<Envelope<PublicAd[]>>(`/api/v1/users/${encodeURIComponent(id)}/ads?${buildFilterParams({ page, limit }, { profile: 'publicProfileAds' })}`);
   const items = unwrap(response, 'تعذر تحميل إعلانات المستخدم.');
   if (!Array.isArray(items)) throw new Error('استجابة إعلانات المستخدم غير صالحة.');
   return { items, meta: response.meta?.pagination };
@@ -58,20 +59,20 @@ export type FollowingFeedItem = {
   categoryId?: string | null;
 };
 export async function fetchFollowingFeed(token: string, page = 1, limit = 20, signal?: AbortSignal): Promise<{ items: FollowingFeedItem[]; meta?: PaginationMeta }> {
-  const response = await apiRequest<Envelope<FollowingFeedItem[]>>(`/api/v1/follows/feed?page=${page}&limit=${limit}`, { token, signal });
+  const response = await apiRequest<Envelope<FollowingFeedItem[]>>(`/api/v1/follows/feed?${buildFilterParams({ page, limit }, { profile: 'followingFeed' })}`, { token, signal });
   const items = unwrap(response, 'تعذر تحميل نشاط الحسابات التي تتابعها.');
   if (!Array.isArray(items)) throw new Error('استجابة موجز المتابعة غير صالحة.');
   return { items, meta: response.meta?.pagination };
 }
 
 export async function fetchUserFollowList(id: string, mode: 'followers' | 'following', page = 1, limit = 20, signal?: AbortSignal): Promise<{ items: FollowListItem[]; meta?: PaginationMeta }> {
-  const response = await apiRequest<Envelope<FollowListItem[]>>(`/api/v1/follows/users/${encodeURIComponent(id)}/${mode}?page=${page}&limit=${limit}`, { signal });
+  const response = await apiRequest<Envelope<FollowListItem[]>>(`/api/v1/follows/users/${encodeURIComponent(id)}/${mode}?${buildFilterParams({ page, limit }, { profile: 'followList' })}`, { signal });
   const items = unwrap(response, 'تعذر تحميل القائمة.');
   if (!Array.isArray(items)) throw new Error('استجابة قائمة المتابعة غير صالحة.');
   return { items, meta: response.meta?.pagination };
 }
 export async function fetchBlockedUsers(token: string, page = 1, limit = 50, signal?: AbortSignal): Promise<{ items: BlockedUserItem[]; meta?: PaginationMeta }> {
-  const response = await apiRequest<Envelope<BlockedUserItem[]>>(`/api/v1/blocked-users?page=${page}&limit=${limit}`, { token, signal });
+  const response = await apiRequest<Envelope<BlockedUserItem[]>>(`/api/v1/blocked-users?${buildFilterParams({ page, limit }, { profile: 'blockedUsers' })}`, { token, signal });
   const items = unwrap(response, 'تعذر تحميل قائمة المستخدمين المحظورين.');
   if (!Array.isArray(items)) throw new Error('استجابة المستخدمين المحظورين غير صالحة.');
   return { items, meta: response.meta?.pagination };
@@ -98,7 +99,7 @@ export async function submitReport(targetType: 'ads' | 'users' | 'stores' | 'pro
 
 export type MyReport = { id: string; targetType?: string; targetId?: string; reason?: string; notes?: string | null; status?: string; createdAt?: string };
 export async function fetchMyReports(token: string, page = 1, limit = 20, signal?: AbortSignal): Promise<{ items: MyReport[]; meta?: PaginationMeta }> {
-  const response = await apiRequest<Envelope<MyReport[]>>(`/api/v1/reports/me?page=${page}&limit=${limit}`, { token, signal });
+  const response = await apiRequest<Envelope<MyReport[]>>(`/api/v1/reports/me?${buildFilterParams({ page, limit }, { profile: 'myReports' })}`, { token, signal });
   const items = unwrap(response, 'تعذر تحميل بلاغاتك.');
   if (!Array.isArray(items)) throw new Error('استجابة بلاغاتك غير صالحة.');
   return { items, meta: response.meta?.pagination };
@@ -126,7 +127,7 @@ export type PublicSellerRating = {
   ad?: { id?: string; title?: string | null } | null;
 };
 export async function fetchSellerRatings(id: string, page = 1, limit = 10): Promise<{ items: PublicSellerRating[]; meta?: PaginationMeta }> {
-  const response = await apiRequest<Envelope<PublicSellerRating[]>>(`/api/v1/sellers/${encodeURIComponent(id)}/ratings?page=${page}&limit=${limit}`);
+  const response = await apiRequest<Envelope<PublicSellerRating[]>>(`/api/v1/sellers/${encodeURIComponent(id)}/ratings?${buildFilterParams({ page, limit }, { profile: 'sellerRatings' })}`);
   const items = unwrap(response, 'تعذر تحميل تقييمات البائع.');
   if (!Array.isArray(items)) throw new Error('استجابة تقييمات البائع غير صالحة.');
   return { items, meta: response.meta?.pagination };

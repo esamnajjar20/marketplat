@@ -36,7 +36,8 @@ import {
 } from '@/hooks/mutations/useServiceListingMutations';
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
+
 import { formatServicePrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import type { ServiceListingStatus } from '@/types/service.types';
@@ -52,8 +53,10 @@ import { Spinner } from '@/components/ui/spinner';
 export function MyServiceListingsList() {
   const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
   const { data: provider } = useMyServiceProvider();
-  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ServiceListingStatus>(
+  const { page, status, setStatus, setPage, filters, searchParams: sp } = useOwnedListPage<ServiceListingStatus>(
     ROUTES.myServices,
+    ['ACTIVE', 'PAUSED', 'DELETED'],
+    'myServices',
   );
   const searchQ = sp.get('q') ?? '';
   const [searchInput, setSearchInput] = useState(searchQ);
@@ -82,11 +85,10 @@ export function MyServiceListingsList() {
   const [bulkBusy, setBulkBusy] = useState<string | null>(null);
 
   const isOutOfRange = useOutOfRangeRedirect({
-    baseUrl: ROUTES.myServices,
     page,
     totalPages: data?.meta?.totalPages,
     hasData: !!data,
-    searchParams: sp,
+    setPage,
   });
 
   // FIX HOOK-ORDER-01: this useEffect was previously placed below the
@@ -117,20 +119,9 @@ export function MyServiceListingsList() {
 
   const totalPages = data?.meta?.totalPages ?? 1;
 
-  function pushParams(mutator: (params: URLSearchParams) => void) {
-    const params = new URLSearchParams(sp.toString());
-    mutator(params);
-    params.delete('page');
-    writeClientUrl(`${ROUTES.myServices}?${params.toString()}`, 'push');
-  }
-
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
-    pushParams((params) => {
-      const q = searchInput.trim();
-      if (q) params.set('q', q);
-      else params.delete('q');
-    });
+    filters.update('q', searchInput.trim() || null, { mode: 'push' });
   }
 
   function toggleSelect(id: string) {
@@ -242,7 +233,7 @@ export function MyServiceListingsList() {
               aria-label="مسح البحث"
               onClick={() => {
                 setSearchInput('');
-                pushParams((params) => params.delete('q'));
+                filters.update('q', null, { mode: 'push' });
               }}
               className="absolute end-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
@@ -255,29 +246,18 @@ export function MyServiceListingsList() {
         </Button>
       </form>
 
-      <div
-        className="flex gap-2 border-b pb-3 overflow-x-auto overscroll-x-contain"
-        role="group"
-        aria-label="تصفية الخدمات حسب الحالة"
-      >
-        {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['PAUSED', 'متوقفة'], ['DELETED', 'محذوفة']] as const).map(
-          ([val, label]) => (
-            <button
-              key={val}
-              type="button"
-              onClick={() => setStatus(val)}
-              aria-pressed={(status ?? '') === val}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm-tight font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                (status ?? '') === val
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-              }`}
-            >
-              {label}
-            </button>
-          ),
-        )}
-      </div>
+      <FilterChipGroup
+        label="تصفية الخدمات حسب الحالة"
+        value={status ?? ''}
+        options={[
+          { value: '', label: 'الكل' },
+          { value: 'ACTIVE', label: 'نشطة' },
+          { value: 'PAUSED', label: 'متوقفة' },
+          { value: 'DELETED', label: 'محذوفة' },
+        ]}
+        onChange={setStatus}
+        className="border-b pb-3"
+      />
 
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/15 bg-primary/5 p-2.5 text-sm">

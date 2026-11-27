@@ -2,10 +2,10 @@
 
 import dynamic from 'next/dynamic';
 import { useRef, type KeyboardEvent } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import { parseFilterEnum } from '../../../shared/filters';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 const FavoritesList = dynamic(
@@ -37,9 +37,8 @@ const TABS: { value: FavoritesTabValue; label: string }[] = [
  * URL, same default view, same FavoritesList component untouched.
  */
 export function FavoritesTabs() {
-  const sp = useSearchParams();
-  const rawType = sp.get('type');
-  const type: FavoritesTabValue = rawType === 'product' || rawType === 'store' || rawType === 'service' ? rawType : 'ad';
+  const filters = useUnifiedFilters({ basePath: ROUTES.favorites, profile: 'favorites', mode: 'replace' });
+  const type: FavoritesTabValue = parseFilterEnum(filters.get('type'), ['product', 'store', 'service'] as const) ?? 'ad';
 
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -59,12 +58,7 @@ export function FavoritesTabs() {
   }
 
   function handleChange(next: FavoritesTabValue) {
-    const params = new URLSearchParams(sp.toString());
-    if (next === 'ad') params.delete('type');
-    else params.set('type', next);
-    params.delete('page');
-    const qs = params.toString();
-    writeClientUrl(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites, 'replace');
+    filters.update('type', next === 'ad' ? null : next, { mode: 'replace' });
   }
 
   return (

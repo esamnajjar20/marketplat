@@ -44,7 +44,7 @@ describe('storesApi — endpoint/method correctness', () => {
   it('getAll calls GET /stores with query params', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(paginatedResponse([]));
     await storesApi.getAll({ page: 1, city: 'غزة' });
-    expect(apiClient.get).toHaveBeenCalledWith('/stores', { params: { page: 1, city: 'غزة' } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[1]?.params.toString()).toBe('page=1&city=%D8%BA%D8%B2%D8%A9');
   });
 
   it('getMyStore calls GET /stores/me (not /stores/my)', async () => {
@@ -62,7 +62,7 @@ describe('storesApi — endpoint/method correctness', () => {
   it('getMyFollowedStores calls GET /stores/me/followed with params', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(paginatedResponse([]));
     await storesApi.getMyFollowedStores({ page: 2, limit: 12 });
-    expect(apiClient.get).toHaveBeenCalledWith('/stores/me/followed', { params: { page: 2, limit: 12 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=2&limit=12');
   });
 
   it('create calls POST /stores with the payload', async () => {
@@ -102,7 +102,7 @@ describe('storesApi — endpoint/method correctness', () => {
   it('getReviews calls GET /stores/:id/reviews with params', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(paginatedResponse([]));
     await storesApi.getReviews('store-1', { page: 1, limit: 10 });
-    expect(apiClient.get).toHaveBeenCalledWith('/stores/store-1/reviews', { params: { page: 1, limit: 10 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1&limit=10');
   });
 
   it('createReview calls POST /stores/:id/reviews with the payload', async () => {

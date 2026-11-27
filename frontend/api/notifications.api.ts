@@ -5,6 +5,7 @@
  * unread-count + the two mark-read actions.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
@@ -18,7 +19,7 @@ export const notificationsApi = {
   /** GET /notifications */
   getMine: (params?: NotificationsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<Notification[]>>('/notifications', { ...config, params })
+      .get<ApiResponse<Notification[]>>('/notifications', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'notifications' }) : undefined })
       .then((r) => unwrapPaginated<Notification>(r)),
 
   /** GET /notifications/unread-count */

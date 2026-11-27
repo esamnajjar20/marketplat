@@ -1,3 +1,4 @@
+import { buildFilterParams } from '../../../../../shared/filters';
 import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
 import { ApiError, apiRequest } from '@/api/client';
 import { uploadMobileImagesDirect } from '../media/direct-upload.api';
@@ -51,9 +52,9 @@ function pageFrom<T>(response: Envelope<T[]>, fallback: string, page: number): P
   const pagination = response.meta?.pagination;
   return { items, page: pagination?.page ?? page, totalPages: pagination?.totalPages ?? page, total: pagination?.total ?? items.length };
 }
-export async function fetchStores(options: { page?: number; limit?: number; search?: string; city?: string } = {}) {
-  const page = options.page ?? 1; const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 20), sortBy: 'createdAt', sortOrder: 'desc' });
-  if (options.search?.trim()) params.set('search', options.search.trim()); if (options.city?.trim()) params.set('city', options.city.trim());
+export async function fetchStores(options: { page?: number; limit?: number; search?: string; city?: string; type?: string } = {}) {
+  const page = options.page ?? 1;
+  const params = buildFilterParams({ page, limit: options.limit ?? 20, sortBy: 'createdAt', sortOrder: 'desc', search: options.search, city: options.city, type: options.type }, { profile: 'storesBrowse' });
   const response = await apiRequest<Envelope<StoreSummary[]>>(`/api/v1/stores?${params}`);
   return pageFrom(response, 'تعذر تحميل المتاجر.', page);
 }
@@ -72,9 +73,9 @@ export async function fetchStore(id: string) {
   }
 }
 export async function toggleStoreFollow(id: string, token: string, csrfToken?: string | null) { return dataOf(await apiRequest<Envelope<{ action: 'followed' | 'unfollowed' }>>(`/api/v1/stores/${encodeURIComponent(id)}/follow`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر تحديث متابعة المتجر.'); }
-export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; city?: string; minPrice?: number; maxPrice?: number; hasPromotion?: boolean; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal } = {}) {
-  const page = options.page ?? 1; const sortBy = options.sortBy ?? 'createdAt'; const sortOrder = options.sortOrder ?? (sortBy === 'price' ? 'asc' : 'desc'); const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 20), sortBy, sortOrder });
-  if (options.search?.trim()) params.set('search', options.search.trim()); if (options.storeId) params.set('storeId', options.storeId); if (options.categoryId) params.set('categoryId', options.categoryId); if (options.city?.trim()) params.set('city', options.city.trim()); if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice)); if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice)); if (options.hasPromotion) params.set('hasPromotion', 'true');
+export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; city?: string; minPrice?: number; maxPrice?: number; availability?: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; hasPromotion?: boolean; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal } = {}) {
+  const page = options.page ?? 1; const sortBy = options.sortBy ?? 'createdAt'; const sortOrder = options.sortOrder ?? (sortBy === 'price' ? 'asc' : 'desc');
+  const params = buildFilterParams({ page, limit: options.limit ?? 20, sortBy, sortOrder, search: options.search, storeId: options.storeId, categoryId: options.categoryId, city: options.city, minPrice: options.minPrice, maxPrice: options.maxPrice, availability: options.availability, hasPromotion: options.hasPromotion ? 'true' : undefined }, { profile: 'productsBrowse' });
   const response = await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products?${params}`, { signal: options.signal });
   return pageFrom(response, 'تعذر تحميل المنتجات.', page);
 }
@@ -107,7 +108,7 @@ export async function updateMyStore(input: Partial<Pick<StoreSummary, 'name' | '
   return dataOf(await apiRequest<Envelope<StoreSummary>>('/api/v1/stores/me', { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المتجر.');
 }
 export async function fetchMyProducts(token: string, search = '', options: { page?: number; limit?: number; signal?: AbortSignal; storeId?: string } = {}) {
-  const page = options.page ?? 1; const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 50) }); if (search.trim()) params.set('search', search.trim()); if (options.storeId) params.set('storeId', options.storeId);
+  const page = options.page ?? 1; const params = buildFilterParams({ page, limit: options.limit ?? 50, search, storeId: options.storeId }, { profile: 'myProducts' });
   return pageFrom(await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products/me?${params}`, { token, signal: options.signal }), 'تعذر تحميل منتجاتك.', page);
 }
 export async function fetchProductCategories() {
@@ -196,7 +197,7 @@ export async function fetchStoreFollowStatus(id: string, token: string) {
 }
 export async function fetchStoreReviews(id: string, options: { page?: number; limit?: number } = {}) {
   const page = options.page ?? 1;
-  const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 10) });
+  const params = buildFilterParams({ page, limit: options.limit ?? 10 }, { profile: 'storeReviews' });
   return pageFrom(await apiRequest<Envelope<StoreReview[]>>(`/api/v1/stores/${encodeURIComponent(id)}/reviews?${params}`), 'تعذر تحميل تقييمات المتجر.', page);
 }
 export async function createStoreReview(id: string, input: { score: number; comment?: string }, token: string, csrfToken?: string | null) {
@@ -211,7 +212,7 @@ export async function fetchMyStoreAnalytics(token: string) {
   return dataOf(await apiRequest<Envelope<StoreAnalytics>>('/api/v1/stores/me/analytics', { token }), 'تعذر تحميل إحصاءات المتجر.');
 }
 export async function fetchMyFollowedStores(token: string, page = 1, limit = 20, signal?: AbortSignal) {
-  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  const params = buildFilterParams({ page, limit }, { profile: 'followedStores' });
   return pageFrom(await apiRequest<Envelope<FollowedStoreRow[]>>(`/api/v1/stores/me/followed?${params}`, { token, signal }), 'تعذر تحميل المتاجر التي تتابعها.', page);
 }
 

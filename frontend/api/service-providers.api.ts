@@ -9,6 +9,7 @@
  *     endpoint with no equivalent in the original plan at all.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
@@ -49,7 +50,7 @@ export const serviceProvidersApi = {
    */
   getAll: (params?: ServiceProvidersQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<PublicServiceProviderSummary[]>>('/service-providers', { ...config, params })
+      .get<ApiResponse<PublicServiceProviderSummary[]>>('/service-providers', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'serviceProviders' }) : undefined })
       .then((r) => unwrapPaginated<PublicServiceProviderSummary>(r)),
 
   /** POST /service-providers/me — creates the caller's provider profile (once). */
@@ -79,14 +80,14 @@ export const serviceProvidersApi = {
   getMyDashboard: (params: ServiceProviderDashboardParams, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<ServiceProviderDashboardData>>('/service-providers/me/dashboard', {
       ...config,
-      params,
+      params: buildFilterParams({ ...params } as FilterPatch, { profile: 'providerDashboard' }),
     }),
 
   /** GET /service-providers/me/analytics — owner-only dashboard. */
   getMyAnalytics: (period: '7d' | '30d' | 'all' = 'all', config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<ServiceProviderAnalytics>>('/service-providers/me/analytics', {
       ...config,
-      params: { period },
+      params: buildFilterParams({ period }, { profile: 'providerAnalytics' }),
     }),
 
   /** POST /service-providers/me/logo — multipart upload, same shape as storesApi.uploadLogo. */
@@ -104,7 +105,7 @@ export const serviceProvidersApi = {
   /** GET /service-providers/nearby — Haversine search around a lat/lng pin. */
   getNearby: (params: NearbyServiceProvidersParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<NearbyServiceProviderRow[]>>('/service-providers/nearby', { ...config, params })
+      .get<ApiResponse<NearbyServiceProviderRow[]>>('/service-providers/nearby', { ...config, params: buildFilterParams({ ...params } as FilterPatch, { profile: 'serviceProvidersNearby' }) })
       .then((r) => unwrapPaginated<NearbyServiceProviderRow>(r)),
 };
 

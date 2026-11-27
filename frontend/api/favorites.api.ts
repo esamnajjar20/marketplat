@@ -37,6 +37,7 @@
  */
 import type { AxiosRequestConfig } from 'axios';
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { AdListItem } from '@/types/ad.types';
 import type { ApiResponse } from '@/types/api.types';
@@ -75,7 +76,7 @@ export const favoritesApi = {
    */
   getAll: (params?: { page?: number; limit?: number; listId?: string }, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<FavoriteRecord[]>>('/favorites', { ...config, params })
+      .get<ApiResponse<FavoriteRecord[]>>('/favorites', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'favorites' }) : undefined })
       .then((r) => unwrapPaginated<FavoriteRecord>(r)),
 
   /**
@@ -112,7 +113,7 @@ export const favoritesApi = {
     apiClient
       .get<ApiResponse<FavoriteEntityRecord<T>[]>>('/favorites', {
         ...config,
-        params: { ...params, type: FAVORITE_QUERY_TYPE[type] },
+        params: buildFilterParams({ ...params, type: FAVORITE_QUERY_TYPE[type] } as FilterPatch, { profile: 'favorites' }),
       })
       .then((r) => unwrapPaginated<FavoriteEntityRecord<T>>(r)),
 

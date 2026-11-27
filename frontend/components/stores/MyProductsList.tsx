@@ -26,7 +26,8 @@ import { useDeleteProduct, useToggleProductStatus } from '@/hooks/mutations/useP
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
 import { myStoreTabHref } from '@/lib/myStoreHubTabs';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
+
 import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import type { ProductAvailability, ProductStatus } from '@/types/product.types';
@@ -48,7 +49,7 @@ import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialo
 import { Spinner } from '@/components/ui/spinner';
 export function MyProductsList() {
   const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
-  const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ProductStatus>(ROUTES.myStore);
+  const { page, status, setStatus, setPage, filters, searchParams: sp } = useOwnedListPage<ProductStatus>(ROUTES.myStore, ['ACTIVE', 'PAUSED', 'DELETED'], 'myProducts');
   const availability = (sp.get('availability') as ProductAvailability | null) || undefined;
   const searchQ = sp.get('q') ?? '';
   const [searchInput, setSearchInput] = useState(searchQ);
@@ -78,34 +79,19 @@ export function MyProductsList() {
   const totalPages = data?.meta?.totalPages ?? 1;
 
   const isOutOfRange = useOutOfRangeRedirect({
-    baseUrl: ROUTES.myStore,
     page,
     totalPages: data?.meta?.totalPages,
     hasData: !!data,
-    searchParams: sp,
+    setPage,
   });
 
-  function pushParams(mutator: (params: URLSearchParams) => void) {
-    const params = new URLSearchParams(sp.toString());
-    mutator(params);
-    params.delete('page');
-    writeClientUrl(`${ROUTES.myStore}?${params.toString()}`, 'push');
-  }
-
   function setAvailability(val: string) {
-    pushParams((params) => {
-      if (val) params.set('availability', val);
-      else params.delete('availability');
-    });
+    filters.update('availability', val || null, { mode: 'push' });
   }
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
-    pushParams((params) => {
-      const q = searchInput.trim();
-      if (q) params.set('q', q);
-      else params.delete('q');
-    });
+    filters.update('q', searchInput.trim() || null, { mode: 'push' });
   }
 
   function toggleSelect(id: string) {
@@ -197,7 +183,7 @@ export function MyProductsList() {
               aria-label="مسح البحث"
               onClick={() => {
                 setSearchInput('');
-                pushParams((params) => params.delete('q'));
+                filters.update('q', null, { mode: 'push' });
               }}
               className="absolute end-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
@@ -211,52 +197,35 @@ export function MyProductsList() {
       </form>
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex gap-2 border-b pb-3 overflow-x-auto overscroll-x-contain flex-1" role="group" aria-label="تصفية حسب الحالة">
-          {([['', 'الكل'], ['ACTIVE', 'نشط'], ['PAUSED', 'متوقف'], ['DELETED', 'محذوف']] as const).map(
-            ([val, label]) => (
-              <button
-                key={val}
-                type="button"
-                onClick={() => setStatus(val)}
-                aria-pressed={(status ?? '') === val}
-                className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm-tight font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                  (status ?? '') === val
-                    ? 'bg-primary/15 text-primary'
-                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'}`}
-              >
-                {label}
-              </button>
-            ),
-          )}
-        </div>
+        <FilterChipGroup
+          label="تصفية المنتجات حسب الحالة"
+          value={status ?? ''}
+          options={[
+            { value: '', label: 'الكل' },
+            { value: 'ACTIVE', label: 'نشط' },
+            { value: 'PAUSED', label: 'متوقف' },
+            { value: 'DELETED', label: 'محذوف' },
+          ]}
+          onChange={setStatus}
+          className="min-w-0 flex-1 border-b pb-3"
+        />
         <IntentPrefetchLink href={ROUTES.myStoreProductCreate} prefetch={false}>
           <Button size="sm">إضافة منتج</Button>
         </IntentPrefetchLink>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1" role="group" aria-label="تصفية حسب التوفر">
-        {(
-          [
-            ['', 'كل التوفر'],
-            ['IN_STOCK', 'متوفر'],
-            ['LIMITED', 'محدود'],
-            ['OUT_OF_STOCK', 'نفد'],
-          ] as const
-        ).map(([val, label]) => (
-          <button
-            key={val}
-            type="button"
-            onClick={() => setAvailability(val)}
-            aria-pressed={(availability ?? '') === val}
-            className={`shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${
-              (availability ?? '') === val
-                ? 'bg-primary/10 border-primary text-primary'
-                : 'text-muted-foreground hover:bg-muted'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <FilterChipGroup
+        label="تصفية المنتجات حسب التوفر"
+        value={availability ?? ''}
+        options={[
+          { value: '', label: 'كل التوفر' },
+          { value: 'IN_STOCK', label: 'متوفر' },
+          { value: 'LIMITED', label: 'محدود' },
+          { value: 'OUT_OF_STOCK', label: 'نفد' },
+        ]}
+        onChange={setAvailability}
+        className="pb-1"
+      />
 
       {selected.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-2 text-sm">

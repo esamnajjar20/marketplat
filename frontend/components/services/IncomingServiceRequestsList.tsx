@@ -4,7 +4,6 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 import { useEffect, useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, Inbox, Check, X, Play, CheckCheck, CalendarPlus, WalletCards } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -17,7 +16,9 @@ import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
 import { MY_SERVICES_HUB_PATH } from '@/lib/myServicesHubTabs';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import { normalizeFilterPage, parseFilterEnum } from '../../../shared/filters';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import {
   SERVICE_REQUEST_STATUS_LABELS,
@@ -139,18 +140,11 @@ function RequestActions({
  * exposing serviceRequestsApi.getIncomingAsProvider + .respond.
  */
 export function IncomingServiceRequestsList() {
-  const sp = useSearchParams();
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
-  const rawPage = Number(sp.get('page') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
-  // SR-STATUS-VALIDATE-01: was `as ServiceRequestStatus` — a URL carrying a
-  // value that isn't in the backend enum (e.g. ?status=PAUSED from an old
-  // link) was passed straight through and 400'd with a ZodError. Only pass
-  // status to the API when it is one of the six known values.
-  const rawStatus = sp.get('status');
-  const status = rawStatus && (FILTER_TABS as readonly string[]).includes(rawStatus)
-    ? (rawStatus as ServiceRequestStatus)
-    : undefined;
+  const filters = useUnifiedFilters({ basePath: MY_SERVICES_HUB_PATH, profile: 'incomingServiceRequests' });
+  const sp = filters.params;
+  const page = normalizeFilterPage(sp.get('page'));
+  // Only pass a known backend enum to the API; malformed URL values are ignored.
+  const status = parseFilterEnum(sp.get('status'), FILTER_TABS.filter(Boolean) as readonly ServiceRequestStatus[]);
   const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
   const [appointmentTarget, setAppointmentTarget] = useState<{
     providerId: string;
@@ -164,23 +158,17 @@ export function IncomingServiceRequestsList() {
   const totalPages = data?.meta?.totalPages ?? 1;
 
   useEffect(() => {
-    if (!data) return;
-    if (page > totalPages && totalPages >= 1) {
-      const params = new URLSearchParams(sp.toString());
-      if (totalPages > 1) params.set('page', String(totalPages));
-      else params.delete('page');
-      params.set('tab', 'requests'); // MY-SERVICES-HUB-01: tab lives in the query
-      writeClientUrl(`${MY_SERVICES_HUB_PATH}?${params.toString()}`, 'replace');
-    }
-  }, [data, page, totalPages, sp]);
+    if (!data || page <= totalPages || totalPages < 1) return;
+    filters.updateMany({
+      page: totalPages > 1 ? totalPages : null,
+      tab: 'requests',
+    }, { resetPage: false, mode: 'replace' });
+  }, [data, filters.updateMany, page, totalPages]);
 
-  function setStatus(s: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (s) params.set('status', s); else params.delete('status');
-    params.delete('page');
-    params.set('tab', 'requests'); // MY-SERVICES-HUB-01
-    writeClientUrl(`${MY_SERVICES_HUB_PATH}?${params.toString()}`, 'push');
-  }
+  const setStatus = (next: string) => filters.updateMany(
+    { status: next || null, tab: 'requests' },
+    { mode: 'push' },
+  );
 
   const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
 
@@ -207,19 +195,13 @@ export function IncomingServiceRequestsList() {
 
   return (
     <div className="space-y-4 lg:space-y-5">
-      <div className="flex gap-2 border-b pb-3 overflow-x-auto overscroll-x-contain" role="group" aria-label="تصفية الطلبات الواردة حسب الحالة">
-        {FILTER_TABS.map((val) => (
-          <button type="button"
-            key={val}
-            onClick={() => setStatus(val)}
-            aria-pressed={(status ?? '') === val}
-            className={`shrink-0 text-sm px-3 py-1 rounded-full transition-colors
-              ${(status ?? '') === val ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}
-          >
-            {val ? SERVICE_REQUEST_STATUS_LABELS[val] : 'الكل'}
-          </button>
-        ))}
-      </div>
+      <FilterChipGroup
+        label="تصفية الطلبات الواردة حسب الحالة"
+        value={status ?? ''}
+        options={FILTER_TABS.map((value) => ({ value, label: value ? SERVICE_REQUEST_STATUS_LABELS[value] : 'الكل' }))}
+        onChange={setStatus}
+        className="border-b pb-3"
+      />
 
       {items.length === 0 ? (
         <EmptyState

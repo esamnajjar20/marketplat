@@ -44,51 +44,57 @@
  * each component, same as any other hook — no hook is ever called
  * conditionally or nested inside another function.
  */
-import { useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { buildUrlWithParams, writeClientUrl } from '@/lib/urlWithParams';
+import { useCallback, useEffect } from 'react';
+import { normalizeFilterPage, parseFilterEnum, type FilterProfile } from '../../shared/filters';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+
+type UnifiedFilterController = ReturnType<typeof useUnifiedFilters>;
 
 interface UseOwnedListPageResult<S extends string> {
   page: number;
   /** Current status filter value, or undefined for "all". */
   status: S | undefined;
-  /** Updates the status filter in the URL and resets to page 1. */
+  /** Shared filter controller used for every filter update on this list. */
+  filters: UnifiedFilterController;
+  /** Updates the status filter in the URL and resets pagination. */
   setStatus: (status: string) => void;
-  /** The same searchParams instance this hook read from — reuse this
-   * for e.g. Pagination's searchParams prop instead of calling
-   * useSearchParams() again. */
+  /** Updates the page without triggering a page reset. */
+  setPage: (page: number) => void;
+  /** The same searchParams snapshot read by the shared filter controller. */
   searchParams: URLSearchParams;
 }
 
-/** Reads page/status from the URL and returns a setter for the status filter. */
-export function useOwnedListPage<S extends string>(baseUrl: string): UseOwnedListPageResult<S> {
-  const sp     = useSearchParams();
+/** Reads pagination/status from the URL and returns the shared filter controller. */
+export function useOwnedListPage<S extends string>(
+  baseUrl: string,
+  allowedStatuses: readonly S[] | undefined,
+  profile: FilterProfile,
+): UseOwnedListPageResult<S> {
+  const filters = useUnifiedFilters({ basePath: baseUrl, profile, mode: 'push' });
+  const searchParams = filters.params;
+  const page = normalizeFilterPage(searchParams.get('page'));
+  const status = allowedStatuses
+    ? parseFilterEnum(searchParams.get('status'), allowedStatuses)
+    : (searchParams.get('status') ?? undefined) as S | undefined;
 
-  // clamp URL page param to positive integer.
-  const rawPage = Number(sp.get('page') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
-  const status = (sp.get('status') ?? undefined) as S | undefined;
+  const setStatus = useCallback((value: string) => filters.update('status', value || null), [filters.update]);
+  const setPage = useCallback((value: number) => filters.update(
+    'page',
+    value > 1 ? value : null,
+    { resetPage: false, mode: 'replace' },
+  ), [filters.update]);
 
-  function setStatus(s: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (s) params.set('status', s); else params.delete('status');
-    params.delete('page');
-    // baseUrl may already carry a query (ROUTES.myAds = '/activity?tab=ads').
-    writeClientUrl(buildUrlWithParams(baseUrl, params), 'push');
-  }
-
-  return { page, status, setStatus, searchParams: sp };
+  return { page, status, filters, setStatus, setPage, searchParams };
 }
 
 interface UseOutOfRangeRedirectOptions {
-  baseUrl: string;
   page: number;
   /** totalPages from the resolved query's pagination meta (defaults to 1 while loading). */
   totalPages: number | undefined;
   /** Whether the query has resolved at least once (data !== undefined). */
   hasData: boolean;
-  /** Reuse the searchParams instance from useOwnedListPage instead of a fresh useSearchParams() call. */
-  searchParams: URLSearchParams;
+  /** Page setter from useOwnedListPage; it uses the same shared URL/filter controller. */
+  setPage: (page: number) => void;
 }
 
 /**
@@ -104,26 +110,21 @@ interface UseOutOfRangeRedirectOptions {
  * (same as the original `isLoading || isOutOfRange` check in each list).
  */
 export function useOutOfRangeRedirect({
-  baseUrl,
   page,
   totalPages,
   hasData,
-  searchParams: sp,
+  setPage,
 }: UseOutOfRangeRedirectOptions): boolean {
-
   const resolvedTotalPages = totalPages ?? 1;
   const isOutOfRange = hasData && page > resolvedTotalPages && resolvedTotalPages >= 1;
 
   useEffect(() => {
-    if (!hasData) return; // wait for the query to resolve first
+    if (!hasData) return;
     if (page > resolvedTotalPages && resolvedTotalPages >= 1) {
-      const params = new URLSearchParams(sp.toString());
-      if (resolvedTotalPages > 1) params.set('page', String(resolvedTotalPages));
-      else params.delete('page');
-      writeClientUrl(buildUrlWithParams(baseUrl, params), 'replace');
+      setPage(resolvedTotalPages);
     }
-     
-  }, [hasData, page, resolvedTotalPages, sp, baseUrl]);
+  }, [hasData, page, resolvedTotalPages, setPage]);
 
   return isOutOfRange;
 }
+

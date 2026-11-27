@@ -1,16 +1,16 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ClipboardList } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { RequestOfferStatus } from '@/types/request.types';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { useMyRequestOffers } from '@/hooks/queries/useRequests';
 import { useWithdrawRequestOffer } from '@/hooks/mutations/useRequestMutations';
 import { ROUTES } from '@/lib/constants';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import { normalizeFilterPage, parseFilterEnum } from '../../../shared/filters';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { RequestListSkeleton } from '@/components/requests/RequestListSkeleton';
@@ -18,13 +18,10 @@ import { RequestOfferCard } from '@/components/requests/RequestOfferCard';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 
 function MyRequestOffersContent() {
-  const searchParams = useSearchParams();
-  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
-  const rawStatus = searchParams.get('status');
-  const status: RequestOfferStatus | undefined =
-    rawStatus === 'PENDING' || rawStatus === 'ACCEPTED' || rawStatus === 'DECLINED' || rawStatus === 'WITHDRAWN'
-      ? rawStatus
-      : undefined;
+  const filters = useUnifiedFilters({ basePath: ROUTES.myOpenRequestOffers, profile: 'myRequestOffers' });
+  const searchParams = filters.params;
+  const page = normalizeFilterPage(searchParams.get('page'));
+  const status = parseFilterEnum(searchParams.get('status'), ['PENDING', 'ACCEPTED', 'DECLINED', 'WITHDRAWN'] as const);
   const { data, isLoading, isError, refetch } = useMyRequestOffers({ page, limit: 20, status });
   // CONFIRM-OFFERS-01: replace window.confirm with ConfirmDialog for
   // consistent RTL / dark-mode / a11y behaviour across the app.
@@ -44,35 +41,20 @@ function MyRequestOffersContent() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="حالة العرض">
-        {[
-          { value: undefined, label: 'الكل' },
-          { value: 'PENDING' as const, label: 'قيد الانتظار' },
-          { value: 'ACCEPTED' as const, label: 'مقبول' },
-          { value: 'DECLINED' as const, label: 'مرفوض' },
-          { value: 'WITHDRAWN' as const, label: 'مسحوب' },
-        ].map((tab) => {
-          const active = tab.value === status;
-          const qs = new URLSearchParams();
-          if (tab.value) qs.set('status', tab.value);
-          const href = qs.toString() ? `${ROUTES.myOpenRequestOffers}?${qs}` : ROUTES.myOpenRequestOffers;
-          return (
-            <button
-              key={tab.label}
-              type="button"
-              onClick={() => writeClientUrl(href, 'push')}
-              role="tab"
-              aria-selected={active}
-              className={cn(
-                'inline-flex min-h-10 items-center rounded-full px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      <FilterChipGroup
+        label="حالة العرض"
+        value={status ?? ''}
+        options={[
+          { value: '', label: 'الكل' },
+          { value: 'PENDING', label: 'قيد الانتظار' },
+          { value: 'ACCEPTED', label: 'مقبول' },
+          { value: 'DECLINED', label: 'مرفوض' },
+          { value: 'WITHDRAWN', label: 'مسحوب' },
+        ]}
+        onChange={(value) => filters.update('status', value || null, { mode: 'push' })}
+        role="tablist"
+        className="flex-wrap"
+      />
 
       {isLoading && <RequestListSkeleton count={4} />}
       {isError && (

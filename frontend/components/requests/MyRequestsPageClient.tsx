@@ -1,18 +1,18 @@
 'use client';
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { useSearchParams } from 'next/navigation';
 import { ClipboardList } from 'lucide-react';
 import { useMyRequests } from '@/hooks/queries/useRequests';
 import { ROUTES } from '@/lib/constants';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import { normalizeFilterPage, parseFilterEnum } from '../../../shared/filters';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import type { RequestStatus } from '@/types/request.types';
 import { Button } from '@/components/shared/ui/Button';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { RequestCard } from '@/components/requests/RequestCard';
 import { RequestListSkeleton } from '@/components/requests/RequestListSkeleton';
-import { cn } from '@/lib/utils';
 
 const STATUS_TABS: Array<{ value?: RequestStatus; label: string }> = [
   { value: undefined, label: 'الكل' },
@@ -23,16 +23,10 @@ const STATUS_TABS: Array<{ value?: RequestStatus; label: string }> = [
 ];
 
 export default function MyRequestsPage() {
-  const searchParams = useSearchParams();
-  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
-  const statusParam = searchParams.get('status');
-  const status =
-    statusParam === 'OPEN' ||
-    statusParam === 'ACCEPTED' ||
-    statusParam === 'CANCELLED' ||
-    statusParam === 'EXPIRED'
-      ? (statusParam as RequestStatus)
-      : undefined;
+  const filters = useUnifiedFilters({ basePath: ROUTES.myOpenRequests, profile: 'myOpenRequests' });
+  const searchParams = filters.params;
+  const page = normalizeFilterPage(searchParams.get('page'));
+  const status = parseFilterEnum(searchParams.get('status'), ['OPEN', 'ACCEPTED', 'CANCELLED', 'EXPIRED'] as const);
 
   const { data, isLoading, isError, refetch } = useMyRequests({
     page,
@@ -44,13 +38,6 @@ export default function MyRequestsPage() {
     (data as { meta?: { pagination?: { totalPages?: number } } })?.meta?.pagination
       ?.totalPages ?? 1;
 
-  function statusHref(s?: RequestStatus) {
-    const p = new URLSearchParams();
-    if (s) p.set('status', s);
-    p.set('page', '1');
-    const qs = p.toString();
-    return qs ? `${ROUTES.myOpenRequests}?${qs}` : ROUTES.myOpenRequests;
-  }
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5 px-3 pb-0 md:pb-10 sm:space-y-6 sm:px-4 lg:px-0" dir="rtl">
@@ -64,28 +51,14 @@ export default function MyRequestsPage() {
         </Button>
       </div>
 
-      <div className="-mx-1 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-1" role="tablist" aria-label="حالة الطلب" aria-orientation="horizontal" style={{ scrollbarWidth: 'thin' }}>
-        {STATUS_TABS.map((tab) => {
-          const active = tab.value === status;
-          return (
-            <button
-              key={tab.label}
-              type="button"
-              onClick={() => writeClientUrl(statusHref(tab.value), 'push')}
-              role="tab"
-              aria-selected={active}
-              className={cn(
-                'inline-flex min-h-10 shrink-0 items-center rounded-full px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                active
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      <FilterChipGroup
+        label="حالة الطلب"
+        value={status ?? ''}
+        options={STATUS_TABS.map((tab) => ({ value: tab.value ?? '', label: tab.label }))}
+        onChange={(value) => filters.update('status', value || null, { mode: 'push' })}
+        role="tablist"
+        className="-mx-1 px-1"
+      />
 
       {isLoading && <RequestListSkeleton />}
       {isError && (

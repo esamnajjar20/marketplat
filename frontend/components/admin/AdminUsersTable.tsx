@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { ShieldOff, ShieldCheck, ChevronDown, Crown, ShieldAlert, User as UserIcon, Search } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
@@ -30,8 +30,7 @@ import { cn } from '@/lib/utils';
 import { USER_ACTIVE_STATUS_VARIANT, USER_ACTIVE_STATUS_LABELS, userActiveKey } from '@/lib/userActiveStatus';
 import type { AdminUser, AssignableRole } from '@/types/admin.types';
 import type { UserRole } from '@/types/auth.types';
-import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { adminPagination } from '@/lib/adminHubTabs';
 import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
 
 // Gap #20 (admin permission tiers): frontend mirror of the backend's
@@ -68,7 +67,8 @@ const ROLE_ICON: Record<AssignableRole, typeof UserIcon> = {
 const ASSIGNABLE_ROLES: AssignableRole[] = ['USER', 'MODERATOR', 'ADMIN'];
 
 export const AdminUsersTable = memo(function AdminUsersTable() {
-  const sp     = useSearchParams();
+  const filters = useUnifiedFilters({ basePath: '/admin', profile: 'adminUsers', mode: 'replace' });
+  const sp = filters.params;
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
   // ?page=NaN — a guaranteed 400 for what looks like a
@@ -147,13 +147,9 @@ export const AdminUsersTable = memo(function AdminUsersTable() {
   }
 
   function search(value: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (value) params.set('q', value); else params.delete('q');
-    params.delete('page');
-    // SW-FIX-ADMIN-NAV-REPLACE: filters/search are refinements of the
-    // same view — using push made Back require N presses to leave the
-    // page after typing N searches. Matches AdminFilterBar's own replace.
-    writeClientUrl(adminListHref('users', params), 'replace');
+    // Refining the current admin list replaces history rather than
+    // creating one entry for every search edit.
+    filters.update('q', value || null, { mode: 'replace' });
   }
 
   function roleChangeCopy(nextRole: AssignableRole) {

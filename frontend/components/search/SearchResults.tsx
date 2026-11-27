@@ -9,7 +9,7 @@ import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { Search } from 'lucide-react';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
@@ -31,7 +31,6 @@ import { SearchViewToggle, type SearchViewMode } from '@/components/search/Searc
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { queryKeys } from '@/lib/queryKeys';
 import { throwIfQueryCancelled } from '@/lib/queryCancellation';
-import { writeClientUrl } from '@/lib/urlWithParams';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /**
@@ -42,7 +41,8 @@ import { Skeleton } from '@/components/shared/ui/Skeleton';
  * than lifting shared state up through props.
  */
 export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
-  const sp = useSearchParams();
+  const filters = useUnifiedFilters({ basePath: ROUTES.search, profile: 'globalSearch', mode: 'push' });
+  const sp = filters.params;
   const isOnline = useOnlineStatus();
 
   const q          = sp.get('q') ?? undefined;
@@ -339,14 +339,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    writeClientUrl(
-                      hasActiveFilters && q
-                        ? `${ROUTES.search}?q=${encodeURIComponent(q)}`
-                        : ROUTES.search,
-                      'push',
-                    )
-                  }
+                  onClick={() => filters.clear(hasActiveFilters && q ? ['q'] : [], 'push')}
                 >
                   {hasActiveFilters ? 'مسح الفلاتر' : 'عرض كل النتائج'}
                 </Button>

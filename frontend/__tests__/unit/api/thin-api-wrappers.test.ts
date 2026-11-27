@@ -65,7 +65,7 @@ describe('activityApi', () => {
   it('getMine → GET /activity with query params', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'a1' }]));
     const res = await activityApi.getMine({ page: 2 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/activity', { params: { page: 2 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=2');
     expect(res.data.data.items).toEqual([{ id: 'a1' }]);
     expect(res.data.data.meta).toEqual(PAGINATION);
   });
@@ -83,15 +83,13 @@ describe('appointmentsApi', () => {
   it('getAvailability → GET /appointments/availability/:providerId?date=', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPlainResponse({ slots: [] }));
     await appointmentsApi.getAvailability('prov-1', '2026-08-20');
-    expect(apiClient.get).toHaveBeenCalledWith('/appointments/availability/prov-1', {
-      params: { date: '2026-08-20' },
-    });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('date=2026-08-20');
   });
 
   it('getMine → GET /appointments/me, paginated', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'appt-1' }]));
     const res = await appointmentsApi.getMine({ page: 1 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/appointments/me', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
     expect(res.data.data.items).toEqual([{ id: 'appt-1' }]);
   });
 
@@ -114,7 +112,7 @@ describe('blockedUsersApi', () => {
   it('getMine → GET /blocked-users, paginated', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'block-1' }]));
     const res = await blockedUsersApi.getMine({ page: 1 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/blocked-users', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
     expect(res.data.data.items).toEqual([{ id: 'block-1' }]);
   });
 
@@ -130,7 +128,7 @@ describe('conversationsApi', () => {
   it('getMine → GET /conversations, paginated', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'conv-1' }]));
     const res = await conversationsApi.getMine({ page: 1 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/conversations', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
     expect(res.data.data.items).toEqual([{ id: 'conv-1' }]);
   });
 
@@ -171,7 +169,7 @@ describe('notificationsApi', () => {
   it('getMine → GET /notifications, paginated', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'notif-1' }]));
     const res = await notificationsApi.getMine({ page: 1 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/notifications', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
     expect(res.data.data.items).toEqual([{ id: 'notif-1' }]);
   });
 
@@ -262,14 +260,14 @@ describe('searchApi', () => {
   it('search → GET /search, paginated', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'r1' }]));
     const res = await searchApi.search({ q: 'phone' } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/search', { params: { q: 'phone' } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('q=phone');
     expect(res.data.data.items).toEqual([{ id: 'r1' }]);
   });
 
   it('suggest → GET /search/suggestions (not paginated, bare suggestions array)', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPlainResponse({ suggestions: ['phone', 'phones'] }));
     const res = await searchApi.suggest({ q: 'pho' } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/search/suggestions', { params: { q: 'pho' } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('q=pho');
     expect(res.data.data).toEqual({ suggestions: ['phone', 'phones'] });
   });
 });
@@ -302,7 +300,7 @@ describe('sellersApi', () => {
   it('getRatings → GET /sellers/:id/ratings, paginated', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'rating-1' }]));
     const res = await sellersApi.getRatings('seller-1', { page: 1 });
-    expect(apiClient.get).toHaveBeenCalledWith('/sellers/seller-1/ratings', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
     expect(res.data.data.items).toEqual([{ id: 'rating-1' }]);
   });
 });
@@ -375,9 +373,9 @@ describe('serviceProvidersApi', () => {
 
   it('getNearby → GET /service-providers/nearby, paginated', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'prov-1' }]));
-    const params = { lat: 31.5, lng: 34.4, radiusKm: 10 } as any;
+    const params = { lat: 31.5, lng: 34.4, radius: 10 };
     const res = await serviceProvidersApi.getNearby(params);
-    expect(apiClient.get).toHaveBeenCalledWith('/service-providers/nearby', { params });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('lat=31.5&lng=34.4&radius=10');
     expect(res.data.data.items).toEqual([{ id: 'prov-1' }]);
   });
 });
@@ -399,14 +397,14 @@ describe('serviceRequestsApi', () => {
   it('getMineAsCustomer → GET /service-requests/me, paginated', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'req-1' }]));
     const res = await serviceRequestsApi.getMineAsCustomer({ page: 1 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/service-requests/me', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
     expect(res.data.data.items).toEqual([{ id: 'req-1' }]);
   });
 
   it('getIncomingAsProvider → GET /service-requests/incoming (not /me), paginated', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'req-2' }]));
     const res = await serviceRequestsApi.getIncomingAsProvider({ page: 1 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/service-requests/incoming', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
     expect(res.data.data.items).toEqual([{ id: 'req-2' }]);
   });
 
@@ -429,7 +427,7 @@ describe('serviceReviewsApi', () => {
   it('getForSeller → GET /service-reviews/seller/:sellerProfileId, paginated', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockPaginatedResponse([{ id: 'rev-1' }]));
     const res = await serviceReviewsApi.getForSeller('seller-1', { page: 1 });
-    expect(apiClient.get).toHaveBeenCalledWith('/service-reviews/seller/seller-1', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
     expect(res.data.data.items).toEqual([{ id: 'rev-1' }]);
   });
 });

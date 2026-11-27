@@ -6,8 +6,7 @@
  */
 
 import { X } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
@@ -18,7 +17,7 @@ import {
 } from '@/types/filter.types';
 import type { AdCondition } from '@/types/filter.types';
 import type { SearchSort } from '@/types/search.types';
-import { buildSearchHref, parseSearchParams } from '@/lib/filterUrl';
+import { parseSearchParams } from '@/lib/filterUrl';
 
 function labelFor(key: string, value: string): string {
   if (key === 'condition') {
@@ -33,8 +32,9 @@ function labelFor(key: string, value: string): string {
 }
 
 export function SearchActiveFilters() {
-  const sp = useSearchParams();
-  const state = parseSearchParams(new URLSearchParams(sp.toString()));
+  const filters = useUnifiedFilters({ basePath: ROUTES.search, profile: 'globalSearch', mode: 'replace' });
+  const sp = filters.params;
+  const state = parseSearchParams(sp);
 
   const chips: { key: string; value: string }[] = [];
   if (state.city) chips.push({ key: 'city', value: state.city });
@@ -51,37 +51,20 @@ export function SearchActiveFilters() {
   if (!chips.length && !hasLocation) return null;
 
   function clear(key: string) {
-    writeClientUrl(
-      buildSearchHref(new URLSearchParams(sp.toString()), {
-        clearKeys: [key],
-        [key]: undefined,
-      }),
-      'replace',
-    );
+    filters.update(key, null, { mode: 'replace' });
   }
 
   function clearLocation() {
-    writeClientUrl(
-      buildSearchHref(new URLSearchParams(sp.toString()), {
-        clearKeys: ['lat', 'lng', 'radius'],
-        lat: undefined,
-        lng: undefined,
-        radius: undefined,
-      }),
-      'replace',
-    );
+    filters.updateMany({
+      lat: null,
+      lng: null,
+      radius: null,
+      ...(sp.get('sort') === 'distance' ? { sort: null } : {}),
+    }, { mode: 'replace' });
   }
 
   function clearAll() {
-    const params = new URLSearchParams();
-    const q = sp.get('q');
-    const type = sp.get('type');
-    if (q) params.set('q', q);
-    if (type && type !== 'all') params.set('type', type);
-    writeClientUrl(
-      params.toString() ? `${ROUTES.search}?${params.toString()}` : ROUTES.search,
-      'replace',
-    );
+    filters.clear(sp.get('type') === 'all' ? ['q'] : ['q', 'type'], 'replace');
   }
 
   return (

@@ -1,16 +1,9 @@
 'use client';
 
 import { LocateFixed } from 'lucide-react';
-import { CITIES } from '@/lib/constants';
 import { FEATURES } from '@/lib/featureFlags';
 import { useBrowseCity } from '@/hooks/useBrowseCity';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/shared/ui/Select';
+import { FilterCitySelect } from '@/components/shared/filters/FilterCitySelect';
 import { cn } from '@/lib/utils';
 
 /**
@@ -29,29 +22,16 @@ export function ServiceProvidersFilters({
     <div className="rounded-2xl border border-[var(--color-border)] bg-card p-3 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
-          <Select
-            value={city || 'ALL'}
-            onValueChange={(v) => {
-              if (!canChange) return;
-              setCity(v === 'ALL' ? undefined : v);
-            }}
+          <FilterCitySelect
+            id="providers-filter-city"
+            value={city ?? ''}
+            allLabel="كل المدن / حسب موقعك"
             disabled={!canChange}
-          >
-            <SelectTrigger
-              id="providers-filter-city"
-              className="h-11 w-full rounded-full border-[var(--color-border)] bg-card text-sm font-semibold dark:border-border"
-            >
-              <SelectValue placeholder="كل المدن" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">كل المدن / حسب موقعك</SelectItem>
-              {CITIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            triggerClassName="h-11 w-full rounded-full border-[var(--color-border)] bg-card text-sm font-semibold dark:border-border"
+            onChange={(value) => {
+              if (canChange) setCity(value || undefined);
+            }}
+          />
         </div>
         {FEATURES.GPS_LOCATION && showLocateCta && onRequestLocation ? (
           <button

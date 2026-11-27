@@ -127,6 +127,7 @@ export const AdminSellersTable = memo(function AdminSellersTable() {
       <AdminFilterBar
         searchParam="q"
         searchPlaceholder="بحث عن بائع…"
+        profile="adminSellers"
         tabParam="verification"
         defaultTab="ALL"
         tabs={[

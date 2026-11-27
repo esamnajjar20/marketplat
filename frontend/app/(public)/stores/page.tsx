@@ -20,6 +20,7 @@ export default async function StoresPage({ searchParams }: StoresPageProps) {
     limit: SSR_BROWSE_PAGE_SIZE,
     search: getBrowseParam(params, 'search'),
     city: getBrowseParam(params, 'city'),
+    type: getBrowseParam(params, 'type'),
     sortBy: getBrowseParam(params, 'sortBy') ?? 'createdAt',
     sortOrder: getBrowseParam(params, 'sortOrder') ?? 'desc',
   };

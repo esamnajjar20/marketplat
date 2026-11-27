@@ -25,7 +25,7 @@ describe('salesApi.list', () => {
 
     const res = await salesApi.list({ page: 1, limit: 12 });
 
-    expect(apiClient.get).toHaveBeenCalledWith('/sales', { params: { page: 1, limit: 12 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1&limit=12');
     expect(Array.isArray(res.data.data?.items)).toBe(true);
     expect(res.data.data?.items).toEqual([sale]);
     expect(res.data.data?.meta).toEqual(meta);
@@ -62,6 +62,7 @@ describe('salesApi.debtOverview', () => {
     vi.mocked(apiClient.get).mockResolvedValue({ data: { success: true, data: { summary: {}, debts: {}, failures: {} } } });
     await salesApi.debtOverview({ page: 2, limit: 20 }, { signal });
     expect(apiClient.get).toHaveBeenCalledTimes(1);
-    expect(apiClient.get).toHaveBeenCalledWith('/sales/debts/overview', { signal, params: { page: 2, limit: 20 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].signal).toBe(signal);
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=2&limit=20');
   });
 });

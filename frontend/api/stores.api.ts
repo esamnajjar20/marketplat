@@ -15,6 +15,7 @@ import type { StoreBadge } from '@/types/badge.types';
  *     field tells the caller which way it went.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type {
@@ -43,7 +44,7 @@ export const storesApi = {
   /** GET /stores — public directory, paginated. FEATURED-plan stores sort first server-side. */
   getAll: (params?: StoresQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<StoreDirectoryItem[]>>('/stores', { ...config, params })
+      .get<ApiResponse<StoreDirectoryItem[]>>('/stores', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'storesBrowse' }) : undefined })
       .then((r) => unwrapPaginated<StoreDirectoryItem>(r)),
 
   /** GET /stores/me — the caller's own store. 404 if none yet. */
@@ -72,7 +73,7 @@ export const storesApi = {
   /** GET /stores/me/followed — the caller's followed stores, paginated. */
   getMyFollowedStores: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<StoreFollowerWithStore[]>>('/stores/me/followed', { ...config, params })
+      .get<ApiResponse<StoreFollowerWithStore[]>>('/stores/me/followed', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'followedStores' }) : undefined })
       .then((r) => unwrapPaginated<StoreFollowerWithStore>(r)),
 
   /** GET /stores/me/analytics — owner-only. See StoreAnalytics's doc
@@ -111,7 +112,7 @@ export const storesApi = {
   /** GET /stores/:id/reviews — paginated. */
   getReviews: (id: string, params?: StoreReviewsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<StoreReview[]>>(`/stores/${id}/reviews`, { ...config, params })
+      .get<ApiResponse<StoreReview[]>>(`/stores/${id}/reviews`, { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'storeReviews' }) : undefined })
       .then((r) => unwrapPaginated<StoreReview>(r)),
 
   /** POST /stores/:id/reviews. */

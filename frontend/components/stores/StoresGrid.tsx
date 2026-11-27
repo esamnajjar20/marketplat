@@ -44,6 +44,7 @@ export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams: in
 
   const search = getBrowseParam(searchParams, 'search');
   const city = getBrowseParam(searchParams, 'city');
+  const type = getBrowseParam(searchParams, 'type');
   const sortBy = (getBrowseParam(searchParams, 'sortBy') as StoreSortField) ?? 'createdAt';
   const sortOrder = (getBrowseParam(searchParams, 'sortOrder') as 'asc' | 'desc') ?? 'desc';
   const view = getBrowseParam(searchParams, 'view') === 'list' ? 'list' : 'grid';
@@ -52,12 +53,12 @@ export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams: in
   const pageSize = initialPage ? SSR_BROWSE_PAGE_SIZE : getStablePageSize(12, networkPolicy);
 
   const query = useInfiniteQuery({
-    queryKey: queryKeys.stores.infinite({ search, city, sortBy, sortOrder, pageSize }),
+    queryKey: queryKeys.stores.infinite({ search, city, type, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
     initialData: seededInitialPage ? { pages: [seededInitialPage], pageParams: [1] } : undefined,
     initialDataUpdatedAt: seededInitialPage ? initialPageUpdatedAt : undefined,
     staleTime: CACHE_TTL.adsList,
-    queryFn: ({ pageParam, signal }) => storesApi.getAll({ search, city, sortBy, sortOrder, page: pageParam, limit: pageSize }, { signal }).then((r) => r.data.data),
+    queryFn: ({ pageParam, signal }) => storesApi.getAll({ search, city, type, sortBy, sortOrder, page: pageParam, limit: pageSize }, { signal }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;

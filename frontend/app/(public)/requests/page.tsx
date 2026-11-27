@@ -6,6 +6,7 @@ import { fetchServerApi } from '@/lib/server/serverApiFetch';
 import { RequestsPageShell, type OpenRequestsPageParams } from '@/components/requests/RequestsPageShell';
 import type { RequestListItem, RequestType } from '@/types/request.types';
 import type { RequestSort } from '@/components/requests/RequestFilters';
+import { buildFilterParams, normalizeFilterPage, parseFilterEnum } from '../../../../shared/filters';
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -16,12 +17,11 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 function positivePage(value: string | undefined): number {
-  const parsed = Number(value ?? 1);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, 10_000) : 1;
+  return normalizeFilterPage(value);
 }
 
 function parseType(value: string | undefined): RequestType | undefined {
-  return value === 'SERVICE' || value === 'PRODUCT' || value === 'RENTAL' ? value : undefined;
+  return parseFilterEnum(value, ['SERVICE', 'PRODUCT', 'RENTAL'] as const);
 }
 
 function parseSort(value: string | undefined): RequestSort {
@@ -31,15 +31,15 @@ function parseSort(value: string | undefined): RequestSort {
 }
 
 function toQueryString(params: OpenRequestsPageParams): string {
-  const query = new URLSearchParams();
-  query.set('page', String(params.page));
-  query.set('limit', String(params.limit));
-  if (params.type) query.set('type', params.type);
-  if (params.city) query.set('city', params.city);
-  if (params.serviceTypeId) query.set('serviceTypeId', params.serviceTypeId);
-  if (params.q) query.set('q', params.q);
-  if (params.sort !== 'newest') query.set('sort', params.sort);
-  return query.toString();
+  return buildFilterParams({
+    page: params.page,
+    limit: params.limit,
+    type: params.type,
+    city: params.city,
+    serviceTypeId: params.serviceTypeId,
+    q: params.q,
+    sort: params.sort !== 'newest' ? params.sort : undefined,
+  }, { profile: 'openRequests' }).toString();
 }
 
 /**

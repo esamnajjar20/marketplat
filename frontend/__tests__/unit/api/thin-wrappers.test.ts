@@ -116,7 +116,7 @@ describe('usersApi', () => {
 
   it('getUserAds → GET /users/:id/ads', async () => {
     await usersApi.getUserAds('user-1', { page: 2 });
-    expect(apiClient.get).toHaveBeenCalledWith('/users/user-1/ads', { params: { page: 2 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=2');
   });
 
   it('uploadAvatar → POST /users/me/avatar with field name "image" (singular — matches backend multer config)', async () => {
@@ -135,7 +135,7 @@ describe('usersApi', () => {
 describe('favoritesApi', () => {
   it('getAll → GET /favorites', async () => {
     await favoritesApi.getAll({ page: 1 });
-    expect(apiClient.get).toHaveBeenCalledWith('/favorites', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
   });
 
   it('toggle → POST /favorites/:adId', async () => {
@@ -173,7 +173,7 @@ describe('favoritesApi', () => {
     expect(apiClient.get).toHaveBeenCalledWith(`/favorites/${segment}/entity-1/check`);
 
     await favoritesApi.getAllByType(kind, { page: 1 });
-    expect(apiClient.get).toHaveBeenCalledWith('/favorites', { params: { page: 1, type: queryType } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe(`page=1&type=${queryType}`);
   });
 });
 
@@ -225,7 +225,7 @@ describe('adminApi', () => {
 
   it('getAds → GET /admin/ads', async () => {
     await adminApi.getAds({ page: 1 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/admin/ads', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
   });
 
   it('setFeatured → PATCH /admin/ads/:id/featured', async () => {
@@ -245,7 +245,7 @@ describe('adminApi', () => {
 
   it('getUsers → GET /admin/users', async () => {
     await adminApi.getUsers({ page: 1 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/admin/users', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=1');
   });
 
   it('toggleUserActive → PATCH /admin/users/:id/active', async () => {

@@ -13,6 +13,7 @@
  *     ads.api.ts's addImages()/removeImage() exactly.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
@@ -31,13 +32,13 @@ export const productsApi = {
   /** GET /products — public browse/search, paginated. */
   getAll: (params?: ProductsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<ProductWithStore[]>>('/products', { ...config, params })
+      .get<ApiResponse<ProductWithStore[]>>('/products', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'productsBrowse' }) : undefined })
       .then((r) => unwrapPaginated<ProductWithStore>(r)),
 
   /** GET /products/me — caller's own products (owner-only, my-store page), paginated. */
   getMine: (params?: ProductsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<Product[]>>('/products/me', { ...config, params })
+      .get<ApiResponse<Product[]>>('/products/me', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'myProducts' }) : undefined })
       .then((r) => unwrapPaginated<Product>(r)),
 
   /** GET /products/:id — public detail. */

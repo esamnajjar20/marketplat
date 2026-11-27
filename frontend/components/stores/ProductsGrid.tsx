@@ -19,14 +19,14 @@ import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTr
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getStablePageSize } from '@/lib/networkPolicy';
-import type { ProductSortField, ProductWithStore } from '@/types/product.types';
+import type { ProductAvailability, ProductSortField, ProductWithStore } from '@/types/product.types';
 import { queryKeys } from '@/lib/queryKeys';
 import { offlineMeta } from '@/lib/apiPagination';
 import { getOfflineList, saveOfflineList, OFFLINE_LIST_KEYS, OFFLINE_LIST_LIMITS } from '@/lib/offlineListCache';
 import { getOfflineBrowseSnapshot, saveOfflineBrowseSnapshot } from '@/lib/offlineBrowseSnapshots';
 import type { BrowsePage } from '@/types/browse.types';
 import { CACHE_TTL } from '@/lib/constants';
-import { canonicalBrowseSearchParams, getBrowseParam, parseBrowseSearchParams, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
+import { canonicalBrowseSearchParams, getBrowseNumber, getBrowseParam, parseBrowseSearchParams, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
 import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
@@ -71,6 +71,9 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams: 
   // toggle UI here yet (that's the fuller scope), just making
   // the URL param this page already receives actually take effect.
   const hasPromotion = getBrowseParam(searchParams, 'hasPromotion') === 'true' ? true : undefined;
+  const availability = getBrowseParam(searchParams, 'availability') as ProductAvailability | undefined;
+  const minPrice = getBrowseNumber(searchParams, 'minPrice');
+  const maxPrice = getBrowseNumber(searchParams, 'maxPrice');
   const view = getBrowseParam(searchParams, 'view') === 'list' ? 'list' : 'grid';
 
   const networkPolicy = useNetworkPolicy();
@@ -79,9 +82,10 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams: 
   // Only the unfiltered, default-sorted first page belongs in the generic
   // grid snapshot. Filtered/search results must never replace it.
   const isBaseOfflineBrowse = !search && !city && !categoryId && hasPromotion === undefined
+    && availability === undefined && minPrice === undefined && maxPrice === undefined
     && sortBy === 'createdAt' && sortOrder === 'desc';
   const query = useInfiniteQuery({
-    queryKey: queryKeys.products.infinite({ search, city, categoryId, sortBy, sortOrder, hasPromotion, pageSize }),
+    queryKey: queryKeys.products.infinite({ search, city, categoryId, sortBy, sortOrder, hasPromotion, availability, minPrice, maxPrice, pageSize }),
     initialPageParam: 1,
     initialData: seededInitialPage ? { pages: [seededInitialPage], pageParams: [1] } : undefined,
     initialDataUpdatedAt: seededInitialPage ? initialPageUpdatedAt : undefined,
@@ -89,17 +93,17 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams: 
     queryFn: async ({ pageParam, signal }) => {
       try {
         const page = await productsApi.getAll({
-          search, city, categoryId, sortBy, sortOrder, hasPromotion, page: pageParam, limit: pageSize,
+          search, city, categoryId, sortBy, sortOrder, hasPromotion, availability, minPrice, maxPrice, page: pageParam, limit: pageSize,
         }, { signal }).then((r) => r.data.data);
         if (pageParam === 1 && Array.isArray(page?.items)) {
-          saveOfflineBrowseSnapshot('products', { search: search || undefined, city: city || undefined, categoryId: categoryId || undefined, sortBy, sortOrder, hasPromotion: hasPromotion ?? undefined }, page.items);
+          saveOfflineBrowseSnapshot('products', { search: search || undefined, city: city || undefined, categoryId: categoryId || undefined, sortBy, sortOrder, hasPromotion: hasPromotion ?? undefined, availability, minPrice, maxPrice }, page.items);
           if (isBaseOfflineBrowse) saveOfflineList(OFFLINE_LIST_KEYS.productsGridBrowse, page.items, OFFLINE_LIST_LIMITS.productsGridBrowse);
         }
         return page;
       } catch (error) {
         if (signal.aborted || (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ERR_CANCELED')) throw error;
         if (pageParam === 1) {
-          const snapshot = getOfflineBrowseSnapshot<ProductWithStore>('products', { search: search || undefined, city: city || undefined, categoryId: categoryId || undefined, sortBy, sortOrder, hasPromotion: hasPromotion ?? undefined });
+          const snapshot = getOfflineBrowseSnapshot<ProductWithStore>('products', { search: search || undefined, city: city || undefined, categoryId: categoryId || undefined, sortBy, sortOrder, hasPromotion: hasPromotion ?? undefined, availability, minPrice, maxPrice });
           if (snapshot?.items.length) return { items: snapshot.items, meta: offlineMeta(snapshot.items.length) };
           if (isBaseOfflineBrowse) {
             const cached = getOfflineList<ProductWithStore>(OFFLINE_LIST_KEYS.productsGridBrowse);
@@ -120,11 +124,14 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams: 
       sortBy,
       sortOrder,
       hasPromotion: hasPromotion ?? undefined,
+      availability,
+      minPrice,
+      maxPrice,
     }, seededInitialPage.items);
     if (isBaseOfflineBrowse) {
       saveOfflineList(OFFLINE_LIST_KEYS.productsGridBrowse, seededInitialPage.items, OFFLINE_LIST_LIMITS.productsGridBrowse);
     }
-  }, [seededInitialPage, search, city, categoryId, sortBy, sortOrder, hasPromotion, isBaseOfflineBrowse]);
+  }, [seededInitialPage, search, city, categoryId, sortBy, sortOrder, hasPromotion, availability, minPrice, maxPrice, isBaseOfflineBrowse]);
 
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
   const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];

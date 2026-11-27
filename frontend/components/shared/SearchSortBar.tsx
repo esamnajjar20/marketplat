@@ -4,8 +4,8 @@ import { ArrowUpDown } from 'lucide-react';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
-import { useSearchParams } from 'next/navigation';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import type { FilterProfile } from '../../../shared/filters';
 
 /**
  * (audit item #8): sort used to live only inside each page's
@@ -50,18 +50,13 @@ interface Props {
    * ads/SearchFilters.tsx's own update() already follows ().
    */
   basePath: string;
+  profile?: FilterProfile;
   className?: string;
 }
 
-export function SearchSortBar({ config, basePath, className }: Props) {
-  const sp = useSearchParams();
-
-  function pushParams(mutate: (params: URLSearchParams) => void) {
-    const params = new URLSearchParams(sp.toString());
-    mutate(params);
-    params.delete('page');
-    writeClientUrl(`${basePath}?${params.toString()}`, 'replace');
-  }
+export function SearchSortBar({ config, basePath, profile, className }: Props) {
+  const filters = useUnifiedFilters({ basePath, profile, mode: 'replace' });
+  const sp = filters.params;
 
   if (config.mode === 'single') {
     const { paramKey, options, defaultValue } = config;
@@ -72,7 +67,7 @@ export function SearchSortBar({ config, basePath, className }: Props) {
         <ArrowUpDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <Select
           value={value}
-          onValueChange={(v) => pushParams((params) => params.set(paramKey, v))}
+          onValueChange={(v) => filters.update(paramKey, v === defaultValue ? null : v, { mode: 'replace' })}
         >
           <SelectTrigger aria-label="الترتيب" className="w-full sm:w-48">
             <SelectValue />
@@ -100,10 +95,11 @@ export function SearchSortBar({ config, basePath, className }: Props) {
         value={value}
         onValueChange={(v) => {
           const [sortBy = defaultSortBy, sortOrder = defaultSortOrder] = v.split('_');
-          pushParams((params) => {
-            params.set(sortByKey, sortBy);
-            params.set(sortOrderKey, sortOrder);
-          });
+          const isDefault = sortBy === defaultSortBy && sortOrder === defaultSortOrder;
+          filters.updateMany({
+            [sortByKey]: isDefault ? null : sortBy,
+            [sortOrderKey]: isDefault ? null : sortOrder,
+          }, { mode: 'replace' });
         }}
       >
         <SelectTrigger aria-label="الترتيب" className="w-full sm:w-48">

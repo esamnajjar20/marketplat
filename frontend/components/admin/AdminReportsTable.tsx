@@ -3,7 +3,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { useSearchParams } from 'next/navigation';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { CheckCircle, ExternalLink, Search } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
@@ -20,8 +20,7 @@ import { REPORT_REASON_LABELS, REPORT_STATUS_LABELS, ROUTES } from '@/lib/consta
 import { parseApiError } from '@/lib/errorParser';
 import type { ReportStatus, ReportTargetType } from '@/types/admin.types';
 import { AdminReportRow } from '@/components/admin/AdminReportRow';
-import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { adminPagination } from '@/lib/adminHubTabs';
 import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
 
 const REPORT_STATUSES = ['PENDING', 'RESOLVED', 'DISMISSED'] as const;
@@ -48,7 +47,8 @@ function targetHref(targetType: ReportTargetType, targetId: string): string {
 }
 
 export const AdminReportsTable = memo(function AdminReportsTable() {
-  const sp     = useSearchParams();
+  const filters = useUnifiedFilters({ basePath: '/admin', profile: 'adminReports', mode: 'replace' });
+  const sp = filters.params;
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
   // ?page=NaN — a guaranteed 400 for what looks like a
@@ -170,9 +170,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
       <div className="flex gap-2" role="group" aria-label="تصفية البلاغات حسب الحالة">
         {([['PENDING', 'قيد المراجعة'], ['RESOLVED', 'محلولة'], ['DISMISSED', 'مرفوضة']] as const).map(([val, label]) => (
           <button type="button" key={val} onClick={() => {
-            const params = new URLSearchParams(sp.toString());
-            params.set('status', val); params.delete('page');
-            writeClientUrl(adminListHref('reports', params), 'push');
+            filters.update('status', val, { mode: 'push' });
           }}
             aria-pressed={status === val}
             className={`text-sm px-3 py-1 rounded-full transition-colors
@@ -189,9 +187,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
           mixed in. */}
       <div className="flex gap-2" role="group" aria-label="تصفية البلاغات حسب النوع">
         <button type="button" onClick={() => {
-          const params = new URLSearchParams(sp.toString());
-          params.delete('targetType'); params.delete('page');
-          writeClientUrl(adminListHref('reports', params), 'push');
+          filters.update('targetType', null, { mode: 'push' });
         }}
           aria-pressed={!targetType}
           className={`text-sm px-3 py-1 rounded-full transition-colors
@@ -200,9 +196,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
         </button>
         {(Object.entries(TARGET_TYPE_LABELS) as [ReportTargetType, string][]).map(([val, label]) => (
           <button type="button" key={val} onClick={() => {
-            const params = new URLSearchParams(sp.toString());
-            params.set('targetType', val); params.delete('page');
-            writeClientUrl(adminListHref('reports', params), 'push');
+            filters.update('targetType', val, { mode: 'push' });
           }}
             aria-pressed={targetType === val}
             className={`text-sm px-3 py-1 rounded-full transition-colors

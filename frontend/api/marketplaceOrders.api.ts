@@ -1,5 +1,6 @@
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 
 export type MarketplaceOrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type MarketplaceOrderItem = {
@@ -38,10 +39,10 @@ export type MarketplaceOrder = {
 };
 
 export const marketplaceOrdersApi = {
-  listMine: (params: { page?: number; limit?: number } = {}, config?: { signal?: AbortSignal }) =>
-    apiClient.get<ApiResponse<MarketplaceOrder[]>>('/orders/mine', { ...config, params }),
-  listForStore: (params: { page?: number; limit?: number } = {}, config?: { signal?: AbortSignal }) =>
-    apiClient.get<ApiResponse<MarketplaceOrder[]>>('/orders/seller', { ...config, params }),
+  listMine: (params: { page?: number; limit?: number; status?: string } = {}, config?: { signal?: AbortSignal }) =>
+    apiClient.get<ApiResponse<MarketplaceOrder[]>>('/orders/mine', { ...config, params: buildFilterParams({ ...params } as FilterPatch, { profile: 'marketplaceOrders' }) }),
+  listForStore: (params: { page?: number; limit?: number; status?: string } = {}, config?: { signal?: AbortSignal }) =>
+    apiClient.get<ApiResponse<MarketplaceOrder[]>>('/orders/seller', { ...config, params: buildFilterParams({ ...params } as FilterPatch, { profile: 'marketplaceOrders' }) }),
   getById: (id: string, config?: { signal?: AbortSignal }) =>
     apiClient.get<ApiResponse<MarketplaceOrder>>(`/orders/${encodeURIComponent(id)}`, config),
   updateStatus: (id: string, status: MarketplaceOrderStatus, sellerNote?: string) =>

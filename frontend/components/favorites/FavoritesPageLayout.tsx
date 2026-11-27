@@ -10,7 +10,7 @@ import { useCreateFavoriteList } from '@/hooks/mutations/useFavoriteListMutation
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { ROUTES } from '@/lib/constants';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { cn } from '@/lib/utils';
 import {
   Sheet,
@@ -22,8 +22,8 @@ import {
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 function ListChipsBar({ onOpenLists }: { onOpenLists: () => void }) {
-  const sp = useSearchParams();
-  const activeListId = sp.get('list') ?? null;
+  const filters = useUnifiedFilters({ basePath: ROUTES.favorites, profile: 'favorites', mode: 'replace' });
+  const activeListId = filters.get('list');
   const { data: lists } = useFavoriteLists();
   const createList = useCreateFavoriteList();
   const [showQuickCreate, setShowQuickCreate] = useState(false);
@@ -32,12 +32,7 @@ function ListChipsBar({ onOpenLists }: { onOpenLists: () => void }) {
   const items = lists ?? [];
 
   function selectList(listId: string | null) {
-    const params = new URLSearchParams(sp.toString());
-    if (listId) params.set('list', listId);
-    else params.delete('list');
-    params.delete('page');
-    const qs = params.toString();
-    writeClientUrl(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites, 'replace');
+    filters.update('list', listId, { mode: 'replace' });
   }
 
   function onCreate(e: React.FormEvent) {

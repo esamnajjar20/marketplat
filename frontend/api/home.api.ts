@@ -6,6 +6,7 @@
  * is present, otherwise general. No dual general+city payload.
  */
 import { apiClient } from './client';
+import { buildFilterParams } from '../../shared/filters';
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import type { AdListItem } from '@/types/ad.types';
 import type { StoreDirectoryItem } from '@/types/store.types';
@@ -66,6 +67,6 @@ export const homeApi = {
   getHomepage: (city?: string, config?: ApiRequestConfig) =>
     apiClient.get<ApiResponse<HomepagePayload>>('/home', {
       ...config,
-      params: city ? { city } : undefined,
+      params: city ? buildFilterParams({ city }, { profile: 'homeFeed' }) : undefined,
     }),
 };

@@ -8,6 +8,7 @@
  * `POST /service-requests/:id/review` as the original plan sketched.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { ServiceReview, CreateServiceReviewPayload } from '@/types/service.types';
@@ -21,6 +22,6 @@ export const serviceReviewsApi = {
   /** GET /service-reviews/seller/:sellerProfileId — paginated. */
   getForSeller: (sellerProfileId: string, params?: { page?: number; limit?: number }, config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<ServiceReview[]>>(`/service-reviews/seller/${sellerProfileId}`, { ...config, params })
+      .get<ApiResponse<ServiceReview[]>>(`/service-reviews/seller/${sellerProfileId}`, { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'serviceReviews' }) : undefined })
       .then((r) => unwrapPaginated<ServiceReview>(r)),
 };

@@ -11,6 +11,7 @@ import type { ApiRequestConfig } from './requestConfig';
  *     service-requests.api.ts's provider-only respond().
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type {
@@ -26,13 +27,13 @@ export const appointmentsApi = {
   getAvailability: (providerId: string, date: string, config?: ApiRequestConfig) =>
     apiClient.get<ApiResponse<AvailabilityResponse>>(
       `/appointments/availability/${providerId}`,
-      { ...config, params: { date } }
+      { ...config, params: buildFilterParams({ date }, { profile: 'appointmentAvailability' }) }
     ),
 
   /** GET /appointments/me — caller's appointments as provider or customer, paginated. */
   getMine: (params?: AppointmentsQuery, config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<Appointment[]>>('/appointments/me', { ...config, params })
+      .get<ApiResponse<Appointment[]>>('/appointments/me', { ...config, params: params ? buildFilterParams({ ...params } as FilterPatch, { profile: 'appointments' }) : undefined })
       .then((r) => unwrapPaginated<Appointment>(r)),
 
   /** POST /appointments — provider books standalone/request slots; a customer may book a slot for their accepted request. */

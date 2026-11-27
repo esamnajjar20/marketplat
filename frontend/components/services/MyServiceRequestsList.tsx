@@ -4,7 +4,6 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 import { useEffect, useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, MessageSquare, X, Star, CheckCheck, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -16,7 +15,9 @@ import { ReviewServiceRequestDialog } from '@/components/services/ReviewServiceR
 import { useMyServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
-import { buildUrlWithParams, writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import { normalizeFilterPage, parseFilterEnum } from '../../../shared/filters';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import {
@@ -35,14 +36,10 @@ const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
  * out-of-range-page-recovery pattern.
  */
 export function MyServiceRequestsList() {
-  const sp = useSearchParams();
-  // clamp URL page param to positive integer.
-  const rawPage = Number(sp.get('page') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
-  const statusParam = sp.get('status') ?? '';
-  const status = FILTER_TABS.includes(statusParam as ServiceRequestStatus | '')
-    ? (statusParam || undefined) as ServiceRequestStatus | undefined
-    : undefined;
+  const filters = useUnifiedFilters({ basePath: ROUTES.myServiceRequests, profile: 'myServiceRequests' });
+  const sp = filters.params;
+  const page = normalizeFilterPage(sp.get('page'));
+  const status = parseFilterEnum(sp.get('status'), FILTER_TABS.filter(Boolean) as readonly ServiceRequestStatus[]);
 
   const { data, isLoading, isError, refetch } = useMyServiceRequests({ page, limit: 10, status });
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null);
@@ -59,21 +56,11 @@ export function MyServiceRequestsList() {
   const totalPages = data?.meta?.totalPages ?? 1;
 
   useEffect(() => {
-    if (!data) return;
-    if (page > totalPages && totalPages >= 1) {
-      const params = new URLSearchParams(sp.toString());
-      if (totalPages > 1) params.set('page', String(totalPages));
-      else params.delete('page');
-      writeClientUrl(buildUrlWithParams(ROUTES.myServiceRequests, params), 'replace');
-    }
-  }, [data, page, totalPages, sp]);
+    if (!data || page <= totalPages || totalPages < 1) return;
+    filters.update('page', totalPages > 1 ? totalPages : null, { resetPage: false, mode: 'replace' });
+  }, [data, filters.update, page, totalPages]);
 
-  function setStatus(s: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (s) params.set('status', s); else params.delete('status');
-    params.delete('page');
-    writeClientUrl(buildUrlWithParams(ROUTES.myServiceRequests, params), 'push');
-  }
+  const setStatus = (next: string) => filters.update('status', next || null);
 
   const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
 
@@ -95,19 +82,13 @@ export function MyServiceRequestsList() {
 
   return (
     <div className="space-y-4 lg:space-y-5">
-      <div className="-mx-1 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-2" role="group" aria-label="تصفية الطلبات حسب الحالة" style={{ scrollbarWidth: 'thin' }}>
-        {FILTER_TABS.map((val) => (
-          <button type="button"
-            key={val}
-            onClick={() => setStatus(val)}
-            aria-pressed={(status ?? '') === val}
-            className={`inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
-              ${(status ?? '') === val ? 'border-primary bg-primary text-primary-foreground' : 'border-[var(--color-border)] bg-card text-[var(--color-text-primary)] hover:bg-muted/50'}`}
-          >
-            {val ? SERVICE_REQUEST_STATUS_LABELS[val] : 'الكل'}
-          </button>
-        ))}
-      </div>
+      <FilterChipGroup
+        label="تصفية الطلبات حسب الحالة"
+        value={status ?? ''}
+        options={FILTER_TABS.map((value) => ({ value, label: value ? SERVICE_REQUEST_STATUS_LABELS[value] : 'الكل' }))}
+        onChange={setStatus}
+        className="-mx-1 px-1"
+      />
 
       {items.length === 0 ? (
         <EmptyState

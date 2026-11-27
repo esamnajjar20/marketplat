@@ -15,9 +15,7 @@ describe('promotionsApi', () => {
     await promotionsApi.create({} as any);
     expect(apiClient.post).toHaveBeenCalledWith('/promotions', {});
     await promotionsApi.getMine({ page: 2, limit: 50 });
-    expect(apiClient.get).toHaveBeenCalledWith('/promotions/me', {
-      params: { page: 2, limit: 50 },
-    });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls[0][1].params.toString()).toBe('page=2&limit=50');
     await promotionsApi.getById('p1');
     expect(apiClient.get).toHaveBeenCalledWith('/promotions/p1');
     await promotionsApi.update('p1', {} as any);

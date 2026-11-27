@@ -8,6 +8,7 @@ export function SearchSortBarWrapper() {
   return (
     <SearchSortBar
       basePath={ROUTES.stores}
+      profile="storesBrowse"
       config={{
         mode: 'combined',
         options: STORE_SORT_OPTIONS,

@@ -76,6 +76,7 @@ export const AdminProductsTable = memo(function AdminProductsTable() {
     <div className="space-y-4">
       <AdminFilterBar
         searchPlaceholder="بحث عن منتج…"
+        profile="adminProducts"
         tabParam="status"
         defaultTab="ACTIVE"
         tabs={[

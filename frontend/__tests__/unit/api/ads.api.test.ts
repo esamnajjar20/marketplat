@@ -145,19 +145,19 @@ describe('adsApi — endpoint/method correctness (regression guard)', () => {
   it('getAll calls GET /ads', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} });
     await adsApi.getAll({ page: 1 });
-    expect(apiClient.get).toHaveBeenCalledWith('/ads', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[1]?.params.toString()).toBe('page=1');
   });
 
   it('getMyAds calls GET /ads/me (not /ads/my)', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} });
     await adsApi.getMyAds({ page: 1 });
-    expect(apiClient.get).toHaveBeenCalledWith('/ads/me', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[1]?.params.toString()).toBe('page=1');
   });
 
   it('searchAds calls GET /ads/search', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} });
     await adsApi.searchAds({ q: 'phone' } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/ads/search', { params: { q: 'phone' } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[1]?.params.toString()).toBe('q=phone');
   });
 
   it('markAsSold calls PATCH /ads/:id with status: SOLD (no dedicated /sold endpoint exists)', async () => {

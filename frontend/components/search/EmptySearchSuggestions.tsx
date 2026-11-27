@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { getRecentSearches } from '@/lib/recentSearches';
 import { listAutoReadAds, type AutoReadMeta } from '@/lib/offlineAutoRead';
 import { useAuthStore } from '@/store/auth.store';
+import { buildFilterParams, buildFilterHref } from '../../../shared/filters';
 
 /**
  * Escape hatches under zero-result search:
@@ -71,14 +72,14 @@ export function EmptySearchSuggestions() {
   }, [userId]);
 
   function searchHref(q: string) {
-    const params = new URLSearchParams();
-    params.set('q', q);
-    if (currentType && currentType !== 'all') params.set('type', currentType);
-    return `${ROUTES.search}?${params.toString()}`;
+    return buildFilterHref(ROUTES.search, buildFilterParams({
+      q,
+      type: currentType && currentType !== 'all' ? currentType : null,
+    }, { profile: 'globalSearch' }));
   }
 
   function typeHref(type: string) {
-    return `${ROUTES.search}?type=${type}`;
+    return buildFilterHref(ROUTES.search, buildFilterParams({ type }, { profile: 'globalSearch' }));
   }
 
   return (

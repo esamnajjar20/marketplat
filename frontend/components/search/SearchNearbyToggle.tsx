@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { LocateFixed, X } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
-import { ROUTES } from '@/lib/constants';
 import { DEFAULT_NEARBY_RADIUS_KM, GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
 import { FEATURES } from '@/lib/featureFlags';
 
@@ -26,10 +24,10 @@ const RADIUS_KM = DEFAULT_NEARBY_RADIUS_KM;
  * afterward via SearchFilters, same as changing any other filter.
  */
 export function SearchNearbyToggle() {
-  const sp = useSearchParams();
+  const filters = useUnifiedFilters({ basePath: '/search', profile: 'globalSearch', mode: 'replace' });
   const [status, setStatus] = useState<'idle' | 'locating' | 'denied' | 'unsupported'>('idle');
 
-  const isActive = sp.get('lat') !== null && sp.get('lng') !== null;
+  const isActive = filters.has('lat') && filters.has('lng');
 
   function handleLocate() {
     if (!('geolocation' in navigator)) {
@@ -46,15 +44,13 @@ export function SearchNearbyToggle() {
           return;
         }
         setStatus('idle');
-        const params = new URLSearchParams(sp.toString());
-        params.set('lat', String(lat));
-        params.set('lng', String(lng));
-        params.set('radius', String(RADIUS_KM));
-        params.set('sort', 'distance');
-        params.delete('page');
-        // refinement within the same search view —
-        // same reasoning as SearchFilters' SW-FILTERS-REPLACE-01.
-        writeClientUrl(`${ROUTES.search}?${params.toString()}`, 'replace');
+        // Coordinates and distance ordering are one atomic nearby-filter update.
+        filters.updateMany({
+          lat,
+          lng,
+          radius: RADIUS_KM,
+          sort: 'distance',
+        }, { mode: 'replace' });
       },
       () => setStatus('denied'),
       GEO_POSITION_OPTIONS
@@ -62,16 +58,13 @@ export function SearchNearbyToggle() {
   }
 
   function handleClear() {
-    const params = new URLSearchParams(sp.toString());
-    params.delete('lat');
-    params.delete('lng');
-    params.delete('radius');
-    // A sort=distance with no lat/lng left is invalid (searchQuerySchema
-    // rejects it server-side) — fall back to the default rather than
-    // leaving a dead sort value in the URL.
-    if (params.get('sort') === 'distance') params.delete('sort');
-    params.delete('page');
-    writeClientUrl(`${ROUTES.search}?${params.toString()}`, 'replace');
+    // A sort=distance with no coordinates is invalid; clear it atomically.
+    filters.updateMany({
+      lat: null,
+      lng: null,
+      radius: null,
+      ...(filters.get('sort') === 'distance' ? { sort: null } : {}),
+    }, { mode: 'replace' });
   }
 
   // FEATURE-FLAG-GPS: hide the toggle entirely when GPS is disabled.

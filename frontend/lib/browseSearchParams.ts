@@ -1,3 +1,5 @@
+import { parseFilterParams, serializeFilterParams } from '../../shared/filters';
+
 /** Match the deterministic initial NetworkPolicy used for SSR/hydration
  * (base page size 12 × initial multiplier 0.8). Keep this fixed for a
  * server-seeded infinite query so page offsets never change mid-list.
@@ -47,7 +49,7 @@ export function serializeBrowseSearchParams(params: BrowseSearchParams): string 
       query.set(key, value);
     }
   }
-  return query.toString();
+  return serializeFilterParams(query);
 }
 
 /** Convert a live URL query string into the serializable shape used by browse grids.
@@ -55,7 +57,7 @@ export function serializeBrowseSearchParams(params: BrowseSearchParams): string 
  */
 export function parseBrowseSearchParams(queryString: string): BrowseSearchParams {
   const result: BrowseSearchParams = {};
-  const params = new URLSearchParams(queryString);
+  const params = parseFilterParams(queryString);
   params.forEach((value, key) => {
     const current = result[key];
     if (current === undefined) result[key] = value;

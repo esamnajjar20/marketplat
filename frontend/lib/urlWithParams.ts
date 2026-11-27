@@ -1,3 +1,5 @@
+import { buildFilterHref, updateFilterParams } from '../../shared/filters';
+
 /**
  * buildUrlWithParams — append query params to a URL that may ALREADY carry a
  * query string.
@@ -29,8 +31,7 @@ export function buildUrlWithParams(baseUrl: string, params: URLSearchParams | st
   overridden.forEach((key) => merged.delete(key));
   extra.forEach((value, key) => merged.append(key, value));
 
-  const qs = merged.toString();
-  return qs ? `${path}?${qs}` : path;
+  return buildFilterHref(path, merged);
 }
 
 
@@ -68,4 +69,16 @@ export function writeClientUrl(
   } catch {
     // Invalid URL state must not break list interactions.
   }
+}
+
+/** Apply filter changes to an existing URL while preserving unrelated query state. */
+export function updateUrlWithFilterPatch(
+  baseUrl: string,
+  updates: Readonly<Record<string, string | number | boolean | null | undefined>>,
+  options: { clearKeys?: readonly string[]; resetPage?: boolean } = {},
+): string {
+  const queryIndex = baseUrl.indexOf('?');
+  const path = queryIndex === -1 ? baseUrl : baseUrl.slice(0, queryIndex);
+  const current = queryIndex === -1 ? '' : baseUrl.slice(queryIndex + 1);
+  return buildFilterHref(path, updateFilterParams(current, updates, options));
 }

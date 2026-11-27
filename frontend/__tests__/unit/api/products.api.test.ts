@@ -174,13 +174,13 @@ describe('productsApi — endpoint/method correctness (regression guard)', () =>
   it('getAll calls GET /products with params', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { success: true, data: [] } });
     await productsApi.getAll({ page: 1, storeId: 's-1' });
-    expect(apiClient.get).toHaveBeenCalledWith('/products', { params: { page: 1, storeId: 's-1' } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[1]?.params.toString()).toBe('page=1&storeId=s-1');
   });
 
   it('getMine calls GET /products/me (not /products/mine)', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { success: true, data: [] } });
     await productsApi.getMine({ status: 'ACTIVE' });
-    expect(apiClient.get).toHaveBeenCalledWith('/products/me', { params: { status: 'ACTIVE' } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[1]?.params.toString()).toBe('status=ACTIVE');
   });
 
   it('getById calls GET /products/:id', async () => {

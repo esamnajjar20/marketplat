@@ -7,7 +7,7 @@
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { useSearchParams } from 'next/navigation';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { Star, Trash2, Pin, Search } from 'lucide-react';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
@@ -33,12 +33,12 @@ import { AD_STATUS_VARIANT } from '@/lib/adStatus';
 import { formatPrice } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
-import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { adminPagination } from '@/lib/adminHubTabs';
 import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
 
 export const AdminAdsTable = memo(function AdminAdsTable() {
-  const sp     = useSearchParams();
+  const filters = useUnifiedFilters({ basePath: '/admin', profile: 'adminAds', mode: 'replace' });
+  const sp = filters.params;
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
   // ?page=NaN — a guaranteed 400 for what looks like a
@@ -123,10 +123,7 @@ export const AdminAdsTable = memo(function AdminAdsTable() {
   }, [pinAd]);
 
   function search(value: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (value) params.set('q', value); else params.delete('q');
-    params.delete('page');
-    writeClientUrl(adminListHref('ads', params), 'replace');
+    filters.update('q', value || null, { mode: 'replace' });
   }
 
   return (
@@ -148,10 +145,7 @@ export const AdminAdsTable = memo(function AdminAdsTable() {
         <Select
           value={status || 'ALL'}
           onValueChange={(value) => {
-            const params = new URLSearchParams(sp.toString());
-            if (value !== 'ALL') params.set('status', value); else params.delete('status');
-            params.delete('page');
-            writeClientUrl(adminListHref('ads', params), 'replace');
+            filters.update('status', value === 'ALL' ? null : value, { mode: 'replace' });
           }}
         >
           <SelectTrigger className="w-auto min-w-[10rem]">

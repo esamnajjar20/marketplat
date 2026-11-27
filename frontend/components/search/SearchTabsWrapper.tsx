@@ -1,10 +1,10 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { SearchTabs } from '@/components/search/SearchTabs';
 import { ROUTES } from '@/lib/constants';
 import type { SearchType } from '@/types/search.types';
+import { parseFilterEnum } from '../../../shared/filters';
 
 /**
  * Thin URL-binding wrapper around the presentational SearchTabs —
@@ -14,19 +14,12 @@ import type { SearchType } from '@/types/search.types';
  * SearchFilters/SearchResults already use for their own URL params.
  */
 export function SearchTabsWrapper() {
-  const sp = useSearchParams();
-  const type = (sp.get('type') as SearchType) ?? 'all';
+  const filters = useUnifiedFilters({ basePath: ROUTES.search, profile: 'globalSearch', mode: 'push' });
+  const type = parseFilterEnum(filters.get('type'), ['ads', 'products', 'stores', 'services'] as const) ?? 'all';
 
   function handleChange(next: SearchType) {
-    const params = new URLSearchParams(sp.toString());
-    if (next === 'all') params.delete('type');
-    else params.set('type', next);
-    // A categoryId picked under the previous tab's taxonomy can't
-    // carry over — see SearchFilters.tsx's identical guard on its own
-    // type change for the full rationale.
-    params.delete('categoryId');
-    params.delete('page');
-    writeClientUrl(`${ROUTES.search}?${params.toString()}`, 'push');
+    // A category selected in the previous content taxonomy cannot carry over.
+    filters.updateMany({ type: next === 'all' ? null : next, categoryId: null }, { mode: 'push' });
   }
 
   return <SearchTabs value={type} onChange={handleChange} />;

@@ -6,12 +6,12 @@
  * keeps the same view.
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/shared/ui/Input';
 import { cn } from '@/lib/utils';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import type { FilterProfile } from '../../../shared/filters';
 
 export type AdminFilterTab = {
   value: string;
@@ -24,6 +24,8 @@ type Props = {
   searchPlaceholder?: string;
   /** Query param for the active tab (default `status`). */
   tabParam?: string;
+  /** Canonical shared filter contract for this admin list. */
+  profile?: FilterProfile;
   tabs: AdminFilterTab[];
   /** When URL has no tab value, use this. */
   defaultTab: string;
@@ -34,15 +36,19 @@ export function AdminFilterBar({
   searchParam = 'q',
   searchPlaceholder = 'بحث…',
   tabParam = 'status',
+  profile,
   tabs,
   defaultTab,
   className,
 }: Props) {
-  const pathname = usePathname();
-  const sp = useSearchParams();
-
-  const urlSearch = sp.get(searchParam) ?? '';
-  const urlTab = sp.get(tabParam) ?? defaultTab;
+  const filters = useUnifiedFilters({
+    mode: 'replace',
+    ...(profile
+      ? { profile }
+      : { count: { keys: [searchParam, tabParam], ignoredValues: { [tabParam]: [defaultTab] } } }),
+  });
+  const urlSearch = filters.get(searchParam) ?? '';
+  const urlTab = filters.get(tabParam) ?? defaultTab;
 
   const [search, setSearch] = useState(urlSearch);
 
@@ -50,35 +56,18 @@ export function AdminFilterBar({
     setSearch(urlSearch);
   }, [urlSearch]);
 
-  const replaceParams = useCallback(
-    (patch: Record<string, string | null>) => {
-      const next = new URLSearchParams(sp.toString());
-      for (const [k, v] of Object.entries(patch)) {
-        if (v === null || v === '') next.delete(k);
-        else next.set(k, v);
-      }
-      // Reset page when filters change
-      // FIX FILTER-BAR-DEFAULT-TAB-01 (part 2): `'page' in patch === false`
-      // worked (relational `in` binds tighter than equality `===`) but
-      // read as if it were `'page' in (patch === false)`. Same logic,
-      // clearer form.
-      if (!('page' in patch)) next.delete('page');
-      const qs = next.toString();
-      writeClientUrl(qs ? `${pathname}?${qs}` : pathname, 'replace');
-    },
-    [pathname, sp],
-  );
+  function replaceParams(patch: Record<string, string | null>) {
+    filters.updateMany(patch, { mode: 'replace' });
+  }
 
   // Debounce search → URL
   useEffect(() => {
-    const t = setTimeout(() => {
-      if (search === urlSearch) return;
-      replaceParams({ [searchParam]: search.trim() || null });
-    }, 300);
-    return () => clearTimeout(t);
-  }, [search, urlSearch, replaceParams, searchParam]);
+    if (search === urlSearch) return;
+    filters.updateDebounced(searchParam, search.trim() || null, 300, { mode: 'replace' });
+    return () => filters.cancelPending(searchParam);
+  }, [search, urlSearch, filters.updateDebounced, filters.cancelPending, searchParam]);
 
-  const hasFilters = Boolean(urlSearch) || urlTab !== defaultTab;
+  const hasFilters = filters.activeCount > 0;
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>

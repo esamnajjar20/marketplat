@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, CalendarClock, CalendarPlus, CheckCheck, X, UserX } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -13,7 +12,8 @@ import { useMyAppointments } from '@/hooks/queries/useAppointments';
 import { useUpdateAppointmentStatus } from '@/hooks/mutations/useAppointmentMutations';
 import { CreateAppointmentDialog } from './CreateAppointmentDialog';
 import { MY_SERVICES_HUB_PATH } from '@/lib/myServicesHubTabs';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import { normalizeFilterPage } from '../../../shared/filters';
 import { formatDateTime } from '@/lib/formatters';
 import {
   APPOINTMENT_STATUS_LABELS,
@@ -107,13 +107,9 @@ function AppointmentActions({ id, status }: { id: string; status: string }) {
  * action set gated on the row's own status.
  */
 export function AppointmentsList({ providerId }: Props) {
-  const sp = useSearchParams();
-  // SW-APPOINTMENTS-PAGE-NAN-01: hand-edited ?page=abc produced NaN
-  // here, which the hook serialised onto the wire as ?page=NaN — the
-  // same class of bug already fixed in the seven admin tables and in
-  // MyStoreInventory. Clamp to a positive integer.
-  const rawPage = Number(sp.get('page') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+  const filters = useUnifiedFilters({ basePath: MY_SERVICES_HUB_PATH, profile: 'appointments', mode: 'replace' });
+  const sp = filters.params;
+  const page = normalizeFilterPage(sp.get('page'));
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useMyAppointments({ page, limit: 10 });
@@ -124,13 +120,12 @@ export function AppointmentsList({ providerId }: Props) {
   useEffect(() => {
     if (!data) return;
     if (page > totalPages && totalPages >= 1) {
-      const params = new URLSearchParams(sp.toString());
-      if (totalPages > 1) params.set('page', String(totalPages));
-      else params.delete('page');
-      params.set('tab', 'appointments'); // MY-SERVICES-HUB-01: tab lives in the query
-      writeClientUrl(`${MY_SERVICES_HUB_PATH}?${params.toString()}`, 'replace');
+      filters.updateMany({
+        page: totalPages > 1 ? String(totalPages) : null,
+        tab: 'appointments', // MY-SERVICES-HUB-01: tab lives in the query
+      }, { resetPage: false, mode: 'replace' });
     }
-  }, [data, page, totalPages, sp]);
+  }, [data, page, totalPages, filters.updateMany]);
 
   const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
 

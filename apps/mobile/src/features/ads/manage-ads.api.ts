@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client';
+import { buildFilterParams } from '../../../../../shared/filters';
 import { uploadMobileImagesDirect } from '../media/direct-upload.api';
 import { criticalAdEnvelopeResponseSchema } from '@/api/response-schemas';
 import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry } from '@/storage/public-cache';
@@ -81,7 +82,8 @@ export function mergeRefreshedAdsPage(
   return merged.slice(0, maxRetained);
 }
 export async function fetchMyAdsPage(token: string, page = 1, limit = 30, signal?: AbortSignal): Promise<ManagedAdPage> {
-  const response = await apiRequest<Envelope<ManagedAd[]>>(`/api/v1/ads/me?limit=${limit}&page=${page}`, { token, signal });
+  const params = buildFilterParams({ limit, page }, { profile: 'myAds' });
+  const response = await apiRequest<Envelope<ManagedAd[]>>(`/api/v1/ads/me?${params.toString()}`, { token, signal });
   const data = requireEnvelopeData(response, 'استجابة إعلاناتك من الخادم غير متوقعة.');
   if (!Array.isArray(data)) throw new Error('قائمة إعلاناتك غير صالحة.');
   const pagination = response.meta?.pagination;

@@ -60,11 +60,11 @@ describe('stateToSearchParams', () => {
     expect(params.get('city')).toBe('رفح');
   });
 
-  it('writes nearby trio together', () => {
-    const params = stateToSearchParams({ lat: 31.5, lng: 34.4 });
-    expect(params.get('lat')).toBe('31.5');
-    expect(params.get('lng')).toBe('34.4');
-    expect(params.get('radius')).toBe('10'); // DEFAULT_RADIUS_KM
+  it('never serializes nearby GPS coordinates into the URL', () => {
+    const params = stateToSearchParams({ lat: 31.5, lng: 34.4, radius: 15 });
+    expect(params.has('lat')).toBe(false);
+    expect(params.has('lng')).toBe(false);
+    expect(params.has('radius')).toBe(false);
   });
 });
 
@@ -81,7 +81,7 @@ describe('countActiveFilters', () => {
         lat: 1,
         lng: 2,
       }),
-    ).toBe(6);
+    ).toBe(5);
   });
 
   it('does not count relevance sort', () => {
@@ -111,5 +111,17 @@ describe('buildSearchHref', () => {
     });
     expect(href).not.toContain('lat=');
     expect(href).not.toContain('sort=distance');
+  });
+
+  it('preserves unrelated browse context and removes default values', () => {
+    const current = new URLSearchParams('q=phone&type=products&view=list&page=4&sort=relevance');
+    const href = buildSearchHref(current, { city: 'غزة' });
+    const params = new URLSearchParams(href.split('?')[1]);
+    expect(params.get('q')).toBe('phone');
+    expect(params.get('type')).toBe('products');
+    expect(params.get('view')).toBe('list');
+    expect(params.get('city')).toBe('غزة');
+    expect(params.has('page')).toBe(false);
+    expect(params.has('sort')).toBe(false);
   });
 });

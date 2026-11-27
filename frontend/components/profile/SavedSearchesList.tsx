@@ -8,36 +8,37 @@ import { CONDITION_LABELS, ROUTES } from '@/lib/constants';
 import { formatDate, formatPrice } from '@/lib/formatters';
 import type { SavedSearch, SavedSearchFilters } from '@/types/savedSearch.types';
 import { cn } from '@/lib/utils';
+import { buildFilterParams, buildFilterHref } from '../../../shared/filters';
 
 function searchUrlFor(filters: SavedSearchFilters): string {
   const type = filters.type ?? 'ads';
 
   if (type === 'products') {
-    const params = new URLSearchParams();
-    if (filters.q) params.set('search', filters.q);
-    if (filters.categoryId) params.set('categoryId', filters.categoryId);
-    if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice));
-    if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice));
-    return `${ROUTES.products}?${params.toString()}`;
+    return buildFilterHref(ROUTES.products, buildFilterParams({
+      search: filters.q,
+      categoryId: filters.categoryId,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+    }, { profile: 'productsBrowse' }));
   }
 
   if (type === 'services') {
-    const params = new URLSearchParams();
-    if (filters.q) params.set('search', filters.q);
-    if (filters.categoryId) params.set('categoryId', filters.categoryId);
-    if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice));
-    if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice));
-    return `${ROUTES.services}?${params.toString()}`;
+    return buildFilterHref(ROUTES.services, buildFilterParams({
+      search: filters.q,
+      categoryId: filters.categoryId,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+    }, { profile: 'servicesBrowse' }));
   }
 
-  const params = new URLSearchParams();
-  if (filters.q) params.set('q', filters.q);
-  if (filters.city) params.set('city', filters.city);
-  if (filters.categoryId) params.set('categoryId', filters.categoryId);
-  if (filters.condition) params.set('condition', filters.condition);
-  if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice));
-  if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice));
-  return `${ROUTES.search}?${params.toString()}`;
+  return buildFilterHref(ROUTES.search, buildFilterParams({
+    q: filters.q,
+    city: filters.city,
+    categoryId: filters.categoryId,
+    condition: filters.condition,
+    minPrice: filters.minPrice,
+    maxPrice: filters.maxPrice,
+  }, { profile: 'globalSearch' }));
 }
 
 const TYPE_LABELS: Record<'ads' | 'products' | 'services', string> = {

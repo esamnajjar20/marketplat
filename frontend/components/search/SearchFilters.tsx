@@ -1,17 +1,7 @@
 'use client';
 
-/**
- * Desktop sidebar filters (lg+).
- * Applies changes immediately via router.replace (desktop expects instant feedback).
- * Shares parse/build helpers with NativeFilterSheet via lib/filterUrl.
- *
- * Replace the existing frontend/components/search/SearchFilters.tsx with this file.
- */
-
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronDown, SlidersHorizontal } from 'lucide-react';
-import { Input } from '@/components/shared/ui/Input';
+import { useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import {
   Select,
@@ -20,264 +10,205 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/ui/Select';
-import { CITIES, ROUTES, CONDITION_LABELS } from '@/lib/constants';
+import { FilterPanel } from '@/components/shared/filters/FilterPanel';
+import { FilterField } from '@/components/shared/filters/FilterField';
+import { FilterCitySelect } from '@/components/shared/filters/FilterCitySelect';
+import { FilterPriceRangeFields } from '@/components/shared/filters/FilterPriceRangeFields';
+import { CONDITION_LABELS, ROUTES } from '@/lib/constants';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { cn } from '@/lib/utils';
 import type { SearchType } from '@/types/search.types';
 import { PRICE_PRESETS } from '@/types/filter.types';
-import { parseSearchParams, buildSearchHref } from '@/lib/filterUrl';
+import { parseSearchParams } from '@/lib/filterUrl';
+import { FilterResetButton } from '@/components/shared/filters/FilterResetButton';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import type { FilterPatch } from '../../../shared/filters';
 
-export function SearchFilters() {
-  const router = useRouter();
-  const sp = useSearchParams();
-  const state = parseSearchParams(new URLSearchParams(sp.toString()));
+export function SearchFilters({ showPanelTitle = true }: { showPanelTitle?: boolean } = {}) {
+  const filters = useUnifiedFilters({ basePath: ROUTES.search, profile: 'globalSearch', mode: 'replace' });
+  const params = filters.params;
+  const state = parseSearchParams(params);
+  const [minPriceDraft, setMinPriceDraft] = useState(params.get('minPrice') ?? '');
+  const [maxPriceDraft, setMaxPriceDraft] = useState(params.get('maxPrice') ?? '');
+
+  useEffect(() => {
+    setMinPriceDraft(params.get('minPrice') ?? '');
+    setMaxPriceDraft(params.get('maxPrice') ?? '');
+  }, [params]);
 
   const type = (state.type ?? 'all') as SearchType;
   const hasCategory = Boolean(state.categoryId);
   const [advancedOpen, setAdvancedOpen] = useState(hasCategory);
 
-  const showCategoryFilter =
-    type === 'ads' || type === 'products' || type === 'services' || type === 'all';
-  // The advanced category section is collapsed by default. Do not download
-  // three category trees while its controls are not even mounted in the UI.
-  // For a specific search type, load only the taxonomy that can be selected.
-  const shouldLoadAdCategories = advancedOpen && showCategoryFilter && (type === 'ads' || type === 'all');
-  const shouldLoadProductCategories = advancedOpen && showCategoryFilter && (type === 'products' || type === 'all');
-  const shouldLoadServiceCategories = advancedOpen && showCategoryFilter && (type === 'services' || type === 'all');
+  const showCategoryFilter = ['ads', 'products', 'services', 'all'].includes(type);
+  // Fetch only the taxonomy needed for the active tab, and only when expanded.
+  const shouldLoadAdCategories = advancedOpen && (type === 'ads' || type === 'all');
+  const shouldLoadProductCategories = advancedOpen && (type === 'products' || type === 'all');
+  const shouldLoadServiceCategories = advancedOpen && (type === 'services' || type === 'all');
   const { data: adCategories } = useCategories({ enabled: shouldLoadAdCategories });
   const { data: productCategories } = useProductCategories({ enabled: shouldLoadProductCategories });
   const { data: serviceCategories } = useServiceCategories({ enabled: shouldLoadServiceCategories });
 
-  function apply(patch: Parameters<typeof buildSearchHref>[1]) {
-    router.replace(buildSearchHref(new URLSearchParams(sp.toString()), patch));
+  function apply(patch: Record<string, unknown> & { clearKeys?: string[] }) {
+    const { clearKeys = [], ...updates } = patch;
+    filters.updateMany(updates as FilterPatch, { clearKeys, mode: 'replace' });
+  }
+
+  function updatePrice(key: 'minPrice' | 'maxPrice', value: string) {
+    if (key === 'minPrice') setMinPriceDraft(value);
+    else setMaxPriceDraft(value);
+    filters.updateDebounced(key, value, 400, { mode: 'replace' });
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-[var(--color-border)] bg-card p-4 dark:border-border dark:bg-card">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <SlidersHorizontal className="h-4 w-4" aria-hidden />
-        تصفية النتائج
-      </div>
+    <FilterPanel showTitle={showPanelTitle}>
+      <FilterCitySelect
+        id="search-filter-city"
+        value={state.city ?? ''}
+        onChange={(value) => apply(
+          value ? { city: value } : { city: undefined, clearKeys: ['city'] },
+        )}
+      />
 
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">المدينة</label>
-        <Select
-          value={state.city || 'ALL'}
-          onValueChange={(v) =>
-            apply(v === 'ALL' ? { city: undefined, clearKeys: ['city'] } : { city: v })
-          }
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="كل المدن" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">كل المدن</SelectItem>
-            {CITIES.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Price presets + inputs */}
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-muted-foreground">السعر</label>
+      <FilterField label="السعر">
         <div className="flex flex-wrap gap-1.5">
-          {PRICE_PRESETS.map((p) => {
+          {PRICE_PRESETS.map((preset) => {
             const isActive =
-              (p.min == null &&
-                p.max == null &&
-                state.minPrice == null &&
-                state.maxPrice == null) ||
-              (p.min === state.minPrice && p.max === state.maxPrice);
+              (preset.min == null && preset.max == null && state.minPrice == null && state.maxPrice == null) ||
+              (preset.min === state.minPrice && preset.max === state.maxPrice);
+
             return (
               <Button
-                key={p.label}
+                key={preset.label}
                 type="button"
                 size="sm"
                 variant={isActive ? 'secondary' : 'outline'}
                 className="rounded-full text-xs"
-                onClick={() =>
+                onClick={() => {
+                  filters.cancelPending();
+                  setMinPriceDraft(preset.min == null ? '' : String(preset.min));
+                  setMaxPriceDraft(preset.max == null ? '' : String(preset.max));
                   apply({
-                    minPrice: p.min,
-                    maxPrice: p.max,
-                    clearKeys:
-                      p.min == null && p.max == null
-                        ? ['minPrice', 'maxPrice']
-                        : undefined,
-                  })
-                }
+                    minPrice: preset.min,
+                    maxPrice: preset.max,
+                    clearKeys: preset.min == null && preset.max == null
+                      ? ['minPrice', 'maxPrice']
+                      : undefined,
+                  });
+                }}
               >
-                {p.label}
+                {preset.label}
               </Button>
             );
           })}
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1.5">
-            <label htmlFor="desk-min-price" className="text-xs text-muted-foreground">
-              من
-            </label>
-            <Input
-              id="desk-min-price"
-              inputMode="numeric"
-              type="number"
-              min={0}
-              value={state.minPrice ?? ''}
-              onChange={(e) => {
-                const v = e.target.value;
-                apply({
-                  minPrice: v === '' ? undefined : Number(v),
-                  clearKeys: v === '' ? ['minPrice'] : undefined,
-                });
-              }}
-              placeholder="0"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="desk-max-price" className="text-xs text-muted-foreground">
-              إلى
-            </label>
-            <Input
-              id="desk-max-price"
-              inputMode="numeric"
-              type="number"
-              min={0}
-              value={state.maxPrice ?? ''}
-              onChange={(e) => {
-                const v = e.target.value;
-                apply({
-                  maxPrice: v === '' ? undefined : Number(v),
-                  clearKeys: v === '' ? ['maxPrice'] : undefined,
-                });
-              }}
-              placeholder="بدون حد"
-            />
-          </div>
-        </div>
-      </div>
+      </FilterField>
 
-      {/* GPS-free: SearchNearbyToggle intentionally omitted */}
+      <FilterPriceRangeFields
+        minId="search-filter-min-price"
+        maxId="search-filter-max-price"
+        minValue={minPriceDraft}
+        maxValue={maxPriceDraft}
+        onMinChange={(value) => updatePrice('minPrice', value)}
+        onMaxChange={(value) => updatePrice('maxPrice', value)}
+        title="نطاق السعر"
+        minLabel="من"
+        maxLabel="إلى"
+        minPlaceholder="0"
+        maxPlaceholder="بدون حد"
+      />
 
-      {showCategoryFilter && (
+      {showCategoryFilter ? (
         <div className="border-t pt-3">
           <button
             type="button"
             className="flex w-full items-center justify-between gap-2 text-sm font-medium"
-            onClick={() => setAdvancedOpen((o) => !o)}
+            onClick={() => setAdvancedOpen((open) => !open)}
             aria-expanded={advancedOpen}
           >
             <span className="flex items-center gap-2">
               خيارات أكثر
-              {hasCategory && (
+              {hasCategory ? (
                 <span className="rounded-full bg-primary/15 px-2 py-0.5 text-2xs-tight font-semibold text-primary">
                   مفعّل
                 </span>
-              )}
+              ) : null}
             </span>
             <ChevronDown
               className={cn(
                 'h-4 w-4 text-muted-foreground transition-transform',
                 advancedOpen && 'rotate-180',
               )}
-              aria-hidden
+              aria-hidden="true"
             />
           </button>
 
-          {advancedOpen && (
+          {advancedOpen ? (
             <div className="mt-3 space-y-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">الفئة</label>
+              <FilterField label="الفئة">
                 <Select
                   value={state.categoryId || 'ALL'}
-                  onValueChange={(v) =>
-                    apply(
-                      v === 'ALL'
-                        ? { categoryId: undefined, clearKeys: ['categoryId'] }
-                        : { categoryId: v },
-                    )
-                  }
+                  onValueChange={(value) => apply(
+                    value === 'ALL'
+                      ? { categoryId: undefined, clearKeys: ['categoryId'] }
+                      : { categoryId: value },
+                  )}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="كل الفئات" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">كل الفئات</SelectItem>
-                    {(type === 'ads' || type === 'all') &&
-                      adCategories?.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.nameAr}
-                        </SelectItem>
-                      ))}
-                    {(type === 'products' || type === 'all') &&
-                      productCategories?.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.nameAr}
-                        </SelectItem>
-                      ))}
-                    {(type === 'services' || type === 'all') &&
-                      serviceCategories?.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.nameAr}
-                        </SelectItem>
-                      ))}
+                    {(type === 'ads' || type === 'all') && adCategories?.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.nameAr}</SelectItem>
+                    ))}
+                    {(type === 'products' || type === 'all') && productCategories?.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.nameAr}</SelectItem>
+                    ))}
+                    {(type === 'services' || type === 'all') && serviceCategories?.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>{category.nameAr}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </FilterField>
 
-              {(type === 'ads' || type === 'all') && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">
-                    حالة الإعلان
-                  </label>
+              {(type === 'ads' || type === 'all') ? (
+                <FilterField label="حالة الإعلان">
                   <Select
                     value={state.condition || 'ALL'}
-                    onValueChange={(v) =>
-                      apply(
-                        v === 'ALL'
-                          ? { condition: undefined, clearKeys: ['condition'] }
-                          : { condition: v as 'NEW' | 'USED' | 'REFURBISHED' },
-                      )
-                    }
+                    onValueChange={(value) => apply(
+                      value === 'ALL'
+                        ? { condition: undefined, clearKeys: ['condition'] }
+                        : { condition: value as 'NEW' | 'USED' | 'REFURBISHED' },
+                    )}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="كل الحالات" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ALL">كل الحالات</SelectItem>
-                      {Object.entries(CONDITION_LABELS).map(([k, label]) => (
-                        <SelectItem key={k} value={k}>
-                          {label}
-                        </SelectItem>
+                      {Object.entries(CONDITION_LABELS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              )}
+                </FilterField>
+              ) : null}
             </div>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
 
-      <Button
-        variant="outline"
-        className="w-full text-sm"
+      <FilterResetButton
         onClick={() => {
-          const q = sp.get('q');
-          const typeParam = sp.get('type');
-          const params = new URLSearchParams();
-          if (q) params.set('q', q);
-          if (typeParam && typeParam !== 'all') params.set('type', typeParam);
-          const qs = params.toString();
-          router.replace(qs ? `${ROUTES.search}?${qs}` : ROUTES.search);
+          filters.cancelPending();
+          setMinPriceDraft('');
+          setMaxPriceDraft('');
+          filters.clear(['q', 'type'], 'replace');
         }}
-      >
-        إعادة تعيين الفلاتر
-      </Button>
-    </div>
+      />
+    </FilterPanel>
   );
 }

@@ -24,7 +24,7 @@ import type { AdSortField } from '@/types/ad.types';
 import { LayoutGrid, LayoutList, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
@@ -84,6 +84,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
   // path (same convention already established here for the category
   // case) fixes both callers at once without a new prop.
   const pathname = usePathname();
+  const filters = useUnifiedFilters({ basePath: pathname, profile: categorySlug ? 'adsCategoryBrowse' : 'adsBrowse', mode: 'push' });
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const { data: slugCategory } = useCategoryBySlug(categorySlug ?? '');
 
@@ -279,11 +280,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    if (hasActiveFilters && q) {
-                      writeClientUrl(`${pathname}?q=${encodeURIComponent(q)}`, 'push');
-                    } else {
-                      writeClientUrl(pathname, 'push');
-                    }
+                    filters.clear(hasActiveFilters && q ? ['q'] : [], 'push');
                   }}
                 >
                   {hasActiveFilters ? 'مسح الفلاتر' : 'عرض كل الإعلانات'}

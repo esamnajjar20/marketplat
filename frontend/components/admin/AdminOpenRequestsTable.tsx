@@ -64,6 +64,7 @@ export const AdminOpenRequestsTable = memo(function AdminOpenRequestsTable() {
     <div className="space-y-4">
       <AdminFilterBar
         searchPlaceholder="بحث في العنوان أو الوصف أو المدينة…"
+        profile="adminOpenRequests"
         defaultTab="OPEN"
         tabs={[
           { value: 'OPEN', label: 'مفتوح' },

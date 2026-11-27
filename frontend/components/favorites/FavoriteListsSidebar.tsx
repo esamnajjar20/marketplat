@@ -5,7 +5,6 @@
  */
 
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { FolderPlus, Pencil, Trash2, List } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
@@ -18,12 +17,12 @@ import {
   useDeleteFavoriteList,
 } from '@/hooks/mutations/useFavoriteListMutations';
 import { ROUTES } from '@/lib/constants';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { cn } from '@/lib/utils';
 
 export function FavoriteListsSidebar({ embedded = false }: { embedded?: boolean }) {
-  const sp = useSearchParams();
-  const activeListId = sp.get('list') ?? null;
+  const filters = useUnifiedFilters({ basePath: ROUTES.favorites, profile: 'favorites', mode: 'replace' });
+  const activeListId = filters.get('list') ?? null;
 
   const { data: lists, isLoading } = useFavoriteLists();
   const createList = useCreateFavoriteList();
@@ -37,15 +36,8 @@ export function FavoriteListsSidebar({ embedded = false }: { embedded?: boolean 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   function selectList(listId: string | null) {
-    const params = new URLSearchParams(sp.toString());
-    if (listId) params.set('list', listId);
-    else params.delete('list');
-    params.delete('page');
-    const qs = params.toString();
-    // switching lists within /favorites is a
-    // refinement of the same view — using push made Back require N
-    // presses after N list switches. Matches the admin tables' pattern.
-    writeClientUrl(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites, 'replace');
+    // Switching lists refines the same view; replace avoids one history entry per click.
+    filters.update('list', listId, { mode: 'replace' });
   }
 
   function onCreate(e: React.FormEvent) {

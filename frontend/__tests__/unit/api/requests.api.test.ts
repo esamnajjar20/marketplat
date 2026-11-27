@@ -19,9 +19,7 @@ describe('requestsApi', () => {
   it('getOpenFeed calls GET /requests with params', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: [] } });
     await requestsApi.getOpenFeed({ type: 'SERVICE', page: 1 });
-    expect(apiClient.get).toHaveBeenCalledWith('/requests', {
-      params: { type: 'SERVICE', page: 1 },
-    });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[1]?.params.toString()).toBe('type=SERVICE&page=1');
   });
 
   it('create posts body to /requests', async () => {

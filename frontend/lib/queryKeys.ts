@@ -243,7 +243,7 @@ export const queryKeys = {
     me:       ()                => ['stores', 'me'] as const,
     followed: (params?: Parameters<typeof storesApi.getMyFollowedStores>[0]) => ['stores', 'followed', params ?? {}] as const,
     infiniteRoot: ()           => ['stores', 'infinite'] as const,
-    infinite: (params?: Omit<StoresQuery, 'page' | 'limit' | 'type'> & { pageSize?: number }) => ['stores', 'infinite', params ?? {}] as const,
+    infinite: (params?: Omit<StoresQuery, 'page' | 'limit'> & { pageSize?: number }) => ['stores', 'infinite', params ?? {}] as const,
     // STORE-ANALYTICS (Foundation v1)
     analytics: ()                => ['stores', 'me', 'analytics'] as const,
     members: (storeId: string, params?: Parameters<typeof storeMembersApi.list>[1]) => ['stores', 'members', storeId, params ?? {}] as const,

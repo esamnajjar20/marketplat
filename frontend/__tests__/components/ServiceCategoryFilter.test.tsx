@@ -2,15 +2,14 @@
  * __tests__/components/ServiceCategoryFilter.test.tsx
  *
  * Previously uncovered (0%), ~120 lines. Filter sidebar for /services —
- * search box, category/city/serviceLocation Selects, and min/max price
+ * search box, service-type/city/serviceLocation Selects, and min/max price
  * inputs, all writing to the URL via router.push and always clearing
  * ?page= on change.
  *
  * Coverage targets:
  *  - search input: Enter key and blur both call update('search', value)
- *  - category Select: renders "كل الفئات" + one option per category from
- *    useServiceCategories; selecting one pushes categoryId, selecting
- *    "كل الفئات" clears it
+ *  - category selection is delegated to the shared quick-filter chips
+ *    and is not duplicated inside this filter panel
  *  - city Select: renders all CITIES as options
  *  - serviceLocation Select: renders all three location labels
  *  - min/max price inputs: blur calls update with the field's value
@@ -21,7 +20,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ServiceCategoryFilter } from '@/components/services/ServiceCategoryFilter';
-import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { useServiceTypes } from '@/hooks/queries/useServiceTypes';
 
 const mockPush = vi.fn();
@@ -32,17 +30,9 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
 }));
 
-vi.mock('@/hooks/queries/useServiceCategories', () => ({
-  useServiceCategories: vi.fn(),
-}));
-
 vi.mock('@/hooks/queries/useServiceTypes', () => ({
   useServiceTypes: vi.fn(),
 }));
-
-function mockCategories(data: Array<{ id: string; nameAr: string }> | undefined) {
-  vi.mocked(useServiceCategories).mockReturnValue({ data } as never);
-}
 
 function mockServiceTypes(
   data: Array<{
@@ -59,10 +49,6 @@ describe('ServiceCategoryFilter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
-    mockCategories([
-      { id: 'cat-1', nameAr: 'سباكة' },
-      { id: 'cat-2', nameAr: 'كهرباء' },
-    ]);
     mockServiceTypes([]);
   });
 
@@ -127,46 +113,10 @@ describe('ServiceCategoryFilter', () => {
     });
   });
 
-  describe('category select', () => {
-    it('renders "كل الفئات" plus one option per category', async () => {
-      const user = setupUser();
-      render(<ServiceCategoryFilter />);
-      const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[1]);
-      expect(await screen.findByRole('option', { name: 'كل الفئات' })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: 'سباكة' })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: 'كهرباء' })).toBeInTheDocument();
-    });
-
-    it('pushes categoryId when a category is selected', async () => {
-      const user = setupUser();
-      render(<ServiceCategoryFilter />);
-      const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[1]);
-      await user.click(await screen.findByRole('option', { name: 'سباكة' }));
-      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('categoryId=cat-1'));
-    });
-
-    it('clears categoryId when "كل الفئات" is selected', async () => {
-      mockSearchParams = new URLSearchParams({ categoryId: 'cat-1' });
-      const user = setupUser();
-      render(<ServiceCategoryFilter />);
-      const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[1]);
-      await user.click(await screen.findByRole('option', { name: 'كل الفئات' }));
-      const lastCall = mockPush.mock.calls.at(-1)?.[0] as string;
-      expect(lastCall).not.toContain('categoryId=');
-    });
-
-    it('renders no category options when the hook has no data yet', async () => {
-      mockCategories(undefined);
-      const user = setupUser();
-      render(<ServiceCategoryFilter />);
-      const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[1]);
-      expect(await screen.findByRole('option', { name: 'كل الفئات' })).toBeInTheDocument();
-      expect(screen.queryByRole('option', { name: 'سباكة' })).not.toBeInTheDocument();
-    });
+  it('does not duplicate category selection in the sidebar; category chips own categoryId', () => {
+    render(<ServiceCategoryFilter />);
+    expect(screen.getAllByRole('combobox')).toHaveLength(3);
+    expect(screen.queryByRole('option', { name: 'سباكة' })).not.toBeInTheDocument();
   });
 
   describe('city select', () => {
@@ -174,7 +124,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[2]);
+      await user.click(triggers[1]);
       expect(await screen.findByRole('option', { name: 'غزة' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'رفح' })).toBeInTheDocument();
     });
@@ -183,7 +133,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[2]);
+      await user.click(triggers[1]);
       await user.click(await screen.findByRole('option', { name: 'خان يونس' }));
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('city=%D8%AE%D8%A7%D9%86'));
     });
@@ -194,7 +144,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[3]);
+      await user.click(triggers[2]);
       expect(await screen.findByRole('option', { name: 'لدى العميل' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'لدى مقدم الخدمة' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'عن بُعد' })).toBeInTheDocument();
@@ -204,7 +154,7 @@ describe('ServiceCategoryFilter', () => {
       const user = setupUser();
       render(<ServiceCategoryFilter />);
       const triggers = screen.getAllByRole('combobox');
-      await user.click(triggers[3]);
+      await user.click(triggers[2]);
       await user.click(await screen.findByRole('option', { name: 'عن بُعد' }));
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('serviceLocation=REMOTE'));
     });
@@ -246,7 +196,7 @@ describe('ServiceCategoryFilter', () => {
     render(<ServiceCategoryFilter />);
     const triggers = screen.getAllByRole('combobox');
     await user.click(triggers[1]);
-    await user.click(await screen.findByRole('option', { name: 'سباكة' }));
+    await user.click(await screen.findByRole('option', { name: 'دير البلح' }));
     const lastCall = mockPush.mock.calls.at(-1)?.[0] as string;
     expect(lastCall).not.toContain('page=');
   });
@@ -256,10 +206,10 @@ describe('ServiceCategoryFilter', () => {
     const user = setupUser();
     render(<ServiceCategoryFilter />);
     const triggers = screen.getAllByRole('combobox');
-    await user.click(triggers[1]);
-    await user.click(await screen.findByRole('option', { name: 'سباكة' }));
+    await user.click(triggers[2]);
+    await user.click(await screen.findByRole('option', { name: 'عن بُعد' }));
     const lastCall = mockPush.mock.calls.at(-1)?.[0] as string;
-    expect(lastCall).toContain('categoryId=cat-1');
+    expect(lastCall).toContain('serviceLocation=REMOTE');
     expect(lastCall).toContain('city=');
   });
 });

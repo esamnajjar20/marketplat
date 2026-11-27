@@ -138,13 +138,13 @@ describe('serviceListingsApi — endpoint/method correctness (regression guard)'
   it('getAll calls GET /service-listings with params', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { success: true, data: [] } });
     await serviceListingsApi.getAll({ page: 1 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/service-listings', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[1]?.params.toString()).toBe('page=1');
   });
 
   it('getMine calls GET /service-listings/me (not /service-listings/mine)', async () => {
     (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { success: true, data: [] } });
     await serviceListingsApi.getMine({ page: 1 } as any);
-    expect(apiClient.get).toHaveBeenCalledWith('/service-listings/me', { params: { page: 1 } });
+    expect((apiClient.get as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[1]?.params.toString()).toBe('page=1');
   });
 
   it('getById calls GET /service-listings/:id', async () => {

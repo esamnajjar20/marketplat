@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { Search, Clock } from 'lucide-react';
 
 import { Input } from '@/components/shared/ui/Input';
@@ -29,8 +28,9 @@ interface Props {
  * field is focused with an empty / short query.
  */
 export function SearchBox({ defaultValue = '', inputClassName }: Props) {
-  const sp = useSearchParams();
-  const urlQuery = sp.get('q');
+  const filters = useUnifiedFilters({ basePath: ROUTES.search, profile: 'globalSearch', mode: 'push' });
+  const sp = filters.params;
+  const urlQuery = filters.get('q');
   const [value, setValue] = useState(defaultValue);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
@@ -126,10 +126,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   useEffect(() => {
     if (sp.get('focus') !== '1') return;
     inputRef.current?.focus();
-    const params = new URLSearchParams(sp.toString());
-    params.delete('focus');
-    const query = params.toString();
-    writeClientUrl(query ? `${ROUTES.search}?${query}` : ROUTES.search, 'replace');
+    filters.update('focus', null, { resetPage: false, mode: 'replace' });
     // Only ever meant to run once per navigation that carries the
     // param — deliberately not depending on `sp`/`router` themselves,
     // which would re-fire this on every param change this effect
@@ -142,7 +139,6 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
     // during App Router transitions while this client component remains
     // mounted; using the latest URL avoids resurrecting stale pagination
     // or dropping unrelated filters on rapid submit/back-forward journeys.
-    const params = new URLSearchParams(window.location.search);
     // FIX SEARCHBOX-NORMALIZE-DRIFT-01: reuse lib/arabicNormalize (the
     // client-side mirror of SQL arabic_normalize) instead of an inline
     // partial copy. The inline version handled alef/yeh fold but missed
@@ -160,15 +156,11 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
     // Keep the controlled field in sync immediately. This also prevents a
     // submit racing the next React render from leaving the old value visible.
     setValue(trimmed);
+    filters.update('q', trimmed || null, { mode: 'push' });
     if (trimmed) {
-      params.set('q', trimmed);
       addRecentSearch(trimmed);
       setRecent(getRecentSearches());
-    } else {
-      params.delete('q');
     }
-    params.delete('page');
-    writeClientUrl(`${ROUTES.search}?${params.toString()}`, 'push');
   }
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {

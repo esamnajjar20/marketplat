@@ -13,6 +13,7 @@
  *     ads.api.ts's addImages()/removeImage() exactly.
  */
 import { apiClient } from './client';
+import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
@@ -30,13 +31,13 @@ export const serviceListingsApi = {
   /** GET /service-listings — public browse/search, paginated. */
   getAll: (params?: ServiceListingsQuery, config?: AxiosRequestConfig) => {
     const requestParams = params
-      ? {
+      ? buildFilterParams({
           ...params,
-          ...(params.attributeFilters
-            ? { attributeFilters: JSON.stringify(params.attributeFilters) }
-            : {}),
-        }
-      : params;
+          attributeFilters: params.attributeFilters && Object.keys(params.attributeFilters).length
+            ? JSON.stringify(params.attributeFilters)
+            : undefined,
+        } as FilterPatch, { profile: 'servicesBrowse' })
+      : undefined;
     return apiClient
       .get<ApiResponse<ServiceListingWithProvider[]>>('/service-listings', { ...config, params: requestParams })
       .then((r) => unwrapPaginated<ServiceListingWithProvider>(r));
@@ -45,7 +46,7 @@ export const serviceListingsApi = {
   /** GET /service-listings/me — caller's own listings, paginated. */
   getMine: (params?: ServiceListingsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<ServiceListing[]>>('/service-listings/me', { ...config, params })
+      .get<ApiResponse<ServiceListing[]>>('/service-listings/me', { ...config, params: params ? buildFilterParams({ ...params, attributeFilters: params.attributeFilters && Object.keys(params.attributeFilters).length ? JSON.stringify(params.attributeFilters) : undefined } as FilterPatch, { profile: 'myServices' }) : undefined })
       .then((r) => unwrapPaginated<ServiceListing>(r)),
 
   /** GET /service-listings/:id — public detail. */
@@ -76,7 +77,7 @@ export const serviceListingsApi = {
 
   /** PATCH /service-listings/:id — JSON only, no images (see file header). */
   getMatches: (id: string, limit = 8, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<ServiceListingWithProvider[]>>(`/service-listings/${id}/matches`, { ...config, params: { limit } }),
+    apiClient.get<ApiResponse<ServiceListingWithProvider[]>>(`/service-listings/${id}/matches`, { ...config, params: buildFilterParams({ limit }, { profile: 'serviceMatches' }) }),
 
   update: (id: string, payload: UpdateServiceListingPayload, operationId?: string) =>
     apiClient.patch<ApiResponse<ServiceListing>>(`/service-listings/${id}`, payload, {

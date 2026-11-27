@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { Package, Search, X } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -12,7 +11,8 @@ import { ProductRecommendations } from '@/components/recommendations/ProductReco
 import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { ROUTES } from '@/lib/constants';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import { normalizeFilterPage } from '../../../shared/filters';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import type { ProductSortField } from '@/types/product.types';
@@ -35,10 +35,9 @@ const SORT_OPTIONS: { value: string; label: string; sortBy: ProductSortField; so
 ];
 
 export function StoreProducts({ storeId, storeName, offersOnly = false, storeType }: Props) {
-  const sp = useSearchParams();
-  // clamp URL page param to positive integer.
-  const rawPage = Number(sp.get('productsPage') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+  const filters = useUnifiedFilters({ basePath: ROUTES.storeDetail(storeId), profile: 'storeProducts' });
+  const sp = filters.params;
+  const page = normalizeFilterPage(sp.get('productsPage'));
   const highlightId = sp.get('product');
   const sortKey = sp.get('sort') ?? 'newest';
   const sortOpt = SORT_OPTIONS.find((o) => o.value === sortKey) ?? SORT_OPTIONS[0]!;
@@ -46,18 +45,10 @@ export function StoreProducts({ storeId, storeName, offersOnly = false, storeTyp
   const searchFromUrl = (sp.get('q') ?? '').trim();
   const highlightRef = useRef<HTMLDivElement>(null);
   const [searchInput, setSearchInput] = useState(searchFromUrl);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setSearchInput(searchFromUrl);
   }, [searchFromUrl]);
-
-  // STOREFRONT-SEARCH-CLEANUP-01: cancel pending debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
 
   const storeLabels = getStoreTypeLabels(storeType);
   const { data, isLoading, isError, refetch } = useProducts({
@@ -94,35 +85,29 @@ export function StoreProducts({ storeId, storeName, offersOnly = false, storeTyp
   }, [highlightId, items]);
 
   function setSort(value: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (value === 'newest') params.delete('sort');
-    else params.set('sort', value);
-    params.delete('productsPage');
-    writeClientUrl(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, 'push');
+    filters.update('sort', value === 'newest' ? null : value, {
+      pageKey: 'productsPage',
+      mode: 'push',
+    });
   }
 
-  const applySearch = useCallback(
-    (value: string) => {
-      const params = new URLSearchParams(sp.toString());
-      const trimmed = value.trim();
-      if (trimmed) params.set('q', trimmed);
-      else params.delete('q');
-      params.delete('productsPage');
-      writeClientUrl(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, 'push');
-    },
-    [sp, storeId],
-  );
+  const applySearch = useCallback((value: string) => {
+    filters.cancelPending('q');
+    filters.update('q', value.trim() || null, {
+      pageKey: 'productsPage',
+      mode: 'push',
+    });
+  }, [filters.cancelPending, filters.update]);
 
   function onSearchChange(value: string) {
     setSearchInput(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => applySearch(value), 350);
+    filters.updateDebounced('q', value, 350, { pageKey: 'productsPage', mode: 'push' });
   }
 
   function clearSearch() {
     setSearchInput('');
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    applySearch('');
+    filters.cancelPending('q');
+    filters.update('q', null, { pageKey: 'productsPage', mode: 'push' });
   }
 
   if (isLoading) {
@@ -162,7 +147,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false, storeTyp
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                if (debounceRef.current) clearTimeout(debounceRef.current);
+                filters.cancelPending('q');
                 applySearch(searchInput);
               }
             }}

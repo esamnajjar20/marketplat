@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { buildFilterParams } from '../../shared/filters';
 import type { ApiResponse } from '@/types/api.types';
 import type { AdListItem } from '@/types/ad.types';
 import type { ProductCategory, ProductWithStore } from '@/types/product.types';
@@ -54,12 +55,10 @@ export const homeFeedQueryKey = (
 ) => queryKeys.home.feed(city, userId, explicitAll);
 
 /** Shared by both endpoints: FIX HOME-CITY-EXPLICIT-ALL — "كل المدن" is sent as city=__ALL__. */
-const homeFeedParams = (params: { city?: string; explicitAll?: boolean }) =>
-  params.explicitAll
-    ? { city: '__ALL__' }
-    : params.city
-      ? { city: params.city }
-      : undefined;
+const homeFeedParams = (params: { city?: string; explicitAll?: boolean }) => {
+  const query = buildFilterParams({ city: params.explicitAll ? '__ALL__' : params.city }, { profile: 'homeFeed' });
+  return query.toString() ? query : undefined;
+};
 
 export const homeFeedApi = {
   /**

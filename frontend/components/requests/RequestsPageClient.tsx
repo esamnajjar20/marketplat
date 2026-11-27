@@ -1,8 +1,7 @@
 'use client';
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { useSearchParams } from 'next/navigation';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import {
   ClipboardList,
   Plus,
@@ -14,6 +13,7 @@ import {
 import { useOpenRequests } from '@/hooks/queries/useRequests';
 import { ROUTES } from '@/lib/constants';
 import type { RequestType } from '@/types/request.types';
+import { normalizeFilterPage, parseFilterEnum } from '../../../shared/filters';
 import { Button } from '@/components/shared/ui/Button';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -41,23 +41,6 @@ const TYPE_CHIPS: Array<{
   { value: 'RENTAL', label: 'إيجار', icon: Home },
 ];
 
-function buildTypeHref(
-  type: RequestType | undefined,
-  city?: string,
-  serviceTypeId?: string,
-  q?: string,
-  sort?: RequestSort,
-): string {
-  const params = new URLSearchParams();
-  if (type) params.set('type', type);
-  if (city) params.set('city', city);
-  if (serviceTypeId && type === 'SERVICE') params.set('serviceTypeId', serviceTypeId);
-  if (q) params.set('q', q);
-  if (sort && sort !== 'newest') params.set('sort', sort);
-  const qs = params.toString();
-  return qs ? `${ROUTES.requests}?${qs}` : ROUTES.requests;
-}
-
 function emptyDescription(opts: {
   type?: RequestType;
   city?: string;
@@ -76,12 +59,11 @@ function emptyDescription(opts: {
 }
 
 export function RequestsPageClient({ params: initialParams }: { params: OpenRequestsPageParams }) {
-  const searchParams = useSearchParams();
+  const filters = useUnifiedFilters({ basePath: ROUTES.requests, profile: 'openRequests', mode: 'push' });
+  const searchParams = filters.params;
   const limit = initialParams.limit ?? 20;
-  const rawPage = Number(searchParams.get('page') ?? 1);
-  const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? Math.min(rawPage, 10_000) : 1;
-  const rawType = searchParams.get('type');
-  const type: RequestType | undefined = rawType === 'SERVICE' || rawType === 'PRODUCT' || rawType === 'RENTAL' ? rawType : undefined;
+  const page = normalizeFilterPage(searchParams.get('page'));
+  const type = parseFilterEnum(searchParams.get('type'), ['SERVICE', 'PRODUCT', 'RENTAL'] as const);
   const city = searchParams.get('city')?.trim() || undefined;
   const serviceTypeId = type === 'SERVICE' ? searchParams.get('serviceTypeId')?.trim() || undefined : undefined;
   const q = searchParams.get('q')?.trim() || undefined;
@@ -173,7 +155,7 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
               <button
                 key={label}
                 type="button"
-                onClick={() => writeClientUrl(buildTypeHref(value, city, value === 'SERVICE' ? serviceTypeId : undefined, q, sort), 'push')}
+                onClick={() => filters.updateMany({ type: value ?? null, serviceTypeId: value === 'SERVICE' ? serviceTypeId ?? null : null }, { mode: 'push' })}
                 role="tab"
                 aria-selected={active}
                 className={cn(
@@ -237,7 +219,7 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
               action={
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {hasActiveFilters ? (
-                    <Button variant="outline" onClick={() => writeClientUrl(ROUTES.requests, 'push')}>
+                    <Button variant="outline" onClick={() => filters.clear([], 'push')}>
                       مسح الفلاتر
                     </Button>
                   ) : null}

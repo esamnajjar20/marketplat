@@ -1,3 +1,4 @@
+import { buildFilterParams } from '../../../../../shared/filters';
 import { apiRequest } from '@/api/client';
 type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number; hasNextPage?: boolean } } };
 function unwrap<T>(r: Envelope<T>, fallback: string): T { if (!r || r.success !== true || r.data === undefined) throw new Error(r?.message || fallback); return r.data; }
@@ -13,7 +14,7 @@ export async function fetchMyAppointments(
   const safePage = Math.max(1, Math.floor(Number(page) || 1));
   const safeLimit = Math.min(100, Math.max(1, Math.floor(Number(limit) || 20)));
   const response = await apiRequest<Envelope<AppointmentRow[]>>(
-    `/api/v1/appointments/me?page=${safePage}&limit=${safeLimit}`,
+    `/api/v1/appointments/me?${buildFilterParams({ page: safePage, limit: safeLimit }, { profile: 'appointments' })}`,
     { token, signal, cacheOwnerId: ownerId ?? undefined },
   );
   const items = unwrap(response, 'تعذر تحميل المواعيد.');
@@ -28,7 +29,7 @@ export async function fetchMyAppointments(
 }
 export type ProviderAvailability = { date: string; available: boolean; freeRanges: Array<{ start: string; end: string }> };
 export async function fetchProviderAvailability(providerId: string, date: string, signal?: AbortSignal): Promise<ProviderAvailability> {
-  const result = unwrap(await apiRequest<Envelope<ProviderAvailability>>(`/api/v1/appointments/availability/${encodeURIComponent(providerId)}?date=${encodeURIComponent(date)}`, { signal }), 'تعذر تحميل الأوقات المتاحة.');
+  const result = unwrap(await apiRequest<Envelope<ProviderAvailability>>(`/api/v1/appointments/availability/${encodeURIComponent(providerId)}?${buildFilterParams({ date }, { profile: 'appointmentAvailability' })}`, { signal }), 'تعذر تحميل الأوقات المتاحة.');
   if (!result || !Array.isArray(result.freeRanges)) throw new Error('استجابة الأوقات المتاحة غير صالحة.');
   return result;
 }

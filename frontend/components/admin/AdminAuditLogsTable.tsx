@@ -2,7 +2,7 @@
 
 import { memo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { AlertTriangle, Eye } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -26,8 +26,7 @@ import { formatDateTime } from '@/lib/formatters';
 import { AdminAuditLogRow } from './AdminAuditLogRow';
 import { parseApiError } from '@/lib/errorParser';
 import type { AuditLog, AuditEventType } from '@/types/admin.types';
-import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { adminPagination } from '@/lib/adminHubTabs';
 import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
 
 const AUDIT_EVENT_TYPES = Object.keys(AUDIT_EVENT_LABELS) as AuditEventType[];
@@ -74,7 +73,8 @@ function formatDetailValue(value: unknown): string {
 }
 
 export const AdminAuditLogsTable = memo(function AdminAuditLogsTable() {
-  const sp = useSearchParams();
+  const filters = useUnifiedFilters({ basePath: '/admin', profile: 'adminAuditLogs', mode: 'replace' });
+  const sp = filters.params;
 
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
@@ -162,10 +162,7 @@ export const AdminAuditLogsTable = memo(function AdminAuditLogsTable() {
   }
 
   function updateParam(key: string, value: string) {
-    const params = new URLSearchParams(sp.toString());
-    if (value) params.set(key, value); else params.delete(key);
-    params.delete('page');
-    writeClientUrl(adminListHref('audit-logs', params), 'replace');
+    filters.update(key, value || null, { mode: 'replace' });
   }
 
   return (

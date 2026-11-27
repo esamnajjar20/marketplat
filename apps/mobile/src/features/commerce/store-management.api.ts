@@ -1,3 +1,4 @@
+import { buildFilterParams } from '../../../../../shared/filters';
 import { apiRequest } from '@/api/client';
 import type { ProductSummary, StoreSummary } from '@/features/commerce/commerce.api';
 
@@ -21,14 +22,14 @@ export async function fetchManagedCollectionProducts(id: string, token: string):
   if (!Array.isArray(a)) throw new Error('استجابة منتجات المجموعة غير صالحة.');
   return a;
 }
-export async function fetchMyPromotions(token: string, storeId?: string, page = 1): Promise<{ items: StorePromotion[]; page: number; total: number; totalPages: number; hasNextPage: boolean }> { const params = new URLSearchParams({ page: String(Math.max(1, Math.trunc(page))), limit: '50' }); if (storeId) params.set('storeId', storeId); const response = await apiRequest<Envelope<StorePromotion[]>>(`/api/v1/promotions/me?${params}`, { token }); const items = unwrap(response, 'تعذر تحميل العروض الترويجية.'); const pagination = response.meta?.pagination; if (!Array.isArray(items) || !pagination) throw new Error('استجابة القائمة غير صالحة.'); const resolvedPage = pagination.page ?? Math.max(1, Math.trunc(page)); const totalPages = pagination.totalPages ?? resolvedPage; return { items, page: resolvedPage, total: pagination.total ?? items.length, totalPages, hasNextPage: pagination.hasNextPage ?? resolvedPage < totalPages }; }
+export async function fetchMyPromotions(token: string, storeId?: string, page = 1): Promise<{ items: StorePromotion[]; page: number; total: number; totalPages: number; hasNextPage: boolean }> { const params = buildFilterParams({ page: Math.max(1, Math.trunc(page)), limit: 50, storeId }, { profile: 'promotions' }); const response = await apiRequest<Envelope<StorePromotion[]>>(`/api/v1/promotions/me?${params}`, { token }); const items = unwrap(response, 'تعذر تحميل العروض الترويجية.'); const pagination = response.meta?.pagination; if (!Array.isArray(items) || !pagination) throw new Error('استجابة القائمة غير صالحة.'); const resolvedPage = pagination.page ?? Math.max(1, Math.trunc(page)); const totalPages = pagination.totalPages ?? resolvedPage; return { items, page: resolvedPage, total: pagination.total ?? items.length, totalPages, hasNextPage: pagination.hasNextPage ?? resolvedPage < totalPages }; }
 export async function createPromotion(input: { productId: string; title: string; description?: string; discountType: 'PERCENTAGE' | 'FIXED_AMOUNT'; discountValue: number; startsAt: string; endsAt: string; maxUses?: number }, token: string, csrfToken?: string | null, storeId?: string): Promise<StorePromotion> { const path = storeId ? `/api/v1/promotions?storeId=${encodeURIComponent(storeId)}` : '/api/v1/promotions'; return unwrap(await apiRequest<Envelope<StorePromotion>>(path, { method: 'POST', token, headers: headers(csrfToken), body: JSON.stringify(input) }), 'تعذر إنشاء العرض.'); }
 export async function cancelPromotion(id: string, token: string, csrfToken?: string | null): Promise<void> { unwrap(await apiRequest<Envelope<unknown>>(`/api/v1/promotions/${encodeURIComponent(id)}`, { method: 'DELETE', token, headers: headers(csrfToken), body: JSON.stringify({}) }), 'تعذر إلغاء العرض.'); }
 export type StoreMembersPage = { items: StoreMember[]; page: number; limit: number; total: number; totalPages: number };
 export async function fetchStoreMembers(storeId: string, token: string, options: { page?: number; limit?: number } = {}): Promise<StoreMembersPage> {
   const page = options.page ?? 1;
   const limit = options.limit ?? 20;
-  const response = await apiRequest<Envelope<StoreMember[]>>(`/api/v1/stores/${encodeURIComponent(storeId)}/members?page=${page}&limit=${limit}`, { token });
+  const response = await apiRequest<Envelope<StoreMember[]>>(`/api/v1/stores/${encodeURIComponent(storeId)}/members?${buildFilterParams({ page, limit }, { profile: 'storeMembers' })}`, { token });
   const items = unwrap(response, 'تعذر تحميل أعضاء المتجر.');
   if (!Array.isArray(items)) throw new Error('استجابة القائمة غير صالحة.');
   const pagination = response.meta?.pagination;

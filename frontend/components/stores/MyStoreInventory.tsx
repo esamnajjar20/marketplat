@@ -7,7 +7,6 @@
 
 import { useMemo, useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { useSearchParams } from 'next/navigation';
 import { Package, AlertTriangle, History, Boxes, TrendingDown, CircleAlert } from 'lucide-react';
 import { useMyProducts } from '@/hooks/queries/useProducts';
 import { useAdjustProductStock } from '@/hooks/mutations/useAdjustProductStock';
@@ -19,7 +18,9 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { ROUTES } from '@/lib/constants';
-import { writeClientUrl } from '@/lib/urlWithParams';
+import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
+import { normalizeFilterPage } from '../../../shared/filters';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import type { ProductAvailability } from '@/types/product.types';
 import { cn } from '@/lib/utils';
 import { formatTimestamp } from '@/lib/formatters';
@@ -178,15 +179,12 @@ function StockRow({
 }
 
 export function MyStoreInventory() {
-  const sp = useSearchParams();
-  // SW-INVENTORY-a hand-edited URL like ?page=abc produced
-  // NaN, which the products hook serialised onto the wire — same class
-  // of bug across the seven admin tables. Clamp to a positive
-  // integer with a fallback of 1.
-  const rawPage = Number(sp.get('page') ?? 1);
-  const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
-  const filter = (sp.get('stock') as StockFilter) || 'all';
-  const searchQ = sp.get('q') ?? '';
+  const filters = useUnifiedFilters({ basePath: ROUTES.myStore, profile: 'storeInventory', mode: 'replace' });
+  const sp = filters.params;
+  const page = normalizeFilterPage(sp.get('page'));
+  const rawFilter = sp.get('stock');
+  const filter: StockFilter = rawFilter === 'low' || rawFilter === 'out' ? rawFilter : 'all';
+  const searchQ = filters.get('q') ?? '';
   const [searchInput, setSearchInput] = useState(searchQ);
 
   // Map UI filter → API availability when possible
@@ -225,31 +223,13 @@ export function MyStoreInventory() {
   const { data: summary } = useStockSummary();
   const { data: historyData } = useStockHistory({ page: 1, limit: 8 });
 
-  function pushParams(mutator: (params: URLSearchParams) => void) {
-    const params = new URLSearchParams(sp.toString());
-    mutator(params);
-    params.delete('page');
-    // SW-INVENTORY-replace, not push. Filters and search are
-    // refinements of the same view — pushing made Back require N presses
-    // to actually leave the page after setting three filters, matching
-    // the same reasoning already applied to SearchFilters.
-    writeClientUrl(`${ROUTES.myStore}?${params.toString()}`, 'replace');
-  }
-
   function setFilter(next: StockFilter) {
-    pushParams((params) => {
-      if (next === 'all') params.delete('stock');
-      else params.set('stock', next);
-    });
+    filters.update('stock', next === 'all' ? null : next, { mode: 'replace' });
   }
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
-    pushParams((params) => {
-      const q = searchInput.trim();
-      if (q) params.set('q', q);
-      else params.delete('q');
-    });
+    filters.update('q', searchInput.trim() || null, { mode: 'replace' });
   }
 
   if (isLoading) {
@@ -359,27 +339,17 @@ export function MyStoreInventory() {
       })()}
 
       <div className="flex flex-wrap items-center gap-2">
-        {(
-          [
-            ['all', 'الكل'],
-            ['low', 'منخفض'],
-            ['out', 'نافد'],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setFilter(key)}
-            className={cn(
-              'rounded-full border px-3 py-1 text-sm transition-colors',
-              filter === key
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {label}
-          </button>
-        ))}
+        <FilterChipGroup
+          label="تصفية المخزون"
+          value={filter}
+          options={[
+            { value: 'all', label: 'الكل' },
+            { value: 'low', label: 'منخفض' },
+            { value: 'out', label: 'نافد' },
+          ]}
+          onChange={(value) => setFilter(value as StockFilter)}
+          className="flex-wrap"
+        />
         <form onSubmit={submitSearch} className="ms-auto flex gap-2">
           <Input
             value={searchInput}
