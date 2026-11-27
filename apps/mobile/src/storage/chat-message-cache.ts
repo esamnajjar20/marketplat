@@ -77,6 +77,21 @@ export async function readCachedChatMessages(ownerId: string, conversationId: st
 }
 
 /** Upsert authoritative server messages and keep the local history bounded per account. */
+function mergeCachedMessageState(previous: ChatMessage | null, incoming: ChatMessage): ChatMessage {
+  if (!previous) return incoming;
+  let merged = incoming;
+  if (previous.deletedAt && !incoming.deletedAt) {
+    merged = {
+      ...incoming,
+      body: '', imageUrl: null, audioUrl: null, fileUrl: null,
+      fileName: null, fileMimeType: null, fileSize: null,
+      deletedAt: previous.deletedAt,
+    };
+  }
+  if (previous.readAt && !merged.readAt) merged = { ...merged, readAt: previous.readAt };
+  return merged;
+}
+
 export type CachePersistResult = 'saved' | 'skipped' | 'failed';
 
 /**
@@ -106,12 +121,26 @@ export async function persistCachedChatMessages(
     const db = await database();
     await db.withExclusiveTransactionAsync(async txn => {
       for (const row of safeRows) {
+        const existing = await txn.getFirstAsync<CachedMessageRow>(
+          `SELECT message_id, value_json, created_at FROM chat_message_cache
+           WHERE owner_id = ? AND conversation_id = ? AND message_id = ? LIMIT 1`,
+          ownerId, conversationId, row.message.id,
+        );
+        let previous: ChatMessage | null = null;
+        if (existing && existing.value_json.length <= MAX_MESSAGE_JSON_CHARS) {
+          try {
+            const parsed: unknown = JSON.parse(existing.value_json);
+            if (validMessage(parsed)) previous = parsed;
+          } catch { /* corrupted cached row: replace it with the server copy */ }
+        }
+        const merged = mergeCachedMessageState(previous, row.message);
         await txn.runAsync(
           `INSERT INTO chat_message_cache (owner_id, conversation_id, message_id, created_at, value_json)
            VALUES (?, ?, ?, ?, ?)
            ON CONFLICT(owner_id, conversation_id, message_id) DO UPDATE SET
              created_at = excluded.created_at, value_json = excluded.value_json`,
-          ownerId, conversationId, row.message.id, row.createdAt, row.json,
+          ownerId, conversationId, row.message.id, row.createdAt,
+          JSON.stringify({ ...merged, conversationId }),
         );
       }
       await txn.runAsync(
@@ -175,7 +204,7 @@ export async function markCachedChatMessageDeleted(
     if (!row || row.value_json.length > MAX_MESSAGE_JSON_CHARS) return;
     const parsed: unknown = JSON.parse(row.value_json);
     if (!validMessage(parsed)) return;
-    const redacted: ChatMessage = { ...parsed, body: '', imageUrl: null, audioUrl: null, fileUrl: null, deletedAt };
+    const redacted: ChatMessage = { ...parsed, body: '', imageUrl: null, audioUrl: null, fileUrl: null, fileName: null, fileMimeType: null, fileSize: null, deletedAt };
     await db.runAsync(
       `UPDATE chat_message_cache SET value_json = ?
        WHERE owner_id = ? AND conversation_id = ? AND message_id = ?`,
@@ -183,5 +212,61 @@ export async function markCachedChatMessageDeleted(
     );
   } catch {
     // Deletion propagation is best-effort; the next authorized REST sync is authoritative.
+  }
+}
+
+
+/** Apply a server read receipt to the account-scoped SQLite cache. */
+export async function markCachedChatMessagesRead(
+  ownerId: string,
+  conversationId: string,
+  messageIds: string[],
+  readAt: string,
+): Promise<void> {
+  if (!ownerId.trim() || !conversationId.trim() || !messageIds.length) return;
+  const ids = [...new Set(messageIds.filter(id => typeof id === 'string' && id.trim()))].slice(0, 500);
+  if (!ids.length || !Number.isFinite(Date.parse(readAt))) return;
+  try {
+    const db = await database();
+    await db.withExclusiveTransactionAsync(async txn => {
+      for (const messageId of ids) {
+        const row = await txn.getFirstAsync<CachedMessageRow>(
+          `SELECT message_id, value_json, created_at FROM chat_message_cache
+           WHERE owner_id = ? AND conversation_id = ? AND message_id = ? LIMIT 1`,
+          ownerId, conversationId, messageId,
+        );
+        if (!row || row.value_json.length > MAX_MESSAGE_JSON_CHARS) continue;
+        let parsed: unknown;
+        try { parsed = JSON.parse(row.value_json); } catch { continue; }
+        if (!validMessage(parsed)) continue;
+        const updated: ChatMessage = { ...parsed, readAt };
+        await txn.runAsync(
+          `UPDATE chat_message_cache SET value_json = ?
+           WHERE owner_id = ? AND conversation_id = ? AND message_id = ?`,
+          JSON.stringify(updated), ownerId, conversationId, messageId,
+        );
+      }
+    });
+  } catch {
+    // Cache is best-effort; the next authorized API response remains authoritative.
+  }
+}
+
+
+/** Remove one conversation's offline history after its per-user inbox deletion. */
+export async function clearCachedChatMessagesForConversation(
+  ownerId: string,
+  conversationId: string,
+): Promise<void> {
+  if (!ownerId.trim() || !conversationId.trim()) return;
+  try {
+    const db = await database();
+    await db.runAsync(
+      'DELETE FROM chat_message_cache WHERE owner_id = ? AND conversation_id = ?',
+      ownerId,
+      conversationId,
+    );
+  } catch {
+    // Best effort: the server remains the authorization source of truth.
   }
 }

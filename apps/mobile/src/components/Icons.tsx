@@ -34,6 +34,7 @@ export const glyphs = {
   shield: '◇',
   wallet: '▣',
   check: '✓',
+  checkDouble: '✓✓',
   warning: '!',
   menu: '☰',
   settings: '⚙',

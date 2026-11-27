@@ -1,26 +1,10 @@
 import { fetch as expoFetch } from 'expo/fetch';
 import { z } from 'zod';
+import type { MessagingLiveEvent } from '@marketplat/contracts';
 import { chatMessageResponseSchema } from '@/api/response-schemas';
 import { getApiBaseUrl, refreshAccessTokenForStream } from '@/api/client';
 
-export type ChatLiveEvent = {
-  type: 'message:new' | 'message:deleted' | 'notification' | 'resync' | 'connected' | string;
-  conversationId?: string;
-  message?: {
-    id: string;
-    conversationId: string;
-    senderId: string;
-    body?: string | null;
-    imageUrl?: string | null;
-    audioUrl?: string | null;
-    fileUrl?: string | null;
-    createdAt: string;
-    readAt?: string | null;
-    deletedAt?: string | null;
-  };
-  messageId?: string;
-  deletedAt?: string;
-};
+export type ChatLiveEvent = MessagingLiveEvent | { type: 'notification' | 'resync' | 'connected' };
 
 export type ChatLiveStreamOptions = {
   /** @deprecated prefer getToken(). */
@@ -54,7 +38,17 @@ const chatLiveEventSchema = z.object({
   conversationId: z.string().min(1).optional(),
   message: chatMessageResponseSchema.optional(),
   messageId: z.string().min(1).optional(),
+  messageIds: z.array(z.string().min(1)).max(500).optional(),
+  readerId: z.string().min(1).optional(),
+  readAt: z.string().optional(),
   deletedAt: z.string().optional(),
+  action: z.enum(['updated', 'deleted']).optional(),
+  settings: z.object({
+    pinnedAt: z.string().nullable().optional(),
+    archivedAt: z.string().nullable().optional(),
+    deletedAt: z.string().nullable().optional(),
+    mutedUntil: z.string().nullable().optional(),
+  }).optional(),
 }).passthrough();
 
 const MAX_SSE_BUFFER_BYTES = 1_000_000;

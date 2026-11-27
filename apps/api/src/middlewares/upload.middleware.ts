@@ -9,6 +9,7 @@ import { ServiceUnavailableError } from '../shared/errors/ServiceUnavailableErro
 import { acquireMediaUploadLease } from '../shared/locks/distributedSemaphore';
 import { logger } from '../shared/observability/logger';
 import { isAllowedImageContent } from '../shared/media/fileSignature';
+import { isAllowedChatAudioContent, isAllowedChatFileContent } from '../shared/media/messageFileSignature';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
   MAX_IMAGE_SIZE_BYTES,
@@ -311,6 +312,11 @@ export const uploadAudioMiddleware = (req: Request, res: Response, next: NextFun
         done(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
         return;
       }
+      const audio = req.file;
+      if (!audio || !isAllowedChatAudioContent(audio.buffer, audio.mimetype)) {
+        done(new BadRequestError('Audio content does not match its declared type', 'INVALID_AUDIO_TYPE'));
+        return;
+      }
       done();
     });
   });
@@ -376,6 +382,11 @@ export const uploadMessageFileMiddleware = (
       }
       if (err instanceof Error) {
         done(new BadRequestError(err.message, 'INVALID_FILE_TYPE'));
+        return;
+      }
+      const uploadedFile = req.file;
+      if (!uploadedFile || !isAllowedChatFileContent(uploadedFile.buffer, uploadedFile.mimetype)) {
+        done(new BadRequestError('File content does not match its declared type', 'INVALID_FILE_TYPE'));
         return;
       }
       done();

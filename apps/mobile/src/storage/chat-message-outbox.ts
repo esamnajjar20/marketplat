@@ -228,6 +228,21 @@ export async function discardChatMessage(operationId: string, ownerId: string): 
   return acknowledgeChatMessage(operationId, ownerId);
 }
 
+/** Drop unsent text messages when this user's inbox row is deleted. */
+export async function discardChatMessagesForConversation(
+  ownerId: string,
+  conversationId: string,
+): Promise<number> {
+  if (!ownerId.trim() || !conversationId.trim()) return 0;
+  const db = await database();
+  const result = await db.runAsync(
+    'DELETE FROM chat_message_outbox WHERE owner_id = ? AND conversation_id = ?',
+    ownerId,
+    conversationId,
+  );
+  return result.changes;
+}
+
 export async function countPendingChatMessages(ownerId?: string | null): Promise<number> {
   if (!ownerId?.trim()) return 0;
   const db = await database();

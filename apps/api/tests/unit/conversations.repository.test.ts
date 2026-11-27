@@ -17,11 +17,13 @@ jest.mock('../../src/config/prisma', () => {
     findUnique: jest.fn(), upsert: jest.fn(), updateMany: jest.fn(),
   };
   const executeRaw = jest.fn().mockResolvedValue(1);
-  const tx = { conversation, message, conversationUserSetting, $executeRaw: executeRaw };
+  const queryRaw = jest.fn().mockResolvedValue([]);
+  const tx = { conversation, message, conversationUserSetting, $executeRaw: executeRaw, $queryRaw: queryRaw };
   return {
     prisma: {
       ...tx,
       $executeRaw: executeRaw,
+      $queryRaw: queryRaw,
       $transaction: jest.fn(async (arg: unknown) =>
         typeof arg === 'function' ? (arg as (transaction: unknown) => unknown)(tx) : arg
       ),
@@ -91,6 +93,24 @@ describe('conversationsRepository', () => {
       expect(prisma.conversation.create).toHaveBeenCalledWith({
         data: { buyerId, sellerId, adId: null, serviceRequestId: null, context: undefined },
       });
+    });
+  });
+
+  describe('restoreForUser', () => {
+    it('restores only the caller inbox row when it was deleted or archived', async () => {
+      (prisma.conversationUserSetting.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      const result = await conversationsRepository.restoreForUser('conv-1', buyerId);
+
+      expect(prisma.conversationUserSetting.updateMany).toHaveBeenCalledWith({
+        where: {
+          conversationId: 'conv-1',
+          userId: buyerId,
+          OR: [{ deletedAt: { not: null } }, { archivedAt: { not: null } }],
+        },
+        data: { deletedAt: null, archivedAt: null },
+      });
+      expect(result).toEqual({ count: 1 });
     });
   });
 
@@ -330,6 +350,17 @@ describe('messagesRepository', () => {
     });
   });
 
+  it('atomically restores archived/deleted inbox rows when a new message is committed', async () => {
+    (prisma.message.create as jest.Mock).mockResolvedValue({ id: 'msg-atomic' });
+
+    await messagesRepository.create('conv-1', buyerId, 'Hello');
+
+    expect(prisma.conversationUserSetting.updateMany).toHaveBeenCalledWith({
+      where: { conversationId: 'conv-1' },
+      data: { deletedAt: null, archivedAt: null },
+    });
+  });
+
   describe('findManyByConversationId', () => {
     it('uses deterministic newest-first ordering and fetches one extra row for cursor pagination', async () => {
       (prisma.message.findMany as jest.Mock).mockResolvedValue([]);
@@ -394,10 +425,25 @@ describe('messagesRepository', () => {
       const result = await messagesRepository.markReadForRecipient('conv-1', buyerId);
 
       expect(prisma.message.updateMany).toHaveBeenCalledWith({
-        where: { conversationId: 'conv-1', senderId: { not: buyerId }, readAt: null },
+        where: { conversationId: 'conv-1', senderId: { not: buyerId }, readAt: null, deletedAt: null },
         data: { readAt: expect.any(Date) },
       });
       expect(result).toEqual({ count: 3 });
+    });
+  });
+
+  describe('markReadForRecipientWithDetails', () => {
+    it('returns the exact IDs transitioned by the PostgreSQL UPDATE', async () => {
+      const readAt = new Date('2026-11-27T10:00:00.000Z');
+      (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+        { id: 'msg-1', readAt },
+        { id: 'msg-2', readAt },
+      ]);
+
+      const result = await messagesRepository.markReadForRecipientWithDetails('conv-1', buyerId);
+
+      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(result).toEqual({ count: 2, messageIds: ['msg-1', 'msg-2'], readAt });
     });
   });
 
@@ -410,6 +456,7 @@ describe('messagesRepository', () => {
       expect(prisma.conversation.count).toHaveBeenCalledWith({
         where: {
           OR: [{ buyerId }, { sellerId: buyerId }],
+          userSettings: { some: { userId: buyerId, deletedAt: null } },
           messages: { some: { senderId: { not: buyerId }, readAt: null, deletedAt: null } },
         },
       });

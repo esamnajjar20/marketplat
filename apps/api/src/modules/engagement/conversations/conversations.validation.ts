@@ -55,8 +55,8 @@ export const sendMessageSchema = z.object({
       audioUrl: z.string().url().optional(),
       fileUrl: z.string().url().optional(),
     })
-    .refine(d => Boolean((d.body && d.body.trim().length > 0) || d.imageUrl || d.audioUrl), {
-      message: 'Provide a non-empty body, imageUrl, or audioUrl',
+    .refine(d => Boolean((d.body && d.body.trim().length > 0) || d.imageUrl || d.audioUrl || d.fileUrl), {
+      message: 'Provide a non-empty body or an attachment',
     }),
 });
 

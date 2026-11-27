@@ -6,7 +6,7 @@
  * and over Redis so other app instances deliver too.
  *
  * resumable stream:
- *  - Persistable events (notification, message:*) are appended to a short-lived
+ *  - Persistable events (notification, message:*, conversation:*) are appended to a short-lived
  *    per-user Redis Stream (replayBuffer.ts); the entry id is sent as the SSE
  *    `id:`. A client that reconnects with `Last-Event-ID` gets what it missed
  *    replayed, or an `event: resync` when the buffer cannot prove completeness.
@@ -20,6 +20,7 @@
 import { randomUUID } from 'crypto';
 import type { Response } from 'express';
 import type { NotificationType } from '@prisma/client';
+import type { MessagingLiveEvent } from '@marketplat/contracts';
 import type Redis from 'ioredis';
 import { env } from '../../config/env';
 import { pubSubRedis as redis, cacheRedis } from '../../config/redis';
@@ -46,25 +47,7 @@ export type LiveStreamEvent =
        * can deep-link without a refetch. Mirrors Notification.data. */
       data?: Record<string, unknown> | null;
     }
-  | {
-      type: 'message:new';
-      conversationId: string;
-      message: {
-        id: string;
-        conversationId: string;
-        senderId: string;
-        body: string;
-        readAt: string | null;
-        deletedAt: string | null;
-        createdAt: string;
-      };
-    }
-  | {
-      type: 'message:deleted';
-      conversationId: string;
-      messageId: string;
-      deletedAt: string;
-    };
+  | MessagingLiveEvent;
 
 /** @deprecated alias — prefer LiveStreamEvent */
 export type NotificationLiveEvent = LiveStreamEvent;
@@ -126,7 +109,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 }
 
 function eventNameFor(payload: LiveStreamEvent): 'message' | 'notification' {
-  return payload.type === 'message:new' || payload.type === 'message:deleted'
+  return payload.type.startsWith('message:') || payload.type.startsWith('conversation:')
     ? 'message'
     : 'notification';
 }

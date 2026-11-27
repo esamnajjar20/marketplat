@@ -148,6 +148,17 @@ export const conversationsRepository = {
     });
   },
 
+  /** Restore a thread only for the user who explicitly starts it again. */
+  restoreForUser: (conversationId: string, userId: string) =>
+    prisma.conversationUserSetting.updateMany({
+      where: {
+        conversationId,
+        userId,
+        OR: [{ deletedAt: { not: null } }, { archivedAt: { not: null } }],
+      },
+      data: { deletedAt: null, archivedAt: null },
+    }),
+
   /**
    * Idempotent start-a-conversation: reuse the existing thread for this
    * pair of users if one exists (either direction — see
@@ -395,19 +406,30 @@ export const messagesRepository = {
     file?: { url: string; name: string; mimeType: string; size: number } | null,
     clientOperationId?: string | null
   ): Promise<Message> =>
-    prisma.message.create({
-      data: {
-        conversationId,
-        senderId,
-        body,
-        imageUrl: imageUrl ?? null,
-        audioUrl: audioUrl ?? null,
-        fileUrl: file?.url ?? null,
-        fileName: file?.name ?? null,
-        fileMimeType: file?.mimeType ?? null,
-        fileSize: file?.size ?? null,
-        clientOperationId: clientOperationId ?? null,
-      },
+    // The message row and per-user inbox restoration are one atomic write.
+    // A new message re-surfaces a conversation that either participant had
+    // deleted or archived; it must never be created while the inbox still
+    // considers that conversation hidden.
+    prisma.$transaction(async tx => {
+      const message = await tx.message.create({
+        data: {
+          conversationId,
+          senderId,
+          body,
+          imageUrl: imageUrl ?? null,
+          audioUrl: audioUrl ?? null,
+          fileUrl: file?.url ?? null,
+          fileName: file?.name ?? null,
+          fileMimeType: file?.mimeType ?? null,
+          fileSize: file?.size ?? null,
+          clientOperationId: clientOperationId ?? null,
+        },
+      });
+      await tx.conversationUserSetting.updateMany({
+        where: { conversationId },
+        data: { deletedAt: null, archivedAt: null },
+      });
+      return message;
     }),
 
   findBySenderAndOperationId: (
@@ -537,8 +559,34 @@ export const messagesRepository = {
     recipientId: string
   ): Promise<Prisma.BatchPayload> =>
     prisma.message.updateMany({
-      where: { conversationId, senderId: { not: recipientId }, readAt: null },
+      where: { conversationId, senderId: { not: recipientId }, readAt: null, deletedAt: null },
       data: { readAt: new Date() },
+    }),
+
+  /**
+   * Mark unread inbound messages as read and return precisely the rows
+   * transitioned by this operation. PostgreSQL UPDATE ... RETURNING avoids
+   * a read/update race and gives SSE consumers stable message IDs.
+   */
+  markReadForRecipientWithDetails: async (
+    conversationId: string,
+    recipientId: string
+  ): Promise<{ count: number; messageIds: string[]; readAt: Date | null }> =>
+    prisma.$transaction(async tx => {
+      const changed = await tx.$queryRaw<Array<{ id: string; readAt: Date }>>`
+        UPDATE "messages"
+        SET "readAt" = CURRENT_TIMESTAMP
+        WHERE "conversationId" = ${conversationId}
+          AND "senderId" <> ${recipientId}
+          AND "readAt" IS NULL
+          AND "deletedAt" IS NULL
+        RETURNING "id", "readAt"
+      `;
+      return {
+        count: changed.length,
+        messageIds: changed.map(row => row.id),
+        readAt: changed[0]?.readAt ?? null,
+      };
     }),
 
   /** Count of conversations with at least one unread (non-deleted)
@@ -547,6 +595,7 @@ export const messagesRepository = {
     prisma.conversation.count({
       where: {
         OR: [{ buyerId: userId }, { sellerId: userId }],
+        userSettings: { some: { userId, deletedAt: null } },
         messages: {
           some: { senderId: { not: userId }, readAt: null, deletedAt: null },
         },

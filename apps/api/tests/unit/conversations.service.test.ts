@@ -71,6 +71,11 @@ describe('conversationsService', () => {
     (blockedUsersService.isBlockedBy as jest.Mock).mockResolvedValue(false);
     (blockedUsersService.getBlockedIdsByBlocker as jest.Mock).mockResolvedValue([]);
     (presence.getPresence as jest.Mock).mockResolvedValue({});
+    (messagesRepository.markReadForRecipientWithDetails as jest.Mock).mockResolvedValue({
+      count: 0,
+      messageIds: [],
+      readAt: null,
+    });
   });
 
   describe('startFromAd', () => {
@@ -118,6 +123,19 @@ describe('conversationsService', () => {
     // returning the same row for two different adIds against the same
     // buyer/seller pair, since findOrCreate itself is unit-tested in
     // conversations.repository.test.ts.
+    it('broadcasts a reopen event when the caller restores a hidden conversation', async () => {
+      (adsRepository.findById as jest.Mock).mockResolvedValue(mockAd);
+      (conversationsRepository.findOrCreate as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.restoreForUser as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await conversationsService.startFromAd(buyerId, adId);
+
+      const { publishNotificationEvent } = require('../../src/shared/realtime/notificationStream');
+      expect(publishNotificationEvent).toHaveBeenCalledWith(buyerId, {
+        type: 'conversation:updated', conversationId: 'conv-1', action: 'updated',
+      });
+    });
+
     it('reuses the same conversation across multiple different ads from the same seller', async () => {
       const otherAdId = 'ad-2';
       (adsRepository.findById as jest.Mock)
@@ -385,6 +403,30 @@ describe('conversationsService', () => {
       expect(result.meta.total).toBe(1);
     });
 
+    it('redacts a soft-deleted attachment preview before returning the inbox list', async () => {
+      const deletedAt = new Date('2026-11-27T10:00:00.000Z');
+      const item = {
+        ...mockConversation,
+        unreadCount: 0,
+        lastMessage: {
+          id: 'msg-deleted', conversationId: 'conv-1', senderId: sellerId,
+          body: 'private caption', imageUrl: 'https://media.example/image',
+          audioUrl: 'https://media.example/audio', fileUrl: 'https://media.example/file',
+          fileName: 'private.pdf', fileMimeType: 'application/pdf', fileSize: 123,
+          readAt: null, deletedAt,
+          createdAt: new Date('2026-11-27T09:00:00.000Z'),
+        },
+      };
+      (conversationsRepository.findManyForUser as jest.Mock).mockResolvedValue({ conversations: [item], total: 1 });
+
+      const result = await conversationsService.getMyConversations(buyerId, {});
+
+      expect(result.items[0].lastMessage).toEqual(expect.objectContaining({
+        body: '', imageUrl: null, audioUrl: null, fileUrl: null,
+        fileName: null, fileMimeType: null, fileSize: null, deletedAt,
+      }));
+    });
+
     it('decorates the current page from one batch of blocked ids', async () => {
       (conversationsRepository.findManyForUser as jest.Mock).mockResolvedValue({
         conversations: [mockConversationListItem],
@@ -427,7 +469,7 @@ describe('conversationsService', () => {
     } as any;
 
     it('throws NotFoundError when the conversation does not exist', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(null);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(null);
 
       await expect(conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Hi' })).rejects.toThrow(
         NotFoundError
@@ -435,7 +477,7 @@ describe('conversationsService', () => {
     });
 
     it('throws ForbiddenError when the caller is not a party to the conversation', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
 
       await expect(
         conversationsService.sendMessage('stranger-1', 'conv-1', { body: 'Hi' })
@@ -444,7 +486,7 @@ describe('conversationsService', () => {
     });
 
     it('rejects known scam phrasing with BadRequestError', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
 
       await expect(
         conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Please use Western Union only' })
@@ -454,7 +496,7 @@ describe('conversationsService', () => {
 
     it('reuses a durable message for the same client operation id', async () => {
       const existing = { ...mockMessage, conversationId: 'conv-1', senderId: buyerId };
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.findBySenderAndOperationId as jest.Mock).mockResolvedValue(existing);
 
       const result = await conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Hi' }, 'op-1');
@@ -463,8 +505,17 @@ describe('conversationsService', () => {
       expect(messagesRepository.create).not.toHaveBeenCalled();
     });
 
+    it('rejects overlong text and captions before writing a message', async () => {
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
+
+      await expect(
+        conversationsService.sendMessage(buyerId, 'conv-1', { body: 'x'.repeat(2001), imageUrl: 'https://media.example/image' }),
+      ).rejects.toThrow(BadRequestError);
+      expect(messagesRepository.create).not.toHaveBeenCalled();
+    });
+
     it('creates the message and bumps the conversation updatedAt', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.create as jest.Mock).mockResolvedValue(mockMessage);
       (conversationsRepository.touchUpdatedAt as jest.Mock).mockResolvedValue(mockConversation);
 
@@ -486,7 +537,7 @@ describe('conversationsService', () => {
     });
 
     it('notifies the seller (not the sender) when the buyer sends a message', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.create as jest.Mock).mockResolvedValue(mockMessage);
       (conversationsRepository.touchUpdatedAt as jest.Mock).mockResolvedValue(mockConversation);
 
@@ -500,7 +551,7 @@ describe('conversationsService', () => {
     });
 
     it('notifies the buyer (not the sender) when the seller sends a message', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.create as jest.Mock).mockResolvedValue(mockMessage);
       (conversationsRepository.touchUpdatedAt as jest.Mock).mockResolvedValue(mockConversation);
 
@@ -514,7 +565,7 @@ describe('conversationsService', () => {
     });
 
     it('still returns the created message when the notification write fails', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.create as jest.Mock).mockResolvedValue(mockMessage);
       (conversationsRepository.touchUpdatedAt as jest.Mock).mockResolvedValue(mockConversation);
       (notificationEvents.onNewMessage as jest.Mock).mockRejectedValue(new Error('db down'));
@@ -525,7 +576,7 @@ describe('conversationsService', () => {
     });
 
     it('throws ForbiddenError when either party has blocked the other, even in an existing thread', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(true);
 
       await expect(conversationsService.sendMessage(buyerId, 'conv-1', { body: 'Hi' })).rejects.toThrow(
@@ -540,7 +591,7 @@ describe('conversationsService', () => {
     const mockMessages = [{ id: 'msg-1' }, { id: 'msg-2' }];
 
     it('throws NotFoundError when the conversation does not exist', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(null);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(null);
 
       await expect(conversationsService.getMessages(buyerId, 'conv-1', {})).rejects.toThrow(
         NotFoundError
@@ -548,7 +599,7 @@ describe('conversationsService', () => {
     });
 
     it('throws ForbiddenError when the caller is not a party to the conversation', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
 
       await expect(
         conversationsService.getMessages('stranger-1', 'conv-1', {})
@@ -556,41 +607,77 @@ describe('conversationsService', () => {
       expect(messagesRepository.findManyByConversationId).not.toHaveBeenCalled();
     });
 
+    it('does not allow reading a conversation soft-deleted from this user inbox', async () => {
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue({
+        ...mockConversation,
+        mySettings: { deletedAt: new Date(), archivedAt: new Date(), pinnedAt: null, mutedUntil: null },
+      });
+
+      await expect(conversationsService.getMessages(buyerId, 'conv-1', {})).rejects.toThrow(NotFoundError);
+      expect(messagesRepository.findManyByConversationId).not.toHaveBeenCalled();
+    });
+
     it('returns paginated messages with defaulted page/limit=30 meta', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.findManyByConversationId as jest.Mock).mockResolvedValue({
         messages: mockMessages,
         total: 2,
         nextCursor: null,
       });
-      (messagesRepository.markReadForRecipient as jest.Mock).mockResolvedValue({ count: 1 });
+      (messagesRepository.markReadForRecipientWithDetails as jest.Mock).mockResolvedValue({
+        count: 1,
+        messageIds: ['msg-1'],
+        readAt: new Date('2026-11-27T10:00:00.000Z'),
+      });
 
       const result = await conversationsService.getMessages(buyerId, 'conv-1', {});
 
       expect(result.items).toEqual(mockMessages.map(message => ({ ...message, isPinned: false, isStarredByMe: false })));
       expect(result.meta.limit).toBe(30);
       expect(result.meta.total).toBe(2);
+      const { publishNotificationEvent } = require('../../src/shared/realtime/notificationStream');
+      expect(publishNotificationEvent).toHaveBeenCalledWith(
+        sellerId,
+        expect.objectContaining({ type: 'message:read', conversationId: 'conv-1', messageIds: ['msg-1'] }),
+      );
+    });
+
+    it('commits read receipts before fetching the page so the response cannot return stale readAt', async () => {
+      const calls: string[] = [];
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
+      (messagesRepository.markReadForRecipientWithDetails as jest.Mock).mockImplementation(async () => {
+        calls.push('mark-read');
+        return { count: 0, messageIds: [], readAt: null };
+      });
+      (messagesRepository.findManyByConversationId as jest.Mock).mockImplementation(async () => {
+        calls.push('fetch-page');
+        return { messages: [], total: 0, nextCursor: null };
+      });
+
+      await conversationsService.getMessages(buyerId, 'conv-1', {});
+
+      expect(calls).toEqual(['mark-read', 'fetch-page']);
     });
 
     it('marks the caller’s unread inbound messages as read as a side effect', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.findManyByConversationId as jest.Mock).mockResolvedValue({
         messages: [],
         total: 0,
         nextCursor: null,
       });
-      (messagesRepository.markReadForRecipient as jest.Mock).mockResolvedValue({ count: 0 });
+      (messagesRepository.markReadForRecipientWithDetails as jest.Mock).mockResolvedValue({ count: 0, messageIds: [], readAt: null });
 
       await conversationsService.getMessages(buyerId, 'conv-1', {});
 
-      expect(messagesRepository.markReadForRecipient).toHaveBeenCalledWith('conv-1', buyerId);
+      expect(messagesRepository.markReadForRecipientWithDetails).toHaveBeenCalledWith('conv-1', buyerId);
     });
 
     it('does not repeat read-receipt work when loading older cursor pages', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.findManyByConversationId as jest.Mock).mockResolvedValue({ messages: [], total: null, nextCursor: null });
       await conversationsService.getMessages(buyerId, 'conv-1', { before: 'cursor-token', cursor: true });
-      expect(messagesRepository.markReadForRecipient).not.toHaveBeenCalled();
+      expect(messagesRepository.markReadForRecipientWithDetails).not.toHaveBeenCalled();
       const { notificationsService } = require('../../src/modules/engagement/notifications');
       expect(notificationsService.markConversationNotificationsRead).not.toHaveBeenCalled();
     });
@@ -598,13 +685,13 @@ describe('conversationsService', () => {
     it('strips body from soft-deleted messages but leaves the other fields intact', async () => {
       const liveMessage = { id: 'msg-1', body: 'still here', deletedAt: null };
       const deletedMessage = { id: 'msg-2', body: 'secret text', deletedAt: new Date('2026-08-01') };
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.findManyByConversationId as jest.Mock).mockResolvedValue({
         messages: [liveMessage, deletedMessage],
         total: 2,
         nextCursor: null,
       });
-      (messagesRepository.markReadForRecipient as jest.Mock).mockResolvedValue({ count: 0 });
+      (messagesRepository.markReadForRecipientWithDetails as jest.Mock).mockResolvedValue({ count: 0, messageIds: [], readAt: null });
 
       const result = await conversationsService.getMessages(buyerId, 'conv-1', {});
 
@@ -634,7 +721,7 @@ describe('conversationsService', () => {
     } as any;
 
     it('throws NotFoundError when the conversation does not exist', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(null);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(null);
 
       await expect(
         conversationsService.deleteMessage(buyerId, 'conv-1', 'msg-1')
@@ -642,7 +729,7 @@ describe('conversationsService', () => {
     });
 
     it('throws ForbiddenError when the caller is not a party to the conversation', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
 
       await expect(
         conversationsService.deleteMessage('stranger-1', 'conv-1', 'msg-1')
@@ -651,7 +738,7 @@ describe('conversationsService', () => {
     });
 
     it('throws NotFoundError when the message does not exist', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.findById as jest.Mock).mockResolvedValue(null);
 
       await expect(
@@ -660,7 +747,7 @@ describe('conversationsService', () => {
     });
 
     it('throws NotFoundError when the message belongs to a different conversation', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.findById as jest.Mock).mockResolvedValue({
         ...mockMessage,
         conversationId: 'other-conv',
@@ -672,7 +759,7 @@ describe('conversationsService', () => {
     });
 
     it('throws ForbiddenError when the caller is a party but not the sender', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.findById as jest.Mock).mockResolvedValue(mockMessage); // sender is buyerId
 
       await expect(
@@ -682,7 +769,7 @@ describe('conversationsService', () => {
     });
 
     it('soft-deletes the message and returns it with body redacted', async () => {
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.findById as jest.Mock).mockResolvedValue(mockMessage);
       (messagesRepository.softDelete as jest.Mock).mockResolvedValue({
         ...mockMessage,
@@ -698,7 +785,7 @@ describe('conversationsService', () => {
 
     it('is idempotent — calling delete on an already-deleted message does not call softDelete again', async () => {
       const alreadyDeleted = { ...mockMessage, deletedAt: new Date('2026-08-01'), body: 'old text' };
-      (conversationsRepository.findById as jest.Mock).mockResolvedValue(mockConversation);
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue(mockConversation);
       (messagesRepository.findById as jest.Mock).mockResolvedValue(alreadyDeleted);
 
       const result = await conversationsService.deleteMessage(buyerId, 'conv-1', 'msg-1');

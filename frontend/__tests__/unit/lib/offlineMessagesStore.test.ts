@@ -54,6 +54,12 @@ function installMemoryIndexedDB() {
       req.resolve([...this.data.values()]);
       return req as unknown as IDBRequest<unknown[]>;
     }
+    delete(key: IDBValidKey) {
+      const req = new MemRequest<undefined>();
+      this.data.delete(key);
+      req.resolve(undefined);
+      return req as unknown as IDBRequest<undefined>;
+    }
     clear() {
       const req = new MemRequest<undefined>();
       this.data.clear();
@@ -210,6 +216,88 @@ describe('offlineMessagesStore', () => {
     await saveMessagesForConversation('c1', []);
     const cleared = await getMessagesForConversation('c1');
     expect(cleared).toEqual([]);
+  });
+
+  it('preserves SSE read receipts and deletion tombstones when stale REST pages are saved', async () => {
+    const {
+      saveMessagesForConversation,
+      getMessagesForConversation,
+      markCachedMessagesRead,
+      markCachedMessageDeleted,
+    } = await import('@/lib/offlineMessagesStore');
+    const base: Message = {
+      id: 'm-state', conversationId: 'c-state', senderId: 's1', body: 'original',
+      imageUrl: 'https://cdn.example/image', audioUrl: null, fileUrl: null,
+      fileName: null, fileMimeType: null, fileSize: null,
+      readAt: null, deletedAt: null, createdAt: '2026-01-01T00:00:00Z',
+    };
+
+    await saveMessagesForConversation('c-state', [base]);
+    await markCachedMessagesRead('c-state', ['m-state'], '2026-01-01T00:01:00Z');
+    await saveMessagesForConversation('c-state', [base]);
+    expect((await getMessagesForConversation('c-state'))?.[0].readAt).toBe('2026-01-01T00:01:00Z');
+
+    await markCachedMessageDeleted('c-state', 'm-state', '2026-01-01T00:02:00Z');
+    await saveMessagesForConversation('c-state', [base]);
+    const cached = (await getMessagesForConversation('c-state'))?.[0];
+    expect(cached).toEqual(expect.objectContaining({
+      body: '', imageUrl: null, fileUrl: null, fileName: null,
+      deletedAt: '2026-01-01T00:02:00Z', readAt: '2026-01-01T00:01:00Z',
+    }));
+  });
+
+
+  it('does not resurrect a deleted message when a replayed new-message event is cached', async () => {
+    const {
+      saveMessagesForConversation,
+      getMessagesForConversation,
+      markCachedMessageDeleted,
+      upsertCachedMessage,
+    } = await import('@/lib/offlineMessagesStore');
+    const original: Message = {
+      id: 'm-replay', conversationId: 'c-replay', senderId: 's1', body: 'private text',
+      imageUrl: null, audioUrl: null, fileUrl: 'https://cdn.example/private.pdf',
+      fileName: 'private.pdf', fileMimeType: 'application/pdf', fileSize: 100,
+      readAt: null, deletedAt: null, createdAt: '2026-01-01T00:00:00Z',
+    };
+
+    await saveMessagesForConversation('c-replay', [original]);
+    await markCachedMessageDeleted('c-replay', 'm-replay', '2026-01-01T00:02:00Z');
+    await upsertCachedMessage('c-replay', original);
+
+    expect((await getMessagesForConversation('c-replay'))?.[0]).toEqual(expect.objectContaining({
+      body: '', fileUrl: null, fileName: null, fileMimeType: null, fileSize: null,
+      deletedAt: '2026-01-01T00:02:00Z',
+    }));
+  });
+
+
+  it('purges a deleted conversation from both offline list and message history', async () => {
+    const {
+      saveConversationsList,
+      saveMessagesForConversation,
+      getConversationsList,
+      getMessagesForConversation,
+      removeCachedConversation,
+    } = await import('@/lib/offlineMessagesStore');
+    const conversation = {
+      id: 'c-remove', buyerId: 'b1', sellerId: 's1', createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z', ad: null, serviceRequest: null,
+      buyer: { id: 'b1', name: 'Buyer', avatarUrl: null },
+      seller: { id: 's1', name: 'Seller', avatarUrl: null }, unreadCount: 0, lastMessage: null,
+    } as ConversationListItem;
+    const message: Message = {
+      id: 'm-remove', conversationId: 'c-remove', senderId: 's1', body: 'cached',
+      imageUrl: null, audioUrl: null, fileUrl: null, readAt: null, deletedAt: null,
+      createdAt: '2026-01-01T00:00:00Z',
+    };
+    await saveConversationsList([conversation]);
+    await saveMessagesForConversation('c-remove', [message]);
+
+    await removeCachedConversation('c-remove');
+
+    expect(await getConversationsList()).toEqual([]);
+    expect(await getMessagesForConversation('c-remove')).toBeNull();
   });
 
   it('persists and clears unread count via clearOfflineMessagesStore', async () => {

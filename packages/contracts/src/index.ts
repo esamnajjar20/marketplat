@@ -3,3 +3,4 @@ export * from './pagination';
 export * from './validation';
 export * from './loading';
 export * from './notifications';
+export * from './messaging';

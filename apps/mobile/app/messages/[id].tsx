@@ -15,6 +15,7 @@ import { useLocalSearchParams } from 'expo-router';import { goBack } from '@/lib
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useIsOnline } from '@/lib/connectivity';
 import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
+import { ApiError } from '@/api/client';
 import { deleteChatMessage, fetchConversation, fetchMessagesPage, setMessageMark, type ChatMessage, type ConversationItem } from '@/features/messaging/messaging.api';
 import { subscribeChatMediaOutboxSent, syncChatMediaOutbox } from '@/features/messaging/chat-media-outbox-sync';
 import { createChatMediaOperationId, enqueueChatMedia, listChatMediaOutbox, discardFailedChatMessage, enqueueChatMessage, listChatMessagesForConversation, retryChatMessage, type ChatMediaKind } from '@/storage/outbox-manager';
@@ -22,7 +23,9 @@ import { subscribeChatOutboxSent, syncChatMessageOutbox } from '@/features/messa
 import type { ChatLiveEvent } from '@/features/messaging/chat-live-stream';
 import { useChatLiveStream } from '@/features/messaging/useChatLiveStream';
 import { useChatMediaOutboxLifecycle } from '@/features/messaging/useChatMediaOutboxLifecycle';
-import { markCachedChatMessageDeleted, readCachedChatMessages, saveCachedChatMessages } from '@/storage/chat-message-cache';
+import { clearCachedChatMessagesForConversation, markCachedChatMessageDeleted, markCachedChatMessagesRead, readCachedChatMessages, saveCachedChatMessages } from '@/storage/chat-message-cache';
+import { discardChatMessagesForConversation } from '@/storage/chat-message-outbox';
+import { discardChatMediaForConversation } from '@/storage/chat-media-outbox';
 import { fontSizes, elevation, radius, sizes, spacing, typography, ux, fontWeights } from '@/theme/tokens';
 import ConversationMessageRow, { type ConversationScreenMessage } from '@/features/messaging/ConversationMessageRow';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
@@ -33,10 +36,23 @@ type ScreenMessage = ConversationScreenMessage;
 
 function mergeFetchedMessages(fetched: ScreenMessage[], current: ScreenMessage[]): ScreenMessage[] {
   const byId = new Map<string, ScreenMessage>();
-  // Keep already loaded history and optimistic rows during refresh; the server
-  // page overwrites matching IDs with authoritative data and adds newly arrived rows.
+  // Keep already loaded history and optimistic rows during refresh. A stale REST
+  // response must not undo an SSE tombstone or read receipt already applied.
   for (const message of current) byId.set(message.id, message);
-  for (const message of fetched) byId.set(message.id, message);
+  for (const incoming of fetched) {
+    const previous = byId.get(incoming.id);
+    let merged = incoming;
+    if (previous?.deletedAt && !incoming.deletedAt) {
+      merged = {
+        ...incoming,
+        body: '', imageUrl: null, audioUrl: null, fileUrl: null,
+        fileName: null, fileMimeType: null, fileSize: null,
+        deletedAt: previous.deletedAt,
+      };
+    }
+    if (previous?.readAt && !merged.readAt) merged = { ...merged, readAt: previous.readAt };
+    byId.set(incoming.id, merged);
+  }
   return [...byId.values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 }
 
@@ -105,6 +121,23 @@ export default function ConversationScreen() {
 
       const [detailR, pageR] = await Promise.allSettled([fetchConversation(id, currentToken), fetchMessagesPage(id, currentToken)]);
       if (sequence === loadSequence.current) {
+        const inaccessible = [detailR, pageR].some(result =>
+          result.status === 'rejected' && result.reason instanceof ApiError && result.reason.status === 404,
+        );
+        if (inaccessible) {
+          if (user?.id) {
+            await Promise.all([
+              clearCachedChatMessagesForConversation(user.id, id),
+              discardChatMessagesForConversation(user.id, id),
+              discardChatMediaForConversation(user.id, id),
+            ]).catch(() => undefined);
+          }
+          hasRenderableMessages.current = false;
+          setMessages([]);
+          setConversation(null);
+          setError('المحادثة غير متاحة أو تمت إزالتها من صندوق رسائلك.');
+          return;
+        }
         if (detailR.status === 'fulfilled') setConversation(detailR.value);
         if (pageR.status === 'fulfilled') {
           hasRenderableMessages.current = true;
@@ -135,8 +168,20 @@ export default function ConversationScreen() {
       setMessages((current) => mergeFetchedMessages(page.items, current));
       if (user?.id) void saveCachedChatMessages(user.id, id, page.items);
       if (!hasLoadedOlder.current) setNextCursor(page.nextCursor);
-    } catch {
-      // Live delivery is best-effort; cached content remains usable while offline.
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        if (user?.id) void Promise.all([
+          clearCachedChatMessagesForConversation(user.id, id),
+          discardChatMessagesForConversation(user.id, id),
+          discardChatMediaForConversation(user.id, id),
+        ]).catch(() => undefined);
+        hasRenderableMessages.current = false;
+        setMessages([]);
+        setConversation(null);
+        setError('المحادثة غير متاحة أو تمت إزالتها من صندوق رسائلك.');
+        goBack();
+      }
+      // Other network failures keep the private local snapshot usable offline.
     }
   }, [id, user?.id]);
   const handleLiveEvent = useCallback((event: ChatLiveEvent) => {
@@ -152,9 +197,30 @@ export default function ConversationScreen() {
     if (event.type === 'message:deleted' && event.conversationId === id && event.messageId) {
       const deletedAt = event.deletedAt || new Date().toISOString();
       setMessages((current) => current.map((message) => message.id === event.messageId
-        ? { ...message, body: '', imageUrl: null, audioUrl: null, fileUrl: null, deletedAt }
+        ? { ...message, body: '', imageUrl: null, audioUrl: null, fileUrl: null, fileName: null, fileMimeType: null, fileSize: null, deletedAt }
         : message));
       if (user?.id) void markCachedChatMessageDeleted(user.id, id, event.messageId, deletedAt);
+    }
+    if (event.type === 'message:read' && event.conversationId === id && Array.isArray(event.messageIds)) {
+      const messageIds = event.messageIds;
+      const readAt = event.readAt || new Date().toISOString();
+      const readSet = new Set(messageIds);
+      setMessages(current => current.map(message => readSet.has(message.id) ? { ...message, readAt } : message));
+      if (user?.id) void markCachedChatMessagesRead(user.id, id, messageIds, readAt);
+    }
+    if (event.type === 'conversation:updated' && event.conversationId === id) {
+      if (event.action === 'deleted') {
+        // The delete is per-user: leave this screen and purge the account-scoped
+        // snapshot so an offline revisit cannot resurrect a hidden conversation.
+        if (user?.id) {
+          void Promise.all([
+            clearCachedChatMessagesForConversation(user.id, id),
+            discardChatMessagesForConversation(user.id, id),
+            discardChatMediaForConversation(user.id, id),
+          ]).catch(() => undefined);
+        }
+        goBack();
+      }
     }
   }, [id, refreshLatestMessages, user?.id]);
   useEffect(() => { const controller = new AbortController(); sessionAbort.current = controller; return () => controller.abort(); }, [accessToken, user?.id]);

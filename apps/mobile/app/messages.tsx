@@ -12,6 +12,7 @@ import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useAuthActions, useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchConversationsPage, setConversationFlags, type ConversationItem } from '@/features/messaging/messaging.api';
 import { useUnreadCounts } from '@/features/messaging/useUnreadCounts';
+import { useChatInboxLiveStream } from '@/features/messaging/useChatInboxLiveStream';
 import { AppHeader, Chip, EmptyState, ErrorState, PrimaryButton, SearchBar, SkeletonList } from '@/components/ui';
 import { spacing, typography, insets } from '@/theme/tokens';
 import ConversationListItem from '@/features/messaging/ConversationListItem';
@@ -24,7 +25,7 @@ export default function MessagesScreen() {
   const { user } = useAuthUser();
   const { accessToken, csrfToken } = useAuthSession();
   const { getAccessToken } = useAuthActions();
-  const { counts } = useUnreadCounts();
+  const { counts, refresh } = useUnreadCounts();
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -54,6 +55,12 @@ export default function MessagesScreen() {
     finally { if (currentRequestId === requestId.current) { setLoading(false); setRefreshing(false); } }
   }, [getAccessToken, filter]);
   useFocusEffect(useCallback(() => { void load(); return () => { requestId.current += 1; moreRequestId.current += 1; moreRequest.current = false; }; }, [load]));
+  useChatInboxLiveStream({
+    userId: user?.id,
+    getToken: getAccessToken,
+    refreshInbox: () => load(true),
+    refreshUnreadCounts: refresh,
+  });
   const loadMore = useCallback(async () => {
     const token = getAccessToken();
     if (!token || !hasMore || loadingMore || moreRequest.current) return;

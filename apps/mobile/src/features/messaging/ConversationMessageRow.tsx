@@ -151,6 +151,14 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
           <Text style={[styles.time, isMine && styles.mineTime]}>{formatMessageTime(message.createdAt)}</Text>
           {message.isPinned ? <AppIcon name="pin" size={12} color={isMine ? colors.onBrand : colors.muted} /> : null}
           {message.isStarredByMe ? <AppIcon name="star" size={12} color={isMine ? colors.onBrand : colors.muted} /> : null}
+          {isMine && !pending && !message.deletedAt ? (
+            <AppIcon
+              name={message.readAt ? 'checkDouble' : 'check'}
+              size={12}
+              color={message.readAt ? colors.brandOnSoft : (isMine ? colors.onBrand : colors.muted)}
+              style={{ marginLeft: 2 }}
+            />
+          ) : null}
           {pending ? (
             <Text style={[styles.time, isMine && styles.mineTime]}>
               {permanentlyFailed ? 'تعذّر الإرسال' : 'بانتظار المزامنة'}

@@ -36,6 +36,39 @@ const assertParty = (conversation: Conversation, userId: string): void => {
   }
 };
 
+type UserConversation = NonNullable<Awaited<ReturnType<typeof conversationsRepository.findByIdForUser>>>;
+
+/** Resolve a conversation through the caller's per-user inbox state. A soft-deleted
+ * conversation is not an active resource until that user explicitly starts it again
+ * or a new message atomically restores both participants' inbox rows. */
+const requireActiveConversation = async (
+  conversationId: string,
+  userId: string
+): Promise<UserConversation> => {
+  const conversation = await conversationsRepository.findByIdForUser(conversationId, userId);
+  if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+  assertParty(conversation, userId);
+  if (conversation.mySettings?.deletedAt) {
+    throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+  }
+  return conversation;
+};
+
+const reopenConversationForUser = async (
+  conversation: Conversation,
+  userId: string
+): Promise<Conversation> => {
+  const restored = await conversationsRepository.restoreForUser(conversation.id, userId);
+  if (restored?.count > 0) {
+    void publishNotificationEvent(userId, {
+      type: 'conversation:updated',
+      conversationId: conversation.id,
+      action: 'updated',
+    });
+  }
+  return conversation;
+};
+
 /** Strips `body` from a soft-deleted message before it ever leaves the
  * service layer — the row itself stays in place (see Message.deletedAt's
  * schema comment) so the thread keeps its placeholder in the right slot,
@@ -119,7 +152,7 @@ export const conversationsService = {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
 
-    return conversationsRepository.findOrCreate(buyerId, sellerId, {
+    const conversation = await conversationsRepository.findOrCreate(buyerId, sellerId, {
       adId,
       listingContext: {
         type: 'ad',
@@ -129,6 +162,7 @@ export const conversationsService = {
         url: `/ads/${ad.id}`,
       },
     });
+    return reopenConversationForUser(conversation, buyerId);
   },
 
   /**
@@ -189,7 +223,8 @@ export const conversationsService = {
       };
     }
 
-    return conversationsRepository.findOrCreate(buyerId, sellerId, { listingContext });
+    const conversation = await conversationsRepository.findOrCreate(buyerId, sellerId, { listingContext });
+    return reopenConversationForUser(conversation, buyerId);
   },
 
   /**
@@ -241,7 +276,7 @@ export const conversationsService = {
       throw new ForbiddenError('You cannot message this user.', 'USER_BLOCKED');
     }
 
-    return conversationsRepository.findOrCreate(customerId, providerUserId, {
+    const conversation = await conversationsRepository.findOrCreate(customerId, providerUserId, {
       serviceRequestId,
       listingContext: {
         type: 'service',
@@ -251,6 +286,7 @@ export const conversationsService = {
         url: `/services/${request.listing.id}`,
       },
     });
+    return reopenConversationForUser(conversation, userId);
   },
 
   getConversationById: async (
@@ -262,11 +298,7 @@ export const conversationsService = {
       otherPartyPresence: { online: boolean; lastSeenAt: string | null };
     }
   > => {
-    const conversation = await conversationsRepository.findByIdForUser(id, userId);
-    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    assertParty(conversation, userId);
-    if (conversation.mySettings?.deletedAt)
-      throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
+    const conversation = await requireActiveConversation(id, userId);
     const otherPartyId =
       conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
     // The thread header needs both the viewer's block state and the other
@@ -314,7 +346,13 @@ export const conversationsService = {
       items: conversations.map(conversation => {
         const otherPartyId =
           conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
-        return { ...conversation, isBlockedByMe: blockedIds.has(otherPartyId) };
+        return {
+          ...conversation,
+          ...(conversation.lastMessage
+            ? { lastMessage: redactIfDeleted(conversation.lastMessage) }
+            : {}),
+          isBlockedByMe: blockedIds.has(otherPartyId),
+        };
       }),
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),
     };
@@ -331,9 +369,7 @@ export const conversationsService = {
     },
     offlineOperationId?: string | null
   ): Promise<Message> => {
-    const conversation = await conversationsRepository.findById(conversationId);
-    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    assertParty(conversation, userId);
+    const conversation = await requireActiveConversation(conversationId, userId);
 
     // A block applies to an existing thread too, not just to starting a
     // new one — otherwise blocking would only stop future conversations
@@ -352,6 +388,9 @@ export const conversationsService = {
     const file = input.file ?? null;
     if (!body && !imageUrl && !audioUrl && !file) {
       throw new BadRequestError('Message cannot be empty', 'MESSAGE_EMPTY');
+    }
+    if (body.length > 2000) {
+      throw new BadRequestError('Message text cannot exceed 2000 characters', 'MESSAGE_TOO_LONG');
     }
     if (body) assertMessageBodySafe(body);
 
@@ -382,7 +421,7 @@ export const conversationsService = {
         if (existing.conversationId !== conversationId) {
           throw new ConflictError('Offline operation id already used', 'OFFLINE_OP_ID_CONFLICT');
         }
-        return existing;
+        return redactIfDeleted(existing);
       }
     }
 
@@ -425,7 +464,7 @@ export const conversationsService = {
               // message belonging to conversation Y to the caller.
               const existing = await messagesRepository.findById(existingVal);
               if (existing && existing.conversationId === conversationId) {
-                return existing;
+                return redactIfDeleted(existing);
               }
               // Stale id (row gone) — free the key and reclaim.
               await cacheRedis.del(cacheKey);
@@ -452,7 +491,7 @@ export const conversationsService = {
             if (finalVal && finalVal !== MSG_OP_PENDING) {
               // same conversation constraint as above.
               const existing = await messagesRepository.findById(finalVal);
-              if (existing && existing.conversationId === conversationId) return existing;
+              if (existing && existing.conversationId === conversationId) return redactIfDeleted(existing);
             }
             // Never create without the claim while another request still
             // owns this operation id. Doing so would defeat idempotency in
@@ -535,7 +574,7 @@ export const conversationsService = {
               /* ignore */
             }
           }
-          return existing;
+          return redactIfDeleted(existing);
         }
       }
       // Release claim so a client/queue retry can re-enter cleanly.
@@ -658,9 +697,7 @@ export const conversationsService = {
     conversationId: string,
     messageId: string
   ): Promise<Message> => {
-    const conversation = await conversationsRepository.findById(conversationId);
-    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    assertParty(conversation, userId);
+    await requireActiveConversation(conversationId, userId);
 
     const message = await messagesRepository.findById(messageId);
     if (!message || message.conversationId !== conversationId) {
@@ -711,14 +748,23 @@ export const conversationsService = {
     conversationId: string,
     flags: { pinned?: boolean; archived?: boolean; mutedUntil?: Date | null }
   ): Promise<Conversation> => {
-    const conversation = await conversationsRepository.findById(conversationId);
-    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    assertParty(conversation, userId);
+    const conversation = await requireActiveConversation(conversationId, userId);
     const data: { pinnedAt?: Date | null; archivedAt?: Date | null; mutedUntil?: Date | null } = {};
     if (flags.pinned !== undefined) data.pinnedAt = flags.pinned ? new Date() : null;
     if (flags.archived !== undefined) data.archivedAt = flags.archived ? new Date() : null;
     if (flags.mutedUntil !== undefined) data.mutedUntil = flags.mutedUntil;
-    await conversationsRepository.upsertUserSetting(conversationId, userId, data);
+    const setting = await conversationsRepository.upsertUserSetting(conversationId, userId, data);
+    void publishNotificationEvent(userId, {
+      type: 'conversation:updated',
+      conversationId,
+      action: 'updated',
+      settings: {
+        pinnedAt: setting?.pinnedAt?.toISOString() ?? null,
+        archivedAt: setting?.archivedAt?.toISOString() ?? null,
+        deletedAt: setting?.deletedAt?.toISOString() ?? null,
+        mutedUntil: setting?.mutedUntil?.toISOString() ?? null,
+      },
+    });
     return conversation;
   },
 
@@ -726,17 +772,27 @@ export const conversationsService = {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
-    await conversationsRepository.upsertUserSetting(conversationId, userId, {
-      deletedAt: new Date(),
-      archivedAt: new Date(),
+    const deletedAt = new Date();
+    const setting = await conversationsRepository.upsertUserSetting(conversationId, userId, {
+      deletedAt,
+      archivedAt: deletedAt,
       pinnedAt: null,
+    });
+    void publishNotificationEvent(userId, {
+      type: 'conversation:updated',
+      conversationId,
+      action: 'deleted',
+      settings: {
+        pinnedAt: setting.pinnedAt?.toISOString() ?? null,
+        archivedAt: setting.archivedAt?.toISOString() ?? deletedAt.toISOString(),
+        deletedAt: setting.deletedAt?.toISOString() ?? deletedAt.toISOString(),
+        mutedUntil: setting.mutedUntil?.toISOString() ?? null,
+      },
     });
   },
 
   getMedia: async (userId: string, conversationId: string, limit = 100): Promise<Message[]> => {
-    const conversation = await conversationsRepository.findById(conversationId);
-    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    assertParty(conversation, userId);
+    await requireActiveConversation(conversationId, userId);
     return messagesRepository.findMediaByConversationId(conversationId, limit);
   },
 
@@ -751,9 +807,7 @@ export const conversationsService = {
     fileName: string | null;
     fileSize: number | null;
   }> => {
-    const conversation = await conversationsRepository.findById(conversationId);
-    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    assertParty(conversation, userId);
+    await requireActiveConversation(conversationId, userId);
 
     const message = await messagesRepository.findById(messageId);
     if (!message || message.conversationId !== conversationId || message.deletedAt) {
@@ -789,9 +843,7 @@ export const conversationsService = {
     messageId: string,
     pinned: boolean
   ): Promise<void> => {
-    const conversation = await conversationsRepository.findById(conversationId);
-    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    assertParty(conversation, userId);
+    await requireActiveConversation(conversationId, userId);
     const message = await messagesRepository.findById(messageId);
     if (!message || message.conversationId !== conversationId || message.deletedAt) {
       throw new NotFoundError('Message not found', 'MESSAGE_NOT_FOUND');
@@ -806,9 +858,7 @@ export const conversationsService = {
     messageId: string,
     starred: boolean
   ): Promise<void> => {
-    const conversation = await conversationsRepository.findById(conversationId);
-    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    assertParty(conversation, userId);
+    await requireActiveConversation(conversationId, userId);
     const message = await messagesRepository.findById(messageId);
     if (!message || message.conversationId !== conversationId || message.deletedAt) {
       throw new NotFoundError('Message not found', 'MESSAGE_NOT_FOUND');
@@ -830,19 +880,40 @@ export const conversationsService = {
       hasPrevPage: boolean;
     };
   }> => {
-    const conversation = await conversationsRepository.findById(conversationId);
-    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    assertParty(conversation, userId);
+    const conversation = await requireActiveConversation(conversationId, userId);
 
-    // Older-history pagination is a read-only operation. Repeating the read-receipt
-    // UPDATE and notification UPDATE for every page adds database work without
-    // changing the user's unread state; only the newest-window request marks read.
-    const [{ messages, total, nextCursor }] = await Promise.all([
-      messagesRepository.findManyByConversationId(conversationId, query, userId),
-      query.before
-        ? Promise.resolve({ count: 0 })
-        : messagesRepository.markReadForRecipient(conversationId, userId),
-    ]);
+    // Older-history pagination is read-only. The newest window marks inbound
+    // messages read and publishes the exact IDs changed by the database update.
+    // Commit the read transition before selecting the newest page. Running both
+    // queries in parallel allowed the page SELECT to win the race and return
+    // readAt=null even though the same request had already marked the row read.
+    const readReceipt = query.before
+      ? { count: 0, messageIds: [] as string[], readAt: null as Date | null }
+      : await messagesRepository.markReadForRecipientWithDetails(conversationId, userId);
+    const page = await messagesRepository.findManyByConversationId(conversationId, query, userId);
+    const { messages, total, nextCursor } = page;
+
+    if (readReceipt.count > 0 && readReceipt.readAt) {
+      const readAt = readReceipt.readAt.toISOString();
+      for (let index = 0; index < readReceipt.messageIds.length; index += 500) {
+        const readEvent = {
+          type: 'message:read' as const,
+          conversationId,
+          readerId: userId,
+          messageIds: readReceipt.messageIds.slice(index, index + 500),
+          readAt,
+        };
+        void Promise.all([
+          publishNotificationEvent(conversation.buyerId, readEvent),
+          publishNotificationEvent(conversation.sellerId, readEvent),
+        ]).catch(error =>
+          reportBackgroundFailure(
+            'apps/api/src/modules/engagement/conversations/conversations.service.ts',
+            error
+          )
+        );
+      }
+    }
 
     if (!query.before) {
       // Sync bell: mark NEW_MESSAGE notifications for this conversation read.

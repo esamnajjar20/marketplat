@@ -71,6 +71,31 @@ function idbReq<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
+/** Remove a conversation and its cached history after its per-user inbox deletion event. */
+export async function removeCachedConversation(
+  conversationId: string,
+  userId?: string | null,
+): Promise<void> {
+  if (!conversationId) return;
+  if (userId !== undefined) {
+    const stored = await getMeta(META_USER_ID);
+    if (stored !== null && stored !== userId) return;
+  }
+  try {
+    const db = await openDb();
+    const tx = db.transaction([STORE_CONVERSATIONS, STORE_MESSAGES], 'readwrite');
+    tx.objectStore(STORE_CONVERSATIONS).delete(conversationId);
+    tx.objectStore(STORE_MESSAGES).delete(conversationId);
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB conversation removal aborted'));
+    });
+  } catch (err) {
+    console.warn('[messages-store] removeCachedConversation failed:', err);
+  }
+}
+
 /** حفظ قائمة المحادثات (آخر N محادثة حسب ترتيب القائمة الواردة). */
 export async function saveConversationsList(
   items: ConversationListItem[],
@@ -187,19 +212,50 @@ export async function saveMessagesForConversation(
   try {
     const db = await openDb();
     // items هنا بالترتيب التصاعدي (كما يعيدها useMessages بعد reverse)
-    const limited =
-      items.length > MAX_MESSAGES_PER_CONV
-        ? items.slice(items.length - MAX_MESSAGES_PER_CONV)
-        : items;
     const tx = db.transaction(STORE_MESSAGES, 'readwrite');
-    tx.objectStore(STORE_MESSAGES).put({
-      conversationId,
-      items: limited,
-      savedAt: new Date().toISOString(),
-    });
+    const store = tx.objectStore(STORE_MESSAGES);
+    if (items.length === 0) {
+      store.put({ conversationId, items: [], savedAt: new Date().toISOString() });
+    } else {
+      // Merge paginated windows instead of replacing the cache: loading older
+      // history must not evict the newest page. Also keep monotonic server states
+      // delivered by SSE if an older in-flight REST response resolves afterward.
+      const request = store.get(conversationId);
+      request.onsuccess = () => {
+        const previous = request.result as { items?: Message[] } | undefined;
+        const byId = new Map<string, Message>();
+        for (const message of Array.isArray(previous?.items) ? previous.items : []) {
+          byId.set(message.id, message);
+        }
+        for (const incoming of items) {
+          const current = byId.get(incoming.id);
+          let merged = incoming;
+          if (current?.deletedAt && !incoming.deletedAt) {
+            merged = {
+              ...incoming,
+              body: '', imageUrl: null, audioUrl: null, fileUrl: null,
+              fileName: null, fileMimeType: null, fileSize: null,
+              deletedAt: current.deletedAt,
+            };
+          }
+          if (current?.readAt && !merged.readAt) merged = { ...merged, readAt: current.readAt };
+          byId.set(incoming.id, merged);
+        }
+        const mergedItems = [...byId.values()].sort((a, b) => {
+          const time = Date.parse(a.createdAt) - Date.parse(b.createdAt);
+          return time || a.id.localeCompare(b.id);
+        });
+        store.put({
+          conversationId,
+          items: mergedItems.slice(-MAX_MESSAGES_PER_CONV),
+          savedAt: new Date().toISOString(),
+        });
+      };
+    }
     await new Promise<void>((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB save aborted'));
     });
   } catch (err) {
     // FIX MSG-STORE-LOGGING
@@ -231,6 +287,128 @@ export async function getMessagesForConversation(
     console.warn('[messages-store] getMessagesForConversation failed:', err);
     return null;
   }
+}
+
+
+
+/** Upsert a message received over SSE into the account-scoped offline history. */
+export async function upsertCachedMessage(
+  conversationId: string,
+  message: Message,
+  userId?: string | null,
+): Promise<void> {
+  if (!conversationId || !message?.id || message.conversationId !== conversationId) return;
+  if (userId !== undefined) {
+    const storedUserId = await getMeta(META_USER_ID);
+    if (storedUserId !== null && storedUserId !== userId) return;
+    if (storedUserId === null) await setMeta(META_USER_ID, userId ?? null);
+  }
+  try {
+    const db = await openDb();
+    const tx = db.transaction(STORE_MESSAGES, 'readwrite');
+    const store = tx.objectStore(STORE_MESSAGES);
+    const request = store.get(conversationId);
+    request.onsuccess = () => {
+      const row = request.result as { conversationId: string; items: Message[]; savedAt: string } | undefined;
+      const items = Array.isArray(row?.items) ? row.items : [];
+      const byId = new Map(items.map(item => [item.id, item]));
+      const previous = byId.get(message.id);
+      let merged = message;
+      // SSE replay can deliver a duplicate `message:new` after a later
+      // `message:deleted` or `message:read` event. Keep these states monotonic
+      // so replay ordering can never resurrect deleted content or undo a receipt.
+      if (previous?.deletedAt && !message.deletedAt) {
+        merged = {
+          ...message,
+          body: '', imageUrl: null, audioUrl: null, fileUrl: null,
+          fileName: null, fileMimeType: null, fileSize: null,
+          deletedAt: previous.deletedAt,
+        };
+      }
+      if (previous?.readAt && !merged.readAt) merged = { ...merged, readAt: previous.readAt };
+      byId.set(message.id, merged);
+      const ordered = [...byId.values()].sort((a, b) => {
+        const time = Date.parse(a.createdAt) - Date.parse(b.createdAt);
+        return time || a.id.localeCompare(b.id);
+      });
+      store.put({
+        conversationId,
+        items: ordered.slice(-MAX_MESSAGES_PER_CONV),
+        savedAt: new Date().toISOString(),
+      });
+    };
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB upsert aborted'));
+    });
+  } catch (err) {
+    console.warn('[messages-store] upsertCachedMessage failed:', err);
+  }
+}
+
+async function updateCachedMessages(
+  conversationId: string,
+  userId: string | null | undefined,
+  update: (message: Message) => Message,
+): Promise<void> {
+  if (!conversationId) return;
+  if (userId !== undefined) {
+    const storedUserId = await getMeta(META_USER_ID);
+    if (storedUserId !== null && storedUserId !== userId) return;
+  }
+  try {
+    const db = await openDb();
+    const tx = db.transaction(STORE_MESSAGES, 'readwrite');
+    const store = tx.objectStore(STORE_MESSAGES);
+    const request = store.get(conversationId);
+    request.onsuccess = () => {
+      const row = request.result as { conversationId: string; items: Message[]; savedAt: string } | undefined;
+      if (!row || !Array.isArray(row.items)) return;
+      store.put({
+        ...row,
+        items: row.items.map(update),
+        savedAt: new Date().toISOString(),
+      });
+    };
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('IndexedDB update aborted'));
+    });
+  } catch (err) {
+    console.warn('[messages-store] updateCachedMessages failed:', err);
+  }
+}
+
+/** Apply a cross-device read receipt to messages stored in IndexedDB. */
+export async function markCachedMessagesRead(
+  conversationId: string,
+  messageIds: string[],
+  readAt: string,
+  userId?: string | null,
+): Promise<void> {
+  if (!Number.isFinite(Date.parse(readAt))) return;
+  const ids = new Set(messageIds.filter(id => typeof id === 'string' && id.length > 0).slice(0, 500));
+  if (!ids.size) return;
+  await updateCachedMessages(conversationId, userId, message =>
+    ids.has(message.id) ? { ...message, readAt } : message,
+  );
+}
+
+/** Redact every attachment field in the offline cache after a message deletion event. */
+export async function markCachedMessageDeleted(
+  conversationId: string,
+  messageId: string,
+  deletedAt: string,
+  userId?: string | null,
+): Promise<void> {
+  if (!messageId || !Number.isFinite(Date.parse(deletedAt))) return;
+  await updateCachedMessages(conversationId, userId, message =>
+    message.id === messageId
+      ? { ...message, body: '', imageUrl: null, audioUrl: null, fileUrl: null, fileName: null, fileMimeType: null, fileSize: null, deletedAt }
+      : message,
+  );
 }
 
 // FIX MSG-STORE-USER-META-UNREAD-SAVE-01: same user-scope treatment

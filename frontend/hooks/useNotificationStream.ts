@@ -13,9 +13,11 @@ import { useAuthStore, selectIsAuthenticated, selectAccessToken, selectUser } fr
 import { queryKeys } from '@/lib/queryKeys';
 import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 import type { Message, ConversationListItem } from '@/types/conversation.types';
+import type { MessagingLiveEvent } from '@marketplat/contracts';
 import type { PaginatedResponse } from '@/types/api.types';
 import type { NotificationData } from '@/types/notification.types';
 import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
+import { markCachedMessageDeleted, markCachedMessagesRead, removeCachedConversation, upsertCachedMessage } from '@/lib/offlineMessagesStore';
 
 export type LiveNotificationPayload = {
   type: 'notification';
@@ -28,23 +30,20 @@ export type LiveNotificationPayload = {
   data?: NotificationData | null;
 };
 
-export type LiveMessageNewPayload = {
-  type: 'message:new';
-  conversationId: string;
-  message: Message;
-};
+export type LiveMessageNewPayload = Extract<MessagingLiveEvent, { type: 'message:new' }> & { message: Message };
 
-export type LiveMessageDeletedPayload = {
-  type: 'message:deleted';
-  conversationId: string;
-  messageId: string;
-  deletedAt: string;
-};
+export type LiveMessageDeletedPayload = Extract<MessagingLiveEvent, { type: 'message:deleted' }>;
+
+export type LiveMessageReadPayload = Extract<MessagingLiveEvent, { type: 'message:read' }>;
+
+export type LiveConversationUpdatedPayload = Extract<MessagingLiveEvent, { type: 'conversation:updated' }>;
 
 export type LiveStreamPayload =
   | LiveNotificationPayload
   | LiveMessageNewPayload
-  | LiveMessageDeletedPayload;
+  | LiveMessageDeletedPayload
+  | LiveMessageReadPayload
+  | LiveConversationUpdatedPayload;
 
 type Options = {
   onEvent?: (event: LiveStreamPayload) => void;
@@ -174,10 +173,27 @@ function markDeletedInCaches(
       return {
         ...old,
         items: old.items.map((m) =>
-          m.id === messageId ? { ...m, body: '', deletedAt } : m,
+          m.id === messageId
+            ? { ...m, body: '', imageUrl: null, audioUrl: null, fileUrl: null, fileName: null, fileMimeType: null, fileSize: null, deletedAt }
+            : m,
         ),
       };
     },
+  );
+}
+
+function markReadInCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  conversationId: string,
+  messageIds: string[],
+  readAt: string,
+) {
+  const ids = new Set(messageIds);
+  queryClient.setQueriesData<MessagesPage>(
+    { queryKey: queryKeys.conversations.messagesRoot(conversationId) },
+    old => old?.items
+      ? { ...old, items: old.items.map(message => ids.has(message.id) ? { ...message, readAt } : message) }
+      : old,
   );
 }
 
@@ -355,6 +371,13 @@ export function useNotificationStream(options?: Options) {
 
               if (payload.type === 'message:new') {
                 appendMessageToCaches(queryClient, payload.conversationId, payload.message);
+                void upsertCachedMessage(payload.conversationId, payload.message, sessionUserId);
+                // The recipient's unread count changes, and a previously hidden
+                // (deleted/archived) thread can reappear after the new message.
+                void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+                if (payload.message.senderId !== sessionUserId) {
+                  void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.unreadCount() });
+                }
               } else if (payload.type === 'message:deleted') {
                 markDeletedInCaches(
                   queryClient,
@@ -362,6 +385,22 @@ export function useNotificationStream(options?: Options) {
                   payload.messageId,
                   payload.deletedAt,
                 );
+                void markCachedMessageDeleted(payload.conversationId, payload.messageId, payload.deletedAt, sessionUserId);
+                void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+                void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.unreadCount() });
+              } else if (payload.type === 'message:read') {
+                markReadInCaches(queryClient, payload.conversationId, payload.messageIds, payload.readAt);
+                void markCachedMessagesRead(payload.conversationId, payload.messageIds, payload.readAt, sessionUserId);
+                void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+                void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.unreadCount() });
+              } else if (payload.type === 'conversation:updated') {
+                if (payload.action === 'deleted') {
+                  // A per-user inbox delete also invalidates the local offline
+                  // snapshot; otherwise offline navigation could resurrect it.
+                  void removeCachedConversation(payload.conversationId, sessionUserId);
+                }
+                void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+                void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.unreadCount() });
               } else if (payload.type === 'notification') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
                 void queryClient.invalidateQueries({
