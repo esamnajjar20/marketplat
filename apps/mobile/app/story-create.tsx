@@ -7,13 +7,13 @@ import { router } from 'expo-router';
 import { goBack } from '@/lib/navigation';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import { createStory } from '@/features/stories/stories.api';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 export default function StoryCreateScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
-  const { accessToken, csrfToken } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
   const [text, setText] = useState('');
   const [visibility, setVisibility] = useState<'FOLLOWERS' | 'PUBLIC'>('FOLLOWERS');
   const [busy, setBusy] = useState(false);

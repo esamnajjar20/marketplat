@@ -8,7 +8,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 're
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack, pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthStatus } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { Field, Notice, PrimaryButton } from '@/components/ui';
 import type { TextInputHandle } from '@/components/ui/Field';
@@ -22,7 +22,8 @@ export default function RegisterScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { register, isBusy } = useAuth();
+  const { isBusy } = useAuthStatus();
+  const { register } = useAuthActions();
   const { redirect } = useLocalSearchParams<{ redirect?: string | string[] }>();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

@@ -6,7 +6,7 @@ import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { deleteAccountAfterReauthentication } from '@/features/account/delete-account.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
@@ -15,7 +15,9 @@ import { Field } from '@/components/ui/Field';
 export default function DeleteAccountScreen() {
   const { colors } = useAppTheme();
 
-  const { user, accessToken, csrfToken, forceLocalSignOut } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { forceLocalSignOut } = useAuthActions();
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [busy, setBusy] = useState(false);

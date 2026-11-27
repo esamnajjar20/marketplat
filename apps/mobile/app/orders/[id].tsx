@@ -12,7 +12,7 @@ import {
   type MarketplaceOrder,
   type MarketplaceOrderStatus,
 } from '@/features/commerce/orders.api';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import {
   Badge,
   DetailScaffold,
@@ -40,7 +40,9 @@ export default function OrderDetailScreen() {
 
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { user, accessToken, csrfToken, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const tokenRef = useRef(accessToken);
   tokenRef.current = accessToken;
   const [busy, setBusy] = useState(false);

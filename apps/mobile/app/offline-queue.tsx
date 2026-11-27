@@ -11,7 +11,7 @@ import { confirmAlert } from '@/lib/confirm';
 import { router, useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { formatSafeDate } from '@/lib/date-format';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox';
@@ -66,7 +66,8 @@ function titleFromPayload(item: OutboxItem): string | null {
 export default function OfflineQueueScreen() {
     const { colors } = useAppTheme();
     const styles = useMemo(() => createThemeStyles(colors), [colors]);
-    const { accessToken, csrfToken, user } = useAuth();
+    const { user } = useAuthUser();
+    const { accessToken, csrfToken } = useAuthSession();
     const netInfo = useNetInfo();
     const [items, setItems] = useState<OutboxItem[]>([]);
     const [favoriteItems, setFavoriteItems] = useState<PendingFavoriteState[]>([]);

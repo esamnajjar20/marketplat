@@ -9,7 +9,7 @@ import { EmptyState, ErrorState, LoadingState, PageShell, SectionCard, SectionHe
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { formatNumber } from '@/lib/formatters';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyStoreAnalytics, type StoreAnalytics } from '@/features/commerce/commerce.api';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 
@@ -17,7 +17,9 @@ const fmt = (n: number | string) => typeof n === 'number' ? formatNumber(n || 0)
 
 export default function MyStoreAnalyticsScreen() {
   const { colors } = useAppTheme();
-  const { getAccessToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   // دورة الجلب الموحّدة؛ التحديث بالسحب «ناعم» فيُبقي البيانات ظاهرة.
   const resource = useAsyncResource<StoreAnalytics>(
     async () => {

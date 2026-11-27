@@ -4,7 +4,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useState } from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import { createServiceReview, fetchServiceReviews, type ServiceReview } from '@/features/services/service-management.api';
 import { Field, Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { PageList } from '@/components/ui/PageList';
@@ -22,7 +22,7 @@ export default function ServiceReviewsScreen() {
   }>();
   const sellerProfileId = Array.isArray(p.sellerProfileId) ? p.sellerProfileId[0] : p.sellerProfileId;
   const initialRequestId = Array.isArray(p.requestId) ? p.requestId[0] : p.requestId;
-  const { accessToken, csrfToken } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
   const [requestId, setRequestId] = useState(initialRequestId || '');
   const [score, setScore] = useState(5);
   const [comment, setComment] = useState('');

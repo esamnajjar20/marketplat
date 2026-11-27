@@ -5,14 +5,15 @@ import { useState } from 'react';
 import { Switch, View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { createSellerProfile, fetchMySellerProfile, updateSellerProfile, type SellerProfile } from '@/features/account/seller.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 export default function SellerProfileScreen() {
   const { colors } = useAppTheme();
-  const { accessToken, csrfToken, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [terms, setTerms] = useState(false);

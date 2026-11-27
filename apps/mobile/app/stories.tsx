@@ -14,13 +14,15 @@ import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import * as ImagePicker from 'expo-image-picker';
 import { EmptyState, ErrorState, LoadingState, PageShell, StoryAvatar } from '@/components/ui';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { createStory, fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 export default function StoriesScreen() {
     const { colors } = useAppTheme();
     const styles = useMemo(() => createThemeStyles(colors), [colors]);
-    const { user, getAccessToken, csrfToken } = useAuth();
+    const { user } = useAuthUser();
+    const { csrfToken } = useAuthSession();
+    const { getAccessToken } = useAuthActions();
     const [groups, setGroups] = useState<StoryGroup[]>([]);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);

@@ -72,7 +72,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
   // ── Design: horizontal list card (mockup) ──
   if (designLayout && layout !== 'grid') {
     return (
-      <article className={cn('group relative min-w-0', className)}>
+      <article className={cn('group relative min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_220px]', className)}>
         <div className={cn(CARD_SHELL_SOFT, "p-2.5 sm:p-3")}>
           <div className="flex gap-3">
             <div
@@ -210,7 +210,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
         ) : null
       }
       createdAt={context === 'related' || context === 'store' ? undefined : listing.createdAt}
-      className={className}
+      className={cn('[content-visibility:auto] [contain-intrinsic-size:auto_320px]', className)}
       heart={
         showHeart ? (
           <FavoriteButton

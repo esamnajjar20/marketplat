@@ -81,7 +81,17 @@ export type AuthState = {
   getAccessToken: () => string | null;
 };
 
-const AuthContext = createContext<AuthState | null>(null);
+export type AuthIdentityState = Pick<AuthState, 'user'>;
+export type AuthSessionState = Pick<AuthState, 'accessToken' | 'csrfToken' | 'expiresAt' | 'sessionNeedsRefresh'>;
+export type AuthStatusState = Pick<AuthState, 'isBusy' | 'isRestoring'>;
+export type AuthActionsState = Pick<AuthState, 'login' | 'loginWithGoogle' | 'register' | 'logout' | 'forceLocalSignOut' | 'updateUser' | 'getAccessToken'>;
+
+// Keep frequently changing auth concerns in separate contexts. A component
+// that only needs the identity must not rerender on token refreshes or busy flags.
+const AuthIdentityContext = createContext<AuthIdentityState | null>(null);
+const AuthSessionContext = createContext<AuthSessionState | null>(null);
+const AuthStatusContext = createContext<AuthStatusState | null>(null);
+const AuthActionsContext = createContext<AuthActionsState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -100,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pendingLogoutSync = useRef(false);
 
   const applySession = useCallback((session: PersistedSession) => {
+    userRef.current = session.user;
     setUser(session.user);
     accessTokenRef.current = session.accessToken;
     csrfRef.current = session.csrfToken;
@@ -127,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearPersisted = useCallback(async (): Promise<boolean> => {
     // Clear in-memory access first. SecureStore failures must remain observable to logout.
+    userRef.current = null;
     setUser(null);
     accessTokenRef.current = null;
     csrfRef.current = null;
@@ -141,7 +153,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userRef.current = user;
   }, [user]);
 
-  const updateUser = useCallback((patch: Partial<AuthUser>) => { setUser(current => current ? { ...current, ...patch } : current); }, []);
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    const current = userRef.current;
+    if (!current) return;
+    const next = { ...current, ...patch };
+    userRef.current = next;
+    setUser(next);
+  }, []);
   const getAccessToken = useCallback(() => accessTokenRef.current, []);
   useEffect(() => {
     csrfRef.current = csrfToken;
@@ -210,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         pendingLogout = await readPendingLogout();
       } catch {
         if (mounted) {
+          userRef.current = null;
           setUser(null);
           setAccessToken(null);
           setIsRestoring(false);
@@ -234,6 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } catch {
           if (mounted) {
+            userRef.current = null;
             setUser(null);
             setAccessToken(null);
             setIsRestoring(false);
@@ -495,7 +515,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async (): Promise<'done' | 'cancelled' | 'failed'> => {
-    const ownerId = user?.id ?? userRef.current?.id ?? '';
+    const ownerId = userRef.current?.id ?? '';
     let pendingOperations: number | null = ownerId ? 0 : null;
     try {
       pendingOperations = ownerId ? await countPendingPrivateMobileOperations(ownerId) : null;
@@ -605,33 +625,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return 'done';
     }
-  }, [clearPersisted, user?.id]);
+  }, [clearPersisted]);
 
-  const value = useMemo(
-    () => ({
-      user,
-      accessToken,
-      csrfToken,
-      isBusy,
-      isRestoring,
-      expiresAt,
-      sessionNeedsRefresh,
-      login,
-      loginWithGoogle,
-      register,
-      logout,
-      forceLocalSignOut,
-      updateUser,
-      getAccessToken,
-    }),
-    [user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, sessionNeedsRefresh, login, loginWithGoogle, register, logout, forceLocalSignOut, updateUser, getAccessToken],
+  const identityValue = useMemo<AuthIdentityState>(() => ({ user }), [user]);
+  const sessionValue = useMemo<AuthSessionState>(
+    () => ({ accessToken, csrfToken, expiresAt, sessionNeedsRefresh }),
+    [accessToken, csrfToken, expiresAt, sessionNeedsRefresh],
+  );
+  const statusValue = useMemo<AuthStatusState>(
+    () => ({ isBusy, isRestoring }),
+    [isBusy, isRestoring],
+  );
+  const actionsValue = useMemo<AuthActionsState>(
+    () => ({ login, loginWithGoogle, register, logout, forceLocalSignOut, updateUser, getAccessToken }),
+    [login, loginWithGoogle, register, logout, forceLocalSignOut, updateUser, getAccessToken],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthActionsContext.Provider value={actionsValue}>
+      <AuthStatusContext.Provider value={statusValue}>
+        <AuthSessionContext.Provider value={sessionValue}>
+          <AuthIdentityContext.Provider value={identityValue}>{children}</AuthIdentityContext.Provider>
+        </AuthSessionContext.Provider>
+      </AuthStatusContext.Provider>
+    </AuthActionsContext.Provider>
+  );
 }
 
-export function useAuth(): AuthState {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used inside AuthProvider');
+export function useAuthUser(): AuthIdentityState {
+  const context = useContext(AuthIdentityContext);
+  if (!context) throw new Error('useAuthUser must be used inside AuthProvider');
   return context;
+}
+
+export function useAuthSession(): AuthSessionState {
+  const context = useContext(AuthSessionContext);
+  if (!context) throw new Error('useAuthSession must be used inside AuthProvider');
+  return context;
+}
+
+export function useAuthStatus(): AuthStatusState {
+  const context = useContext(AuthStatusContext);
+  if (!context) throw new Error('useAuthStatus must be used inside AuthProvider');
+  return context;
+}
+
+export function useAuthActions(): AuthActionsState {
+  const context = useContext(AuthActionsContext);
+  if (!context) throw new Error('useAuthActions must be used inside AuthProvider');
+  return context;
+}
+
+/**
+ * Backwards-compatible aggregate hook. New components should select only the
+ * context slice they consume through useAuthUser/useAuthSession/useAuthStatus/
+ * useAuthActions to avoid unrelated context-driven renders.
+ */
+export function useAuth(): AuthState {
+  const identity = useAuthUser();
+  const session = useAuthSession();
+  const status = useAuthStatus();
+  const actions = useAuthActions();
+  return useMemo(() => ({ ...identity, ...session, ...status, ...actions }), [identity, session, status, actions]);
 }

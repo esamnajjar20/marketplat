@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { View } from 'react-native';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
@@ -38,7 +38,8 @@ type AddDestinationPath = (typeof groups)[number]['items'][number]['path'];
 export default function AddScreen() {
   const { colors } = useAppTheme();
 
-  const { user, accessToken } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
   const [checkingPath, setCheckingPath] = useState('');
   const [error, setError] = useState('');
 

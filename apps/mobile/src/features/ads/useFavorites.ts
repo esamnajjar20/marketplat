@@ -5,7 +5,7 @@
 import { secureRandomToken } from '@/lib/operation-id';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {} from 'react-native';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthUser } from '@/features/auth/AuthContext';
 import {
   enqueueFavoriteState,
   readFavoriteAdIds,
@@ -16,7 +16,7 @@ import { logger } from '@/lib/logger';
 import { showToast } from '@/lib/toast';
 
 export function useFavorites() {
-  const { user } = useAuth();
+  const { user } = useAuthUser();
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const favoriteIdsRef = useRef<string[]>([]);
   const [ready, setReady] = useState(false);

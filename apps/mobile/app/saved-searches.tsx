@@ -7,7 +7,7 @@ import { View } from 'react-native';
 import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import {
   createSavedSearch,
   deleteSavedSearch,
@@ -46,7 +46,7 @@ export default function SavedSearchesScreen() {
 
   const params = useLocalSearchParams<{ label?: string | string[]; type?: string | string[]; q?: string | string[]; city?: string | string[]; minPrice?: string | string[]; maxPrice?: string | string[]; condition?: string | string[]; categoryId?: string | string[] }>();
   const first = (value?: string | string[]) => Array.isArray(value) ? value[0] : value;
-  const { accessToken, csrfToken } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
   const [label, setLabel] = useState(() => first(params.label) || '');
   const [type, setType] = useState<'ads' | 'products' | 'services'>(() => ['ads', 'products', 'services'].includes(first(params.type) || '') ? first(params.type) as 'ads' | 'products' | 'services' : 'ads');
   const [q, setQ] = useState(() => first(params.q) || '');

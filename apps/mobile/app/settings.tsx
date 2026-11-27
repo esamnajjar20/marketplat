@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 
 import { fetchMyProfile, updateNotificationPreferences } from '@/features/account/account.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
@@ -25,7 +25,10 @@ export default function SettingsScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createSettingsStyles(colors), [colors]);
 
-  const { accessToken, getAccessToken, csrfToken, logout, isBusy, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { isBusy } = useAuthStatus();
+  const { getAccessToken, logout } = useAuthActions();
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
   const [loadingPreferences, setLoadingPreferences] = useState(true);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);

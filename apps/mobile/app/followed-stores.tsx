@@ -7,7 +7,7 @@ import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchMyFollowedStores, toggleStoreFollow, type FollowedStoreRow } from '@/features/commerce/commerce.api';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SearchBar } from '@/components/ui';
@@ -18,7 +18,10 @@ import { ListGapMd } from '@/components/ui/ListSeparator';
 export default function FollowedStoresScreen() {
   const { colors } = useAppTheme();
 
-  const { getAccessToken, user, csrfToken, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   const [query, setQuery] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');

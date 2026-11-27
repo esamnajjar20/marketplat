@@ -10,7 +10,7 @@ import { confirmAlert } from '@/lib/confirm';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchServiceRequest, respondToServiceRequest, type ServiceRequest } from '@/features/services/services.api';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { ServiceRequestTimeline } from '@/components/ui/ServiceRequestTimeline';
@@ -34,7 +34,8 @@ export default function ServiceRequestDetailScreen() {
         id?: string | string[];
     }>();
     const id = Array.isArray(params.id) ? params.id[0] : params.id;
-    const { user, accessToken, csrfToken } = useAuth();
+    const { user } = useAuthUser();
+    const { accessToken, csrfToken } = useAuthSession();
     const [busy, setBusy] = useState<Action | ''>('');
     const [quote, setQuote] = useState('');
     const [disputeReason, setDisputeReason] = useState('');

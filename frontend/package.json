@@ -200,6 +200,7 @@
     "tailwindcss": "^3.4.19",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.6.0",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "babel-plugin-react-compiler": "1.0.0"
   }
 }

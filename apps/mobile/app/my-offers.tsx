@@ -6,7 +6,7 @@ import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyOffers, type RequestOffer } from '@/features/requests/requests.api';
 import { domainLabel } from '@/lib/status-labels';
 import { spacing } from '@/theme/tokens';
@@ -18,7 +18,8 @@ const PAGE_SIZE = 30;
 
 export default function MyOffersScreen() {
 
-  const { user, getAccessToken } = useAuth();
+  const { user } = useAuthUser();
+  const { getAccessToken } = useAuthActions();
   const list = usePaginatedList<RequestOffer>({
     key: `my-offers:${user?.id ?? 'guest'}`,
     pageSize: PAGE_SIZE,

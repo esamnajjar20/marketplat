@@ -19,7 +19,7 @@ import { spacing, radius, fontSizes, typography, fontWeights } from '@/theme/tok
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { fetchMyOrders, type MarketplaceOrder } from '@/features/commerce/orders.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
 
@@ -34,7 +34,9 @@ const STATUS: Record<string, { label: string; tone: 'brand' | 'danger' | 'succes
 
 export default function MyOrdersScreen() {
   const { colors } = useAppTheme();
-  const { accessToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const list = usePaginatedList<MarketplaceOrder>({
     key: `my-orders:${user?.id ?? 'guest'}`,
     pageSize: 20,

@@ -7,7 +7,7 @@ import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { Spinner, ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchDebtSummary, fetchDebts, type DebtSummary } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
@@ -22,7 +22,9 @@ const money = (n: unknown, c = 'ILS') => formatMoney(n, c);
 export default function DebtsScreen() {
   const { colors } = useAppTheme();
 
-  const { accessToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const userId = user?.id;
   const [summary, setSummary] = useState<DebtSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);

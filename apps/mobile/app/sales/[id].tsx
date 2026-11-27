@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 import { Spinner, Notice, PageShell, PrimaryButton, SectionCard, Field } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { addSalePayment, addSaleReturn, fetchSaleDetail, fetchSaleReceipt, type SaleReturnReason, type SaleTransferMethod } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { formatDate, formatMoney } from '@/lib/formatters';
@@ -57,7 +57,10 @@ export default function SaleDetailScreen() {
         id: string | string[];
     }>();
     const id = Array.isArray(p.id) ? p.id[0] : p.id;
-    const { getAccessToken, csrfToken, user, isRestoring } = useAuth();
+    const { user } = useAuthUser();
+    const { csrfToken } = useAuthSession();
+    const { isRestoring } = useAuthStatus();
+    const { getAccessToken } = useAuthActions();
     const resource = useAsyncResource<{ sale: SaleDetail; receiptNumber: string | null }>(
         async () => {
             const token = getAccessToken();

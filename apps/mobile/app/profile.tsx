@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyProfile, updateMyProfile, resendVerification, uploadMyAvatar, type AccountProfile } from '@/features/account/account.api';
 import { Avatar, ErrorState, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
@@ -14,7 +14,9 @@ import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 export default function ProfileScreen() {
   const { colors } = useAppTheme();
-  const { accessToken, csrfToken, user, updateUser } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { updateUser } = useAuthActions();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');

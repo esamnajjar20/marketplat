@@ -32,3 +32,12 @@ The following require external infrastructure/account access or repository crede
 ## Runtime profiling limitation
 
 The project has static regression guardrails, but actual React commit counts require a running browser build with dependencies installed and representative data. The package supports React DevTools/Playwright, but this ZIP-only environment cannot honestly claim a before/after Profiler trace.
+
+
+## Unified rendering follow-up (2026-11-27)
+
+- Enabled React Compiler for Next.js 15 via `experimental.reactCompiler` and for Expo SDK 58 via `experiments.reactCompiler`.
+- Added `babel-plugin-react-compiler@1.0.0` as an explicit frontend dev dependency; Expo SDK 58's `babel-preset-expo` already includes the compiler plugin and configures Babel automatically.
+- Split mobile auth state into identity, session, status, and stable action contexts. Migrated screen consumers to the smallest context slice they read. `useAuth()` remains as a backwards-compatible aggregate hook, but new components should use the narrow hooks.
+- Stabilized logout against token refreshes by resolving the account owner from the ref-backed current identity rather than capturing user state in the action callback.
+- Build/runtime profiler measurements are still required before claiming a numeric render reduction. React Compiler does not make context updates selective; the split contexts address that separate source of rerenders.

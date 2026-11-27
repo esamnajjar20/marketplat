@@ -46,7 +46,8 @@
       "./plugins/with-forced-rtl"
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "reactCompiler": true
     },
     "android": {
       "package": "com.marketplat.mobile",

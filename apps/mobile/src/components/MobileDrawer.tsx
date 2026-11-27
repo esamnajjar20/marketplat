@@ -15,7 +15,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { AppIcon } from '@/components/Icons';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMySellerProfile } from '@/features/account/seller.api';
 import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
@@ -100,7 +100,10 @@ function MobileDrawerOverlay({
   onClose: () => void;
   openDrawer: () => void;
 }) {
-  const { user, accessToken, logout, isBusy, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
+  const { isBusy, isRestoring } = useAuthStatus();
+  const { logout } = useAuthActions();
   const { colors: palette } = useAppTheme();
   const styles = useMemo(() => createStyles(palette), [palette]);
   const pathname = usePathname();

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { AppText as Text } from '@/components/ui/AppText';
 import { Field, Notice, PrimaryButton, SectionCard } from '@/components/ui';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession } from '@/features/auth/AuthContext';
 import { changeMyPassword } from '@/features/account/account.api';
 import { getPasswordPolicyError } from '../../lib/validation';
 import { showToast } from '@/lib/toast';
@@ -11,7 +11,8 @@ import { View } from 'react-native';
 
 /** Password change is deliberately hosted in the Security destination. */
 export function ChangePasswordForm() {
-  const { accessToken, csrfToken, forceLocalSignOut } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { forceLocalSignOut } = useAuthActions();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

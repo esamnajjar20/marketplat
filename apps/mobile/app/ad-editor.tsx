@@ -18,7 +18,7 @@ import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
 import { createAd, updateAd, removeAdImage, reorderAdImages, PartialAdUpdateError, type AdDraft, type SelectedAdImage } from '@/features/ads/manage-ads.api';
 import { useAdEditorCategories } from '@/features/ads/useAdEditorCategories';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { cleanupStaleUnreferencedAdImages, persistSelectedAdImage, removePersistedAdImageIfUnused } from '@/storage/persist-ad-image';
 import { clearAdDraft, loadAdDraft, saveAdDraft, clearAdEditDraft, loadAdEditDraft, saveAdEditDraft } from '@/storage/ad-draft-store';
 import { enqueueMutation } from '@/storage/outbox-manager';
@@ -38,7 +38,8 @@ export default function AdEditorScreen() {
         id?: string | string[];
     }>();
     const id = Array.isArray(params.id) ? params.id[0] : params.id;
-    const { accessToken, csrfToken, user } = useAuth();
+    const { user } = useAuthUser();
+    const { accessToken, csrfToken } = useAuthSession();
     const [draft, setDraft] = useState<AdDraft>(emptyDraft);
     const [originalImages, setOriginalImages] = useState<string[]>([]);
     const [existingImages, setExistingImages] = useState<string[]>([]);

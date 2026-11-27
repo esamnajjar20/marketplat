@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { showToast } from '@/lib/toast';
 import { router } from 'expo-router';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { useIsOnline } from '@/lib/connectivity';
 import { startOutboxSyncLifecycle, type OutboxLifecycleSnapshot } from './outbox-sync-lifecycle';
 import { listOfflineCreates } from './entity-create-outbox';
@@ -13,7 +13,9 @@ import { runWhenScrollIdle } from '@/lib/scrollActivity';
  * ConnectivityProvider (single NetInfo listener), not from this bridge.
  */
 export function OutboxSyncLifecycleBridge() {
-  const { accessToken, csrfToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const isOnline = useIsOnline();
   const latest = useRef<OutboxLifecycleSnapshot>({ isOnline: false, token: null, ownerId: null, csrfToken: null });
   const notifiedFailedCreates = useRef(new Set<string>());

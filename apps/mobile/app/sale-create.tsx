@@ -6,7 +6,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { createSale } from '@/features/sales/sales.api';
 import { fetchCustomers, type CustomerRow } from '@/features/sales/sales-extra.api';
 import { fetchMyProducts, type ProductSummary } from '@/features/commerce/commerce.api';
@@ -51,7 +51,8 @@ function addMonths(dateValue: string, months: number): string {
 
 export default function SaleCreateScreen() {
   const { colors } = useAppTheme();
-  const { accessToken, csrfToken, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
   const [mode, setMode] = useState<'single' | 'multiple'>('single');
   const [singleEntityType, setSingleEntityType] = useState<SingleEntityType>('FREE');
   const [selectedEntityId, setSelectedEntityId] = useState('');

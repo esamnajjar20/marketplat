@@ -130,6 +130,8 @@ const nextConfig: NextConfig = {
   // - @tanstack/react-query (40+ hooks, already in shared chunks)
   // - clsx/tailwind-merge/class-variance-authority (cn utility everywhere)
   experimental: {
+    // Next.js 15 uses the experimental flag for React Compiler.
+    reactCompiler: { panicThreshold: 'NONE' },
     optimizePackageImports: ['lucide-react', 'sonner', 'zod'],
   },
 

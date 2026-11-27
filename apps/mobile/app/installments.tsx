@@ -9,7 +9,7 @@ import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/compon
 import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchInstallments, payInstallment, type InstallmentRow, type SaleTransferMethod } from '@/features/sales/sales-extra.api';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { ApiError } from '@/api/client';
@@ -29,7 +29,9 @@ const EMPTY_INSTALLMENTS: InstallmentRow[] = [];
 export default function InstallmentsScreen() {
   const { colors } = useAppTheme();
 
-  const { accessToken, csrfToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const [kind, setKind] = useState<'upcoming' | 'overdue'>('upcoming');
   const listKey = `${user?.id ?? 'guest'}:${kind}`;
   const [amounts, setAmounts] = useState<Record<string, string>>({});

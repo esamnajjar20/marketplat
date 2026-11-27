@@ -8,7 +8,7 @@ import { View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider, saveMyServiceProvider, type ServiceProviderProfile } from '@/features/services/providers.api';
 import { uploadServiceProviderLogo } from '@/features/services/service-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
@@ -20,7 +20,8 @@ const hours = {
 } as const;
 export default function ServiceProviderProfileScreen() {
   const { colors } = useAppTheme();
-  const { accessToken, csrfToken, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('');

@@ -6,7 +6,7 @@ import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyActiveStoreMemberships, fetchStoreMembers, inviteStoreMember, removeStoreMember, updateStoreMemberRole, type StoreMember } from '@/features/commerce/store-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
@@ -23,7 +23,8 @@ const EMPTY_MEMBERS: StoreMember[] = [];
 export default function StoreTeamScreen() {
   const { colors } = useAppTheme();
 
-  const { accessToken, csrfToken, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
   const routeParams = useLocalSearchParams<{ storeId?: string | string[] }>();
   const requestedStoreId = Array.isArray(routeParams.storeId) ? routeParams.storeId[0] : routeParams.storeId;
   const [email, setEmail] = useState('');

@@ -14,7 +14,7 @@ import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder, use
 import { useLocalSearchParams } from 'expo-router';import { goBack } from '@/lib/navigation';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useIsOnline } from '@/lib/connectivity';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { deleteChatMessage, fetchConversation, fetchMessagesPage, setMessageMark, type ChatMessage, type ConversationItem } from '@/features/messaging/messaging.api';
 import { subscribeChatMediaOutboxSent, syncChatMediaOutbox } from '@/features/messaging/chat-media-outbox-sync';
 import { createChatMediaOperationId, enqueueChatMedia, listChatMediaOutbox, discardFailedChatMessage, enqueueChatMessage, listChatMessagesForConversation, retryChatMessage, type ChatMediaKind } from '@/storage/outbox-manager';
@@ -52,7 +52,8 @@ export default function ConversationScreen() {
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
   const params = useLocalSearchParams<{ id: string }>(); const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { user, accessToken, csrfToken } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
   const isOnline = useIsOnline();
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;

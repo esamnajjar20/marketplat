@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { createAppointment, fetchProviderAvailability, type ProviderAvailability } from '@/features/appointments/appointments.api';
 import { buildAppointmentSlots, marketDateKey, type AppointmentSlot } from '@/features/appointments/appointment-slots';
 import { fetchServiceRequest } from '@/features/services/services.api';
@@ -34,7 +34,10 @@ export default function AppointmentCreateScreen() {
 
   const params = useLocalSearchParams<{ requestId?: string | string[] }>();
   const requestId = Array.isArray(params.requestId) ? params.requestId[0] : params.requestId;
-  const { getAccessToken, csrfToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   const [providerId, setProviderId] = useState('');
   const [datePage, setDatePage] = useState(0);
   const [date, setDate] = useState(() => makeDateOptions(0)[0].value);

@@ -3,14 +3,16 @@ import { useState } from 'react';
 import { Notice, PageShell, PrimaryButton } from '@/components/ui';
 import { fetchMyStore, type StoreSummary } from '@/features/commerce/commerce.api';
 import { saveStoreHours } from '@/features/commerce/store-management.api';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { WeeklyHoursEditor } from '@/features/hours/WeeklyHoursEditor';
 import { emptyWeeklyHours, normalizeWeeklyHours, validateWeeklyHours, type WeeklyHours } from '@/features/hours/weekly-hours';
 import { pushOnce } from '@/lib/navigation';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 export default function StoreHoursScreen() {
-  const { accessToken, getAccessToken, csrfToken, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { getAccessToken } = useAuthActions();
   const userId = user?.id;
   const [hours, setHours] = useState<WeeklyHours>(emptyWeeklyHours());
   const [busy, setBusy] = useState(false);

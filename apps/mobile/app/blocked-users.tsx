@@ -8,7 +8,7 @@ import { Avatar, Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '
 import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, unblockUser, type BlockedUserItem } from '@/features/account/social.api';
 import { spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -21,7 +21,7 @@ const PAGE_SIZE = 50;
 export default function BlockedUsersScreen() {
   const { colors } = useAppTheme();
 
-  const { accessToken, csrfToken } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
 

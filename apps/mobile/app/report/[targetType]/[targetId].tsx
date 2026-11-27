@@ -4,7 +4,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack, pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import { submitReport, type ReportReason } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing, radius } from '@/theme/tokens';
@@ -37,7 +37,7 @@ export default function ReportTargetScreen() {
   }>();
   const targetType = Array.isArray(p.targetType) ? p.targetType[0] : p.targetType;
   const targetId = Array.isArray(p.targetId) ? p.targetId[0] : p.targetId;
-  const { accessToken, csrfToken } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);

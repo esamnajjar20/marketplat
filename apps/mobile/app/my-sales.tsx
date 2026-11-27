@@ -10,7 +10,7 @@ import { ScreenFrame } from '@/components/ui/ScreenFrame';
 
 import { pushOnce } from '@/lib/navigation';
 import { fontSizes, radius, spacing, fontWeights, insets } from '@/theme/tokens';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchSales, fetchSalesSummary, type SalePaymentStatus, type SaleRecord, type SalesPeriod, type SalesSummary } from '@/features/sales/sales.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { formatDate, formatMoney, formatNumber } from '@/lib/formatters';
@@ -61,7 +61,9 @@ const dateLabel = (value: string) => formatDate(value, 'date');
 export default function MySalesScreen() {
     const { colors } = useAppTheme();
     const s = useMemo(() => createThemeS(colors), [colors]);
-    const { accessToken, isRestoring, user } = useAuth();
+    const { user } = useAuthUser();
+    const { accessToken } = useAuthSession();
+    const { isRestoring } = useAuthStatus();
     const userId = user?.id;
     const [period, setPeriod] = useState<SalesPeriod>('month');
     const [status, setStatus] = useState<SalePaymentStatus | 'ALL'>('ALL');

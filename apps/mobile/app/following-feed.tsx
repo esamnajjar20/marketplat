@@ -8,7 +8,7 @@ import { View } from 'react-native';
 import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchFollowingFeed, type FollowingFeedItem } from '@/features/account/social.api';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/components/ui';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
@@ -34,7 +34,9 @@ function target(item: FollowingFeedItem): string {
 export default function FollowingFeedScreen() {
   const { colors } = useAppTheme();
 
-  const { user, getAccessToken, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   const list = usePaginatedList<FollowingFeedItem>({
     key: `following-feed:${user?.id ?? 'guest'}`,
     pageSize: PAGE_SIZE,

@@ -9,7 +9,7 @@ import { AppFlashList } from '@/components/ui/AppFlashList';
 import { useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchConversationsPage, setConversationFlags, type ConversationItem } from '@/features/messaging/messaging.api';
 import { useUnreadCounts } from '@/features/messaging/useUnreadCounts';
 import { AppHeader, Chip, EmptyState, ErrorState, PrimaryButton, SearchBar, SkeletonList } from '@/components/ui';
@@ -21,7 +21,9 @@ export default function MessagesScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { user, accessToken, getAccessToken, csrfToken } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { getAccessToken } = useAuthActions();
   const { counts } = useUnreadCounts();
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);

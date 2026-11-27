@@ -8,7 +8,7 @@ import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus } from '@/features/auth/AuthContext';
 import { fetchMyProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { cancelPromotion, createPromotion, fetchMyPromotions, type StorePromotion } from '@/features/commerce/store-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
@@ -28,7 +28,9 @@ export default function StorePromotionsScreen() {
   const { colors } = useAppTheme();
   const routeParams = useLocalSearchParams<{ storeId?: string | string[] }>();
   const storeId = Array.isArray(routeParams.storeId) ? routeParams.storeId[0] : routeParams.storeId;
-  const { getAccessToken, csrfToken, isRestoring } = useAuth();
+  const { csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   const [items, setItems] = useState<StorePromotion[]>([]);
   const [promotionsPage, setPromotionsPage] = useState(1);
   const [promotionsTotalPages, setPromotionsTotalPages] = useState(1);

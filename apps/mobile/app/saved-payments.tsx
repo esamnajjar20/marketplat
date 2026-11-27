@@ -8,7 +8,7 @@ import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { radius, spacing, typography, fontWeights } from '@/theme/tokens';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthUser } from '@/features/auth/AuthContext';
 import { deleteSavedNetCard, deleteSavedPayee, listSavedNetCards, listSavedPayees, saveNetCard, savePayee, updateSavedNetCard, updateSavedPayee, type SavedNetCard, type SavedPayee } from '@/storage/saved-payments.store';
 type Tab = 'payees' | 'cards';
 function maskIdentifier(value: string): string {
@@ -28,7 +28,7 @@ const methods = [{
     }] as const;
 export default function SavedPaymentsScreen() {
     const { colors } = useAppTheme();
-    const { user } = useAuth();
+    const { user } = useAuthUser();
     const ownerId = user?.id ?? '';
     const [tab, setTab] = useState<Tab>('payees');
     const [payees, setPayees] = useState<SavedPayee[]>([]);

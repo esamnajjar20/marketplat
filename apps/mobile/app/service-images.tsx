@@ -6,7 +6,7 @@ import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import * as ImagePicker from 'expo-image-picker';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchServiceListing, type ServiceListing } from '@/features/services/services.api';
 import { removeServiceImage, reorderServiceImages, uploadServiceImages } from '@/features/services/service-management.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
@@ -18,7 +18,8 @@ export default function ServiceImagesScreen() {
         id: string | string[];
     }>();
     const id = Array.isArray(p.id) ? p.id[0] : p.id;
-    const { accessToken, csrfToken, user } = useAuth();
+    const { user } = useAuthUser();
+    const { accessToken, csrfToken } = useAuthSession();
     const [busy, setBusy] = useState(false);
     const [actionError, setActionError] = useState('');
     const resource = useAsyncResource<ServiceListing>(

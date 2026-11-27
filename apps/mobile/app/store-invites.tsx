@@ -8,7 +8,7 @@ import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import { acceptStoreInvite, fetchMyStoreInvites, removeStoreMember, type StoreMember } from '@/features/commerce/store-management.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
@@ -22,7 +22,7 @@ const InviteSeparator = () => <View style={{ height: spacing.md }} />;
 
 export default function StoreInvitesScreen() {
 
-  const { accessToken, csrfToken } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
   const [busyId, setBusyId] = useState('');
   const [actionError, setActionError] = useState('');
 

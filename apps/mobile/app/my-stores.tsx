@@ -4,7 +4,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { memo } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import { fetchMyActiveStoreMemberships, type StoreMembership } from '@/features/commerce/store-management.api';
 import { Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { PageList } from '@/components/ui/PageList';
@@ -36,7 +36,7 @@ const storeKey = (item: StoreMembership) => item.id;
 const renderStore = ({ item }: { item: StoreMembership }) => <MyStoreRow item={item} />;
 
 export default function MyStoresScreen() {
-  const { accessToken } = useAuth();
+  const { accessToken } = useAuthSession();
   const resource = useAsyncResource<StoreMembership[]>(
     () => fetchMyActiveStoreMemberships(accessToken as string),
     {

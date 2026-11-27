@@ -5,7 +5,7 @@ import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
 import { domainLabel } from '@/lib/status-labels';
 import { spacing } from '@/theme/tokens';
@@ -17,7 +17,8 @@ const PAGE_SIZE = 30;
 
 export default function MyRequestsScreen() {
 
-  const { user, getAccessToken } = useAuth();
+  const { user } = useAuthUser();
+  const { getAccessToken } = useAuthActions();
   const list = usePaginatedList<MarketplaceRequest>({
     key: `my-requests:${user?.id ?? 'guest'}`,
     pageSize: PAGE_SIZE,

@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { apiRequest } from '@/api/client';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession } from '@/features/auth/AuthContext';
 import { resendVerification } from '@/features/account/account.api';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
 export default function VerifyEmailScreen() {
   const params = useLocalSearchParams<{
     token?: string;
   }>();
-  const { accessToken, csrfToken, updateUser } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { updateUser } = useAuthActions();
   const [token, setToken] = useState(typeof params.token === 'string' ? params.token : '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

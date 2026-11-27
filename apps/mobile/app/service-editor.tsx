@@ -11,7 +11,7 @@ import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
 import { fontSizes, spacing, fontWeights, radius, sizes } from '@/theme/tokens';
 import { onlineOnlyBlockReason } from '@/lib/offline-support';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
@@ -42,7 +42,8 @@ type FormDraft = {
 export default function ServiceEditorScreen() {
   const { colors } = useAppTheme();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { accessToken, csrfToken, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
   const operationIdRef = useRef(createMobileOperationId('mobile-service'));
   const [serviceTypes, setServiceTypes] = useState<PublicServiceTypeOption[]>([]);
   const [categories, setCategories] = useState<ServiceCategoryOption[]>([]);

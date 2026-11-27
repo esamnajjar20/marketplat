@@ -12,7 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { radius, sizes, spacing, typography } from '@/theme/tokens';
 import { COPY } from '@/lib/copy';
 import { AppThemeProvider, useAppTheme, useAppThemeColors } from '@/theme/ThemeProvider';
-import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
+import { AuthProvider, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { ConnectivityProvider, useIsOnline } from '@/lib/connectivity';
 import { requiresAuthenticatedUser } from '@/lib/navigation-policy';
 import { OutboxSyncLifecycleBridge } from '@/storage/OutboxSyncLifecycleBridge';
@@ -74,7 +74,8 @@ function RootChrome({ children }: { children: ReactNode }) {
   // BottomNavigation self-manages visibility via isBottomNavigationHidden.
   const isOnline = useIsOnline();
   const { colors } = useAppTheme();
-  const { user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { isRestoring } = useAuthStatus();
   const pathname = usePathname();
   const isPrivateRoute = requiresAuthenticatedUser(pathname);
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';

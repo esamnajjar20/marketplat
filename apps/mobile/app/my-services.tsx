@@ -8,7 +8,7 @@ import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard, LoadingState } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { deleteMyServiceListing, fetchMyServiceListingsPage, type ServiceListing } from '@/features/services/services.api';
 import { onlineOnlyBlockReason } from '@/lib/offline-support';
 import { statusLabel } from '@/lib/status-labels';
@@ -21,7 +21,9 @@ import { ListGapMd } from '@/components/ui/ListSeparator';
 export default function MyServicesScreen() {
   const { colors } = useAppTheme();
 
-  const { user, accessToken, csrfToken, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const [deletingId, setDeletingId] = useState('');
   const fetchPage = useCallback(async (page: number, signal: AbortSignal) => {
     if (!accessToken) return { items: [], meta: { page: 1, totalPages: 1 } };

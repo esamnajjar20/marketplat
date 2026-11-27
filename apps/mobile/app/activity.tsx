@@ -8,7 +8,7 @@ import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { Spinner, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyActivity, type ActivityRow } from '@/features/sales/sales-extra.api';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -55,7 +55,9 @@ const ActivitySeparator = () => <View style={{ height: spacing.md }} />;
 export default function ActivityScreen() {
   const { colors } = useAppTheme();
 
-  const { accessToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const [group, setGroup] = useState('ALL');
   const [q, setQ] = useState('');
   const [qApplied, setQApplied] = useState('');

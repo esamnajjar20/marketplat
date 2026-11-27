@@ -117,7 +117,7 @@ export const AdCard = memo(function AdCard({
       ownerName={hideOwnerAndPlace ? undefined : sellerName}
       city={hideOwnerAndPlace ? undefined : ad.city}
       createdAt={showTime ? ad.createdAt : undefined}
-      className={className}
+      className={cn('[content-visibility:auto] [contain-intrinsic-size:auto_320px]', className)}
       heart={
         showHeart ? (
           <button

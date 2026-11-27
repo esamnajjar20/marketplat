@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { AppText as Text } from '@/components/ui/AppText';
 import { Notice, PrimaryButton, SecondaryButton, SectionCard } from '@/components/ui';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { formatDate } from '@/lib/formatters';
 import { confirmAlert } from '@/lib/confirm';
@@ -28,7 +28,7 @@ function dateLabel(value: string): string {
 
 /** Lists server-owned push registrations without ever exposing their raw credentials. */
 export function NotificationDevicesSection({ pushEnabled }: { pushEnabled: boolean }) {
-  const { accessToken, csrfToken } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
   const { colors } = useAppTheme();
   const [currentFingerprint, setCurrentFingerprint] = useState<string | null>(null);
   const [currentNativeUnknown, setCurrentNativeUnknown] = useState(false);

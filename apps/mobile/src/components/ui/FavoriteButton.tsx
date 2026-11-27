@@ -2,7 +2,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import { checkFavoriteEntity, setFavoriteEntityState, type FavoriteEntityType } from '@/features/ads/favorites.api';
 import { radius, sizes, typography, spacing } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
@@ -16,7 +16,7 @@ export function FavoriteButton({ entityType, entityId, label = 'المفضلة' 
   entityId: string;
   label?: string;
 }) {
-  const { accessToken, csrfToken } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
   const { colors } = useAppTheme();
   const [favorite, setFavorite] = useState(false);
   const [checkStatus, setCheckStatus] = useState<CheckStatus>('loading');

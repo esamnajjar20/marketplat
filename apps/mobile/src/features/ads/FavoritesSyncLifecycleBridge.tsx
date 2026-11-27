@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { useIsOnline } from '@/lib/connectivity';
 import { getActiveSyncPromise, invalidateFavoritesSyncSession, syncFavoritesIfReady, type FavoritesSyncSnapshot } from './favorites-sync-lifecycle';
 
 /** Retry favorites outbox on connectivity restoration and foregrounding.
  *  Connectivity is provided by ConnectivityProvider (single NetInfo listener for the app). */
 export function FavoritesSyncLifecycleBridge() {
-  const { accessToken, csrfToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const isOnline = useIsOnline();
   const snapshot = useRef<FavoritesSyncSnapshot>({ isOnline: false, isActive: true, userId: null, token: null, csrfToken: null });
 

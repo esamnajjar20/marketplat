@@ -6,7 +6,7 @@ import { ListEmpty, ListStaleError, PaginatedFooter, LoadingState, Notice, PageS
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyAppointments, updateAppointmentStatus, type AppointmentRow } from '@/features/appointments/appointments.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { spacing } from '@/theme/tokens';
@@ -19,7 +19,10 @@ import { domainLabel } from '@/lib/status-labels';
 
 export default function AppointmentsScreen() {
 
-  const { accessToken, getAccessToken, csrfToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   const [providerId, setProviderId] = useState<string | null>(null);
   const [providerLoading, setProviderLoading] = useState(true);
   const [providerError, setProviderError] = useState('');

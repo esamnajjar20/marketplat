@@ -9,7 +9,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import {
   fetchProducts,
@@ -51,7 +51,8 @@ export default function ProductsScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { user, accessToken } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
   const params = useLocalSearchParams<{ storeId?: string | string[]; categoryId?: string | string[] }>();
   const storeParam = Array.isArray(params.storeId) ? params.storeId[0] : params.storeId;
   const storeId = typeof storeParam === 'string' && storeParam.trim() ? storeParam : undefined;

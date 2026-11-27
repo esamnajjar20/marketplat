@@ -8,7 +8,7 @@ import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { Badge, EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { formatMoney } from '@/lib/formatters';
 import { toAppHref } from '@/lib/typed-navigation';
 import { useAppTheme } from '@/theme/ThemeProvider';
@@ -114,7 +114,9 @@ function FeedRowCard({ row }: { row: FeedRow }) {
 
 export default function DiscoveryFeedScreen({ trending = false, forYou = false }: { trending?: boolean; forYou?: boolean }) {
   const { colors } = useAppTheme();
-  const { accessToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const mode = trending ? 'trending' : forYou ? 'forYou' : 'default';
 
   const [rows, setRows] = useState<FeedRow[]>([]);

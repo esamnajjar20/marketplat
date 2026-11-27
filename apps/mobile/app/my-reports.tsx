@@ -5,7 +5,7 @@ import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyReports, type MyReport } from '@/features/account/social.api';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
@@ -18,7 +18,8 @@ const PAGE_SIZE = 20;
 export default function MyReportsScreen() {
   const { colors } = useAppTheme();
 
-  const { user, getAccessToken } = useAuth();
+  const { user } = useAuthUser();
+  const { getAccessToken } = useAuthActions();
   const list = usePaginatedList<MyReport>({
     key: `my-reports:${user?.id ?? 'guest'}`,
     pageSize: PAGE_SIZE,

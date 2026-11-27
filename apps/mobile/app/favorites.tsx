@@ -16,7 +16,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { ApiError } from '@/api/client';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import {
   fetchFavoriteAdsPage,
   fetchFavoriteEntityPage,
@@ -99,7 +99,9 @@ function priceLabel(value: number | string | null | undefined): string {
 export default function FavoritesScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
-  const { user, getAccessToken, csrfToken } = useAuth();
+  const { user } = useAuthUser();
+  const { csrfToken } = useAuthSession();
+  const { getAccessToken } = useAuthActions();
   const net = useNetInfo();
   const online = net.isConnected === true && net.isInternetReachable !== false;
   const [activeType, setActiveType] = useState<FavoriteTab>('ads');

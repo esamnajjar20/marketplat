@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import { fetchMyProducts, fetchMyStore, fetchStore, type ProductSummary } from '@/features/commerce/commerce.api';
 import { addProductToCollection, createCollection, deleteCollection, fetchMyCollections, fetchManagedCollectionProducts, removeProductFromCollection, updateCollection, type StoreCollection } from '@/features/commerce/store-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
@@ -14,7 +14,7 @@ export default function StoreCollectionsScreen() {
   const { colors } = useAppTheme();
   const routeParams = useLocalSearchParams<{ storeId?: string | string[] }>();
   const storeIdParam = Array.isArray(routeParams.storeId) ? routeParams.storeId[0] : routeParams.storeId;
-  const { accessToken, csrfToken } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
   const [items, setItems] = useState<StoreCollection[]>([]);
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [productsPage, setProductsPage] = useState(1);

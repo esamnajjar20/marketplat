@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchSaleReceipt } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
@@ -34,7 +34,9 @@ export default function SaleReceiptScreen() {
     id: string | string[];
   }>();
   const id = Array.isArray(p.id) ? p.id[0] : p.id;
-  const { accessToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const canLoad = !isRestoring && !!accessToken && !!id;
   const resource = useAsyncResource<{ sale: ReceiptSale; invoice: string | null }>(
     async () => {

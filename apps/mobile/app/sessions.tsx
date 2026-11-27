@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession } from '@/features/auth/AuthContext';
 import { unregisterAndroidFcmToken } from '@/features/notifications/native-push';
 import { fetchActiveSessions, revokeActiveSession, logoutAllSessions, type ActiveSession } from '@/features/auth/sessions.api';
 import { Notice, PrimaryButton, SectionCard } from '@/components/ui';
@@ -45,7 +45,8 @@ const sessionKey = (session: ActiveSession) => session.sessionId;
 export default function SessionsScreen() {
   const { colors } = useAppTheme();
 
-  const { accessToken, csrfToken, forceLocalSignOut } = useAuth();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { forceLocalSignOut } = useAuthActions();
   const [busyId, setBusyId] = useState('');
   const resource = useAsyncResource<ActiveSession[]>(
     () => fetchActiveSessions(accessToken as string),

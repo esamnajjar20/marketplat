@@ -12,7 +12,7 @@ import { pushOnce } from '@/lib/navigation';
 import { fetchProduct, fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { ApiError } from '@/api/client';
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMixedRecommendations, type RecommendationItem } from '@/features/discovery/discovery.api';
 import { Badge, DetailScaffold, PrimaryButton, SecondaryButton, SectionCard } from '@/components/ui';
 import { FavoriteButton } from '@/components/ui/FavoriteButton';
@@ -65,7 +65,8 @@ export default function ProductDetailScreen() {
 
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { user, accessToken, csrfToken } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
   const [contacting, setContacting] = useState(false);
   const [item, setItem] = useState<ProductSummary | null>(null);
   const [sameStoreProducts, setSameStoreProducts] = useState<ProductSummary[]>([]);

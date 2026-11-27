@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { StyleSheet, View } from 'react-native';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { enqueueFavoriteState, listPendingFavoriteStates, readFavoriteAdIds, updateFavoriteAdId } from '@/features/ads/favorites.store';
 import { setFavoriteAdState } from '@/features/ads/favorites.api';
 import { ApiError } from '@/api/client';
@@ -41,7 +41,8 @@ export default function AdDetailScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { user, accessToken, csrfToken } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const [ad, setAd] = useState<AdDetail | null>(null);

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyServiceTypeProfiles, updateMyServiceTypeProfile, type ProviderServiceTypeField, type ProviderServiceTypeProfile } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
@@ -25,7 +25,9 @@ import { useAsyncResource } from '@/hooks/useAsyncResource';
 export default function ServiceTypesScreen() {
   const { colors } = useAppTheme();
 
-  const { accessToken, getAccessToken, csrfToken, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { getAccessToken } = useAuthActions();
   const userId = user?.id;
   const [attributes, setAttributes] = useState<AttributesByType>({});
   const [active, setActive] = useState<Record<string, boolean>>({});

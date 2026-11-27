@@ -6,7 +6,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { memo, useCallback } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthUser } from '@/features/auth/AuthContext';
 import { fetchUserFollowList, type FollowListItem } from '@/features/account/social.api';
 import { EmptyState, Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { PageList } from '@/components/ui/PageList';
@@ -28,7 +28,7 @@ const followingKey = (entry: FollowListItem) => entry.id;
 export default function FollowingScreen() {
   const { colors } = useAppTheme();
 
-  const { user } = useAuth();
+  const { user } = useAuthUser();
   const fetchPage = useCallback(async (page: number, signal: AbortSignal) => {
     if (!user?.id) return { items: [], meta: { page: 1, totalPages: 1 } };
     const result = await fetchUserFollowList(user.id, 'following', page, 20, signal);

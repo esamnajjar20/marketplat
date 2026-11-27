@@ -18,7 +18,7 @@ import { useNetInfo } from '@react-native-community/netinfo';
 import { ApiError } from '@/api/client';
 import { deleteAd, fetchMyAdsPage, mergeRefreshedAdsPage, type ManagedAd } from '@/features/ads/manage-ads.api';
 import { enqueueMutation, listAllOutboxMutations } from '@/storage/outbox-manager';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import {
   AppHeader,
   EmptyState,
@@ -79,7 +79,10 @@ export default function MyAdsScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   const netInfo = useNetInfo();
   const online = netInfo.isConnected === true && netInfo.isInternetReachable !== false;
   const [ads, setAds] = useState<ManagedAd[]>([]);

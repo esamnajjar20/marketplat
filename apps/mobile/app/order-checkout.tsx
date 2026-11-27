@@ -11,7 +11,7 @@ import { AppImage } from '@/components/AppImage';
 import type { TextInputHandle } from '@/components/ui/Field';
 import { AppText } from '@/components/ui/AppText';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { fetchProduct, type ProductSummary } from '@/features/commerce/commerce.api';
 import { createMarketplaceOrder } from '@/features/commerce/orders.api';
@@ -28,7 +28,9 @@ export default function OrderCheckoutScreen() {
 
   const params = useLocalSearchParams<{ productId?: string | string[] }>();
   const productId = Array.isArray(params.productId) ? params.productId[0] : params.productId;
-  const { user, accessToken, csrfToken, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const [product, setProduct] = useState<ProductSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

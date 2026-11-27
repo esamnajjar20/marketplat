@@ -7,7 +7,7 @@ import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { Spinner, ListEmpty, ListStaleError, PaginatedFooter, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { createCustomer, fetchCustomerSummary, fetchCustomers, updateCustomer, type CustomerRow, type CustomerSummary } from '@/features/sales/sales-extra.api';
 import { spacing } from '@/theme/tokens';
 import { confirmAlert } from '@/lib/confirm';
@@ -20,7 +20,10 @@ import { ListGapMd } from '@/components/ui/ListSeparator';
 export default function CustomersScreen() {
   const { colors } = useAppTheme();
 
-  const { getAccessToken, csrfToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   const userId = user?.id;
   const [summary, setSummary] = useState<CustomerSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);

@@ -15,7 +15,7 @@ import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce
 import { getProductPricing } from '@/features/commerce/product-pricing';
 import { fetchServiceListings, type ServiceListing } from '@/features/services/services.api';
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthUser } from '@/features/auth/AuthContext';
 
 import { HorizontalMarketCard } from '@/components/MarketCards';
 import { formatMoney } from '@/lib/formatters';
@@ -121,7 +121,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { user } = useAuth();
+  const { user } = useAuthUser();
   const [data, setData] = useState<SectionData>(EMPTY);
   const [loaded, setLoaded] = useState<Record<SectionKey, boolean>>({
     products: false,

@@ -9,7 +9,7 @@ import { confirmAlert } from '@/lib/confirm';
 import { useLocalSearchParams } from 'expo-router';
 import { goBack } from '@/lib/navigation';
 import { AppImage } from '@/components/AppImage';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession } from '@/features/auth/AuthContext';
 import { deleteStory, fetchStoryFeed, fetchUserStories, markStoryViewed, type Story } from '@/features/stories/stories.api';
 import { ApiError } from '@/api/client';
 import { shareMarketPlatResource } from '@/features/sharing/deep-links';
@@ -24,7 +24,8 @@ export default function StoryViewerScreen() {
     }>();
     const id = Array.isArray(params.id) ? params.id[0] : params.id;
     const userId = Array.isArray(params.userId) ? params.userId[0] : params.userId;
-    const { getAccessToken, csrfToken } = useAuth();
+    const { csrfToken } = useAuthSession();
+    const { getAccessToken } = useAuthActions();
     const [stories, setStories] = useState<Story[]>([]);
     const [index, setIndex] = useState(0);
     const [loading, setLoading] = useState(true);

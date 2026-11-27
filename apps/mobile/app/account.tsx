@@ -13,7 +13,7 @@ import { formatNumber } from '@/lib/formatters';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { fetchMySellerProfile } from '@/features/account/seller.api';
 import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { getRouteAccess, resolveNavigationCapabilities, getNavigationCapabilitiesRevision, subscribeNavigationCapabilities, type NavigationCapabilities } from '@/lib/navigation-policy';
 import {
   ListRow,
@@ -139,7 +139,8 @@ export default function AccountScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { user, accessToken } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
   const userId = user?.id ?? null;
   const capabilityRevision = useSyncExternalStore(
     subscribeNavigationCapabilities,

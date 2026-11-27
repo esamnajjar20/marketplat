@@ -15,7 +15,7 @@ import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { fontSizes, radius, sizes, spacing, ux, fontWeights } from '@/theme/tokens';
 import { AppIcon } from '@/components/Icons';
 import { HORIZONTAL_AD_CARD_WIDTH, HorizontalAdCard } from '@/components/MarketCards';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';
 import HomeMarketplaceSections from '@/features/discovery/HomeMarketplaceSections';
 import { formatPrice } from '@/features/discovery/homeFormatters';
@@ -47,7 +47,7 @@ const SECONDARY_SECTIONS_DELAY_MS = 300;
 const MemoHomeCommunitySections = memo(HomeCommunitySections);
 const MemoHomeMarketplaceSections = memo(HomeMarketplaceSections);
 
-type AuthUser = ReturnType<typeof useAuth>['user'];
+type AuthUser = ReturnType<typeof useAuthUser>['user'];
 
 /* ───────────────────────── رأس الصفحة + البحث ───────────────────────── */
 
@@ -496,7 +496,8 @@ export default function HomeScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { isRestoring } = useAuthStatus();
   const [sectionsVisible, setSectionsVisible] = useState(false);
   const [sectionsReady, setSectionsReady] = useState(false);
   const [sectionsRefreshKey, setSectionsRefreshKey] = useState(0);

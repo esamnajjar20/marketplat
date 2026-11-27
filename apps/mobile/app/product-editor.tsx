@@ -11,7 +11,7 @@ import { StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { addProductImages, createProduct, fetchProduct, fetchProductCategories, fetchMyStore, fetchStoreTypeFields, removeProductImage, updateProduct, type ProductCategory, type ProductSummary, type StoreTypeFieldSummary } from '@/features/commerce/commerce.api';
 import { fontSizes, radius, spacing, fontWeights, sizes } from '@/theme/tokens';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
@@ -27,7 +27,8 @@ import { COPY } from '@/lib/copy';
 export default function ProductEditorScreen() {
     const { colors } = useAppTheme();
     const s = useMemo(() => createThemeS(colors), [colors]);
-    const { accessToken, csrfToken, user } = useAuth();
+    const { user } = useAuthUser();
+    const { accessToken, csrfToken } = useAuthSession();
     const operationIdRef = useRef(createMobileOperationId('mobile-product'));
     const [availability, setAvailability] = useState<'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'>('IN_STOCK');
     const [discountPrice, setDiscountPrice] = useState('');

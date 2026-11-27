@@ -7,7 +7,7 @@ import { View } from 'react-native';
 import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 import { fetchServiceProviderAnalytics } from '@/features/services/service-management.api';
 import { Notice, PageShell, SectionCard } from '@/components/ui';
 import { fontWeights, spacing, radius } from '@/theme/tokens';
@@ -20,7 +20,7 @@ const metrics: [
 ];
 export default function ServiceProviderAnalyticsScreen() {
   const { colors } = useAppTheme();
-  const { accessToken } = useAuth();
+  const { accessToken } = useAuthSession();
   const [period, setPeriod] = useState<'7d' | '30d' | 'all'>('30d');
   const resource = useAsyncResource<Record<string, unknown>>(
     () => fetchServiceProviderAnalytics(accessToken as string, period),

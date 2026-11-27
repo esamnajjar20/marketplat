@@ -2,12 +2,12 @@ import { useCallback, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { fetchUnreadCounts } from '@/features/messaging/messaging.api';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession } from '@/features/auth/AuthContext';
 
 export type UnreadCounts = { messages: number; notifications: number };
 
 export function useUnreadCounts() {
-  const { accessToken } = useAuth();
+    const { accessToken } = useAuthSession();
   const [counts, setCounts] = useState<UnreadCounts>({ messages: 0, notifications: 0 });
   const sequence = useRef(0);
 

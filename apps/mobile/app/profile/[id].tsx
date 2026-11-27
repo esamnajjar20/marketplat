@@ -13,7 +13,7 @@ import { PageList } from '@/components/ui/PageList';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchProfileInteractionState, fetchPublicUser, fetchPublicUserAds, fetchSellerRatings, toggleBlockUser, toggleUserFollow, unblockUser, type PublicAd, type PublicSellerRating, type PublicUser } from '@/features/account/social.api';
 import { fetchProviderServices } from '@/features/services/providers.api';
 import { fetchServiceReviews, type ServiceReview } from '@/features/services/service-management.api';
@@ -34,7 +34,10 @@ export default function PublicProfileScreen() {
 
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { getAccessToken, csrfToken, user, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   const [profile, setProfile] = useState<PublicUser | null>(null);
   const [ads, setAds] = useState<PublicAd[]>([]);
   const [adsPage, setAdsPage] = useState(1);

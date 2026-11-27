@@ -10,7 +10,7 @@ import { AppFlashList } from '@/components/ui/AppFlashList';
 import { useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import {
   fetchNotificationsPage,
   markAllNotificationsRead,
@@ -140,7 +140,10 @@ export default function NotificationsScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   const { counts, refresh: refreshUnreadCounts } = useUnreadCounts();
   const token = getAccessToken();
   const list = usePaginatedList<AppNotification>({

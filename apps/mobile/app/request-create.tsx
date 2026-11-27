@@ -9,7 +9,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
@@ -26,7 +26,8 @@ type RequestDraft = { version: 1; type: Kind; categoryId: string; title: string;
 
 export default function RequestCreateScreen() {
   const { colors } = useAppTheme();
-  const { accessToken, csrfToken, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
   const operationIdRef = useRef(createMobileOperationId('mobile-request'));
   const restoredRef = useRef(false);
   const [type, setType] = useState<Kind>('SERVICE');

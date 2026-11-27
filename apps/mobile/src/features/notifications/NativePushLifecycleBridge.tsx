@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 import { useOnlineResync } from '@/lib/useOnlineResync';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { syncGrantedAndroidPush, registerAndroidFcmToken, isAndroidPushEnabled } from './native-push';
 import { logger } from '@/lib/logger';
 import { getConfiguredWebUrl } from '@/lib/web-links';
@@ -49,7 +49,8 @@ function safeNotificationPath(value: unknown): string {
 }
 
 export function NativePushLifecycleBridge() {
-  const { user, accessToken, csrfToken } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
   const userId = user?.id;
   const lastResponseId = useRef<string | null>(null);
   const syncInFlight = useRef(false);

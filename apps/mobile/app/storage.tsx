@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { Spinner, PageShell, Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useFocusEffect } from 'expo-router';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthUser } from '@/features/auth/AuthContext';
 import { clearPublicCache, getPublicCacheStats, type PublicCacheStats } from '@/storage/public-cache';
 import { hasMissingEncryptedDatabaseKey, resetEncryptedDatabaseAfterMissingKey } from '@/storage/encrypted-database';
 import { clearPrivateCleanupFlag } from '@/features/auth/private-data-cleanup';
@@ -39,7 +39,7 @@ export default function StorageScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { user } = useAuth();
+  const { user } = useAuthUser();
   const [cache, setCache] = useState<PublicCacheStats>({ entries: 0, sizeBytes: 0, newestSavedAt: null });
   const [drafts, setDrafts] = useState<AdDraftStorageSummary>({ drafts: 0, editDrafts: 0, sizeBytes: 0, newestUpdatedAt: null });
   const [queue, setQueue] = useState<QueueStats>({ pending: 0, blockedLegacy: 0, pendingFavorites: 0 });

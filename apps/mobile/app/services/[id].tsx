@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchServiceListing, getCachedServiceListing, type ServiceListing } from '@/features/services/services.api';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthUser } from '@/features/auth/AuthContext';
 import { Badge, DetailScaffold, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, typography, fontWeights } from '@/theme/tokens';
 import { MediaGallery } from '@/components/ui/MediaGallery';
@@ -63,7 +63,7 @@ export default function ServiceDetailScreen() {
 
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { user } = useAuth();
+  const { user } = useAuthUser();
   // كاش أولاً ثم الشبكة؛ تبقى النسخة المخزنة ظاهرة إن فشلت الشبكة.
   const resource = useAsyncResource<ServiceListing>(
     () => fetchServiceListing(id as string),

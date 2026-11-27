@@ -11,7 +11,7 @@ import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchMyProducts, deleteProduct, type ProductSummary } from '@/features/commerce/commerce.api';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/components/ui';
@@ -35,7 +35,10 @@ export default function MyProductsScreen() {
   const inventoryMode = view === 'inventory';
   const { colors } = useAppTheme();
   const s = useMemo(() => createThemeS(colors), [colors]);
-  const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
+  const { user } = useAuthUser();
+  const { csrfToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
+  const { getAccessToken } = useAuthActions();
   const [busyId, setBusyId] = useState<string | null>(null);
   const { items, loading, refreshing, loadingMore, error, loadMoreError, hasNextPage, refresh, loadMore, updateItems, } = usePaginatedList<ProductSummary>({
     key: `${user?.id ?? 'guest'}|${storeId ?? 'default'}`,

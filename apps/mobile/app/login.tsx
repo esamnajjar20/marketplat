@@ -9,7 +9,7 @@ import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack, pushOnce } from '@/lib/navigation';
 import { ApiError } from '@/api/client';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthStatus } from '@/features/auth/AuthContext';
 import { Field, Notice, PrimaryButton } from '@/components/ui';
 import type { TextInputHandle } from '@/components/ui/Field';
 import { fontSizes, elevation, radius, spacing, typography, ux, fontWeights, sizes } from '@/theme/tokens';
@@ -21,7 +21,8 @@ export default function LoginScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { login, loginWithGoogle, isBusy } = useAuth();
+  const { isBusy } = useAuthStatus();
+  const { login, loginWithGoogle } = useAuthActions();
   const { redirect } = useLocalSearchParams<{ redirect?: string | string[] }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

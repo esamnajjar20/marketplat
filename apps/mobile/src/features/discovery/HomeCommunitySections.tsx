@@ -8,7 +8,7 @@ import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api';
 import { fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
 import { fontSizes, radius, spacing, ux, fontWeights } from '@/theme/tokens';
@@ -55,7 +55,9 @@ export default function HomeCommunitySections() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const { accessToken, isRestoring, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
+  const { isRestoring } = useAuthStatus();
   const [stores, setStores] = useState<StoreSummary[]>([]);
   const [stories, setStories] = useState<StoryGroup[]>([]);
   const [storiesOwnerId, setStoriesOwnerId] = useState<string | null>(null);

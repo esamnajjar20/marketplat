@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { fetchMyStore, fetchMyStoreAnalytics, type StoreAnalytics, type StoreSummary } from '@/features/commerce/commerce.api';
 import { fetchMySellerProfile, type SellerProfile } from '@/features/account/seller.api';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
@@ -28,7 +28,8 @@ function Metric({ label, value }: {
 }
 export default function SellerDashboardScreen() {
   const { colors } = useAppTheme();
-  const { accessToken, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken } = useAuthSession();
   // دورة الجلب الموحّدة. فشل جزئي (متجر أو ملف) يبقى جزءًا من البيانات لا خطأً شاملًا.
   const resource = useAsyncResource<DashboardData>(
     async () => {

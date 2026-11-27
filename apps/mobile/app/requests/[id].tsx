@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { confirmAlert } from '@/lib/confirm';
 import { useLocalSearchParams, router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
-import { useAuth } from '@/features/auth/AuthContext';
+import { useAuthActions, useAuthSession, useAuthUser } from '@/features/auth/AuthContext';
 import { acceptRequestOffer, cancelMarketplaceRequest, fetchMarketplaceRequest, submitRequestOffer, withdrawRequestOffer, type MarketplaceRequest } from '@/features/requests/requests.api';
 import { enqueueRequestOffer } from '@/storage/outbox-manager';
 import { createMobileOperationId } from '@/lib/operation-id';
@@ -23,7 +23,9 @@ export default function RequestDetailScreen() {
   const { id } = useLocalSearchParams<{
     id: string;
   }>();
-  const { accessToken, getAccessToken, csrfToken, user } = useAuth();
+  const { user } = useAuthUser();
+  const { accessToken, csrfToken } = useAuthSession();
+  const { getAccessToken } = useAuthActions();
   const offerOperationIdRef = useRef(createMobileOperationId('request-offer'));
   const [price, setPrice] = useState('');
   const [message, setMessage] = useState('');
