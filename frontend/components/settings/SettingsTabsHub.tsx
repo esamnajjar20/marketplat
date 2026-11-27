@@ -66,7 +66,7 @@ const BlockedUsersList = dynamic(
 );
 const ViewMyProfileLink = dynamic(
   () => import('@/components/profile/ViewMyProfileLink').then((m) => m.ViewMyProfileLink),
-  { loading: () => <span className="h-8 w-24 animate-pulse rounded bg-muted" /> },
+  { loading: () => <span className="h-8 w-24 loading-pulse rounded bg-muted" /> },
 );
 
 const TAB_META: Record<SettingsTab, { label: string; Icon: typeof User }> = {

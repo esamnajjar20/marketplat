@@ -140,7 +140,7 @@ describe('SearchResults', () => {
   it('shows a loading spinner while isLoading is true', () => {
     mockSearchState({ isLoading: true });
     renderResults();
-    expect(document.querySelector('.animate-pulse')).toBeTruthy();
+    expect(document.querySelector('.loading-pulse, .animate-pulse')).toBeTruthy();
   });
 
   it('shows an error message with a retry action on isError', async () => {

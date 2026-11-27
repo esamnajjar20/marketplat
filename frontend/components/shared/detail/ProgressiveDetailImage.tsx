@@ -49,7 +49,7 @@ export function ProgressiveDetailImage({
       {!isLoaded && !hasFailed && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-[1] animate-pulse bg-gradient-to-br from-muted via-muted/60 to-muted/90"
+          className="pointer-events-none absolute inset-0 z-[1] loading-pulse bg-gradient-to-br from-muted via-muted/60 to-muted/90"
         />
       )}
       {hasFailed && (

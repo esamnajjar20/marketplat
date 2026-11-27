@@ -30,7 +30,7 @@ export function StoreCollectionCard({ storeId, collection }: { storeId: string; 
         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{collection._count.products} منتج</span>
       </div>
       {isLoading ? (
-        <div className="mt-3 flex gap-3 overflow-hidden">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="aspect-square w-36 shrink-0 animate-pulse rounded-xl bg-muted" />)}</div>
+        <div className="mt-3 flex gap-3 overflow-hidden">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="aspect-square w-36 shrink-0 loading-pulse rounded-xl bg-muted" />)}</div>
       ) : (
         <div className="mt-3 flex gap-3 overflow-x-auto overscroll-x-contain pb-1 snap-x snap-mandatory scrollbar-hide">
           {(products ?? []).map((product) => {

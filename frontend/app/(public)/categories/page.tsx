@@ -16,7 +16,7 @@ const CategoriesIndex = dynamic(
     loading: () => (
       <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6" aria-hidden="true">
         {Array.from({ length: 12 }, (_, index) => (
-          <div key={index} className="h-24 animate-pulse rounded-2xl bg-muted" />
+          <div key={index} className="h-24 loading-pulse rounded-2xl bg-muted" />
         ))}
       </div>
     ),

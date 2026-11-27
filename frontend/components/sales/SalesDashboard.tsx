@@ -51,7 +51,7 @@ export function SalesDashboard() {
     return (
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3 lg:gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-24 animate-pulse rounded-2xl border bg-muted/40" />
+          <div key={i} className="h-24 loading-pulse rounded-2xl border bg-muted/40" />
         ))}
       </div>
     );

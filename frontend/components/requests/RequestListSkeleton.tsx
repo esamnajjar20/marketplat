@@ -7,7 +7,7 @@ export function RequestListSkeleton({ count = 6 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <li
           key={i}
-          className="animate-pulse rounded-xl border border-border/60 bg-card p-4"
+          className="loading-pulse rounded-xl border border-border/60 bg-card p-4"
         >
           <div className="flex gap-2">
             <div className="h-5 w-14 rounded-full bg-muted" />

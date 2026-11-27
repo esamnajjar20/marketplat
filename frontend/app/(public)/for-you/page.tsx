@@ -15,7 +15,7 @@ const SuggestionsPageClient = dynamic(
         <Skeleton className="h-12 rounded-2xl" />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }, (_, index) => (
-            <div key={index} className="h-48 animate-pulse rounded-2xl bg-muted" />
+            <div key={index} className="h-48 loading-pulse rounded-2xl bg-muted" />
           ))}
         </div>
       </div>

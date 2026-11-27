@@ -402,7 +402,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
           {/* NAV-ORDER: same priority as ProtectedSidebar / BROWSE_LINKS */}
           {showRoleSkeleton && (
             <li aria-hidden className="px-3 py-2">
-              <div className="h-9 animate-pulse rounded-md bg-muted/70" />
+              <div className="h-9 loading-pulse rounded-md bg-muted/70" />
             </li>
           )}
           {!showRoleSkeleton && isSeller && (
@@ -472,7 +472,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
           )}
           {showProviderSkeleton && (
             <li aria-hidden className="px-3 py-2">
-              <div className="h-9 animate-pulse rounded-md bg-muted/60" />
+              <div className="h-9 loading-pulse rounded-md bg-muted/60" />
             </li>
           )}
           {(isSeller || isProvider) && (

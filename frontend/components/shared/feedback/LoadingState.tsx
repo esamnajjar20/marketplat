@@ -1,6 +1,7 @@
+import type React from 'react';
 import { Spinner, type SpinnerSize } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
-import { LOADING_COPY } from '@/lib/loadingCopy';
+import { getLoadingLabel, LOADING_TIMING, type LoadingPhase } from '@marketplat/contracts';
 
 /**
  * Single accessible presentation layer for loading states across the app.
@@ -11,6 +12,7 @@ export interface LoadingStateProps {
   variant?: 'page' | 'section' | 'inline' | 'overlay';
   size?: SpinnerSize;
   label?: string;
+  phase?: LoadingPhase;
   description?: string;
   hideLabel?: boolean;
   /** Set false only when nested inside an already-announced loading region. */
@@ -26,7 +28,8 @@ export interface LoadingStateProps {
 export function LoadingState({
   variant = 'section',
   size = variant === 'page' ? 'xl' : variant === 'inline' ? 'sm' : 'md',
-  label = LOADING_COPY.default,
+  label,
+  phase = 'initial',
   description,
   hideLabel = false,
   announce = true,
@@ -35,13 +38,14 @@ export function LoadingState({
   contentClassName,
   spinnerClassName,
 }: LoadingStateProps) {
+  const resolvedLabel = label ?? getLoadingLabel(phase);
   const content = (
     <div className={cn('flex items-center gap-3', variant === 'page' && 'flex-col text-center', contentClassName)}>
-      <Spinner size={size} className={cn("shrink-0 text-primary", spinnerClassName)} />
+      <Spinner size={size} className={cn('shrink-0 text-primary', spinnerClassName)} />
       {!hideLabel && (
         <div className={cn('min-w-0', variant === 'page' && 'space-y-1')}>
           <p className={cn('text-sm text-foreground', variant !== 'inline' && 'font-medium')}>
-            {label}
+            {resolvedLabel}
           </p>
           {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
         </div>
@@ -60,8 +64,9 @@ export function LoadingState({
   return (
     <div
       {...(announce ? { role: 'status' as const, 'aria-live': 'polite' as const, 'aria-busy': true } : {})}
-      {...(announce && hideLabel ? { 'aria-label': label } : {})}
+      {...(announce && hideLabel ? { 'aria-label': resolvedLabel } : {})}
       className={cn(base, variantClass, delayed && 'loading-delayed', className)}
+      style={delayed ? { '--loading-delay': `${LOADING_TIMING.routeFallbackDelayMs}ms` } as React.CSSProperties : undefined}
     >
       {variant === 'overlay' ? (
         <div className="rounded-2xl border border-border/80 bg-card px-5 py-3 shadow-lg">

@@ -66,7 +66,7 @@ import {
 // (initialTab=null حتى أول effect) فلا خسارة SSR. ملاحظة: chunks هذه يجب أن تبقى ضمن
 // warming-manifest/precache حتى يعمل المركز دون اتصال (generate-warming-manifest يقرأ react-loadable).
 const TabFallback = () => (
-  <div aria-busy="true" className="min-h-40 animate-pulse rounded-2xl bg-muted/40" />
+  <div aria-busy="true" className="min-h-40 loading-pulse rounded-2xl bg-muted/40" />
 );
 const SavedOfflineAdsPageClient = dynamic(
   () => import('@/components/ads/SavedOfflineAdsPageClient').then((mod) => mod.SavedOfflineAdsPageClient),

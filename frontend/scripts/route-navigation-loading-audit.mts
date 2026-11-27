@@ -36,7 +36,7 @@ check('navigation progress stays fixed and does not block page interactions', /p
 check('reduced-motion preference disables continuous navigation-bar animation', /prefers-reduced-motion:\s*reduce/.test(navigationProgressCss) && /animation:\s*none/.test(navigationProgressCss));
 check('reduced-motion navigation cue remains visible without transform motion', /prefers-reduced-motion:[\s\S]*?width:\s*100%[\s\S]*?transform:\s*none/.test(navigationProgressCss));
 check('navigation progress has an accessible progressbar label', /role="progressbar"/.test(navigationProgress) && /aria-label=\{LOADING_COPY\.navigating\}/.test(navigationProgress) && /LOADING_COPY\.page/.test(navigationProgress));
-check('navigation progress has a failsafe to avoid remaining stuck', /FAILSAFE_MS/.test(navigationProgress) && /12_000/.test(navigationProgress));
+check('navigation progress has a failsafe to avoid remaining stuck', /import \{ LOADING_TIMING \} from '@marketplat\/contracts'/.test(navigationProgress) && /FAILSAFE_MS = LOADING_TIMING\.navigationSafetyTimeoutMs/.test(navigationProgress));
 check('query-only and hash-only changes do not start a page navigation indicator', /const samePath = normalizePath\(target\.pathname\) === normalizePath\(window\.location\.pathname\)/.test(navigationProgress) && /samePath && target\.search === window\.location\.search/.test(navigationProgress));
 check('programmatic navigation start event is supported', /window\.addEventListener\(START_EVENT, onProgrammaticStart\)/.test(navigationProgress) && /function signalNavigationStart\(href: string\)/.test(navigationProgress));
 check('browser Back/Forward navigation is observed through popstate', /window\.addEventListener\('popstate', onPopState\)/.test(navigationProgress) && /window\.removeEventListener\('popstate', onPopState\)/.test(navigationProgress));
@@ -48,7 +48,7 @@ check('navigation listeners and timers are cleaned up on unmount', /return \(\) 
 check('navigation destination state is cleared when navigation finishes', /startedHref\.current = null/.test(navigationProgress));
 check('pathname changes cancel both pending show and failsafe timers', /if \(showTimer\.current\) clearTimeout\(showTimer\.current\);[\s\S]*?if \(hideTimer\.current\) clearTimeout\(hideTimer\.current\);[\s\S]*?startedPath\.current = null/.test(navigationProgress));
 check('pathname change resets visible progress state', /pathname !== startedPath\.current[\s\S]*?setVisible\(false\)/.test(navigationProgress));
-check('delayed progress indicator is bounded by both show delay and failsafe', /SHOW_DELAY_MS = 120/.test(navigationProgress) && /FAILSAFE_MS = 12_000/.test(navigationProgress));
+check('delayed progress indicator is bounded by shared show-delay and failsafe values', /SHOW_DELAY_MS = LOADING_TIMING\.navigationStartDelayMs/.test(navigationProgress) && /FAILSAFE_MS = LOADING_TIMING\.navigationSafetyTimeoutMs/.test(navigationProgress));
 check('intercepted Next.js internal links still start navigation loading', /start\(anchor\.href\)/.test(navigationProgress) && /event\.defaultPrevented/.test(navigationProgress));
 
 const programmaticNavigationFiles = [
@@ -171,7 +171,7 @@ const phase26NavigationFiles = [
 for (const [relative, label] of phase26NavigationFiles) {
   const file = path.join(frontendRoot, relative);
   const source = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  check(label, /function updateCategory/.test(source) && /signalNavigationStart\(destination\)/.test(source) && /signalNavigationStart\(ROUTES\.search\)/.test(source) && /else update\('categoryId', categoryId\)/.test(source));
+  check(label, /function updateCategory/.test(source) && /signalNavigationStart\(destination\)/.test(source) && /signalNavigationStart\(ROUTES\.search\)/.test(source) && /else\s*\{\s*update\('categoryId', categoryId\)/.test(source));
 }
 
 const queryNavigationFiles = [

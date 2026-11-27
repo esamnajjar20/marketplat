@@ -103,7 +103,7 @@ export function SalesReports() {
       </div>
 
       {isLoading ? (
-        <div className="h-64 animate-pulse rounded-xl border bg-muted/40" />
+        <div className="h-64 loading-pulse rounded-xl border bg-muted/40" />
       ) : isError ? (
         <div className="rounded-xl border p-6 text-center text-destructive">
           تعذر تحميل التقرير.

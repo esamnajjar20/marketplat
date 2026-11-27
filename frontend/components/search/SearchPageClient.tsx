@@ -6,11 +6,11 @@ import { Suspense } from 'react';
 
 const SearchBox = dynamic(
   () => import('@/components/search/SearchBox').then((module) => module.SearchBox),
-  { ssr: false, loading: () => <div className="h-12 animate-pulse rounded-full bg-muted" aria-hidden="true" /> },
+  { ssr: false, loading: () => <div className="h-12 loading-pulse rounded-full bg-muted" aria-hidden="true" /> },
 );
 const SearchTabsWrapper = dynamic(
   () => import('@/components/search/SearchTabsWrapper').then((module) => module.SearchTabsWrapper),
-  { ssr: false, loading: () => <div className="h-10 animate-pulse rounded-xl bg-muted" aria-hidden="true" /> },
+  { ssr: false, loading: () => <div className="h-10 loading-pulse rounded-xl bg-muted" aria-hidden="true" /> },
 );
 const SearchFilters = dynamic(
   () => import('@/components/search/SearchFilters').then((module) => module.SearchFilters),
@@ -32,7 +32,7 @@ const SearchResults = dynamic(
         <p className="text-center text-sm text-muted-foreground">جارٍ تحميل نتائج البحث…</p>
         <div className="grid grid-cols-2 gap-2.5">
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="h-40 animate-pulse rounded-2xl bg-muted" />
+            <div key={i} className="h-40 loading-pulse rounded-2xl bg-muted" />
           ))}
         </div>
       </div>

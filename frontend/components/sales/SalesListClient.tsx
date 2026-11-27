@@ -65,7 +65,7 @@ export function SalesListClient() {
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="h-36 animate-pulse rounded-2xl border bg-muted/40" />
+            <div key={index} className="h-36 loading-pulse rounded-2xl border bg-muted/40" />
           ))}
         </div>
       ) : isError ? (

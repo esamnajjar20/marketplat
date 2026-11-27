@@ -33,3 +33,15 @@ pnpm --filter @marketplat/mobile test
 ```
 
 After changing dependencies, run `pnpm install` at the repository root and `npm --prefix frontend install` for the non-workspace web app.
+
+
+## Shared loading contract
+
+`src/loading.ts` exports the cross-platform loading contract:
+
+- `LoadingPhase` and `LOADING_PHASES` define stable operation names for web and mobile.
+- `LOADING_COPY` and `getLoadingLabel()` provide one set of default user-facing labels.
+- `LOADING_TIMING` defines shared delay, minimum-visible and navigation safety defaults.
+
+The web and mobile apps may render their native components differently, but should not
+create parallel phase names, default labels or timing values.

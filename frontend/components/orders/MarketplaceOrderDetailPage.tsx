@@ -47,7 +47,7 @@ export function MarketplaceOrderDetailPage() {
   const nextStatus = useMemo(() => order && isSeller ? transitions[order.status] : undefined, [order, isSeller]);
   const canCancel = Boolean(order && (order.status === 'PENDING' || (isSeller && order.status === 'CONFIRMED')) && (isSeller || isBuyer));
 
-  if (isLoading) return <div className="mx-auto max-w-3xl animate-pulse space-y-3"><div className="h-24 rounded-2xl bg-muted/50" /><div className="h-64 rounded-2xl bg-muted/50" /></div>;
+  if (isLoading) return <div className="mx-auto max-w-3xl loading-pulse space-y-3"><div className="h-24 rounded-2xl bg-muted/50" /><div className="h-64 rounded-2xl bg-muted/50" /></div>;
   if (isError || !order) return <EmptyState tone="warning" icon={<Package />} title="تعذر تحميل تفاصيل الطلب" description="قد تكون فقدت صلاحية الوصول أو حدث خطأ في الاتصال." action={<><Button variant="outline" onClick={() => void refetch()}>إعادة المحاولة</Button><Button variant="ghost" onClick={() => router.push('/orders')}>العودة إلى الطلبات</Button></>} />;
 
   return (

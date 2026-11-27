@@ -13,7 +13,7 @@ const StoresGrid = dynamic(
     loading: () => (
       <div className="grid grid-cols-1 gap-3 py-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} className="h-52 animate-pulse rounded-2xl bg-muted" />
+          <div key={i} className="h-52 loading-pulse rounded-2xl bg-muted" />
         ))}
       </div>
     ),

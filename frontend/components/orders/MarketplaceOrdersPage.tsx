@@ -29,7 +29,7 @@ export function MarketplaceOrdersPage() {
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><ClipboardList className="h-5 w-5" /></span>
             <div><h2 className="font-bold">طلبات المنتجات</h2><p className="text-sm text-muted-foreground">تابع طلبات الشراء الواردة والصادرة، وهي منفصلة عن سجل المبيعات اليدوية.</p></div>
           </div>
-          <Button variant="outline" onClick={() => void refetch()} disabled={isFetching}><RefreshCw className={`ms-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />تحديث</Button>
+          <Button variant="outline" onClick={() => void refetch()} loading={isFetching} loadingPhase="refreshing"><RefreshCw className="ms-2 h-4 w-4" />تحديث</Button>
         </div>
       </div>
 
@@ -38,7 +38,7 @@ export function MarketplaceOrdersPage() {
         <Button role="tab" aria-selected={kind === 'seller'} variant={kind === 'seller' ? 'default' : 'outline'} onClick={() => { setKind('seller'); setPage(1); }}><Store className="ms-2 h-4 w-4" />طلبات متجري</Button>
       </div>
 
-      {isLoading ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-36 animate-pulse rounded-2xl border bg-muted/40" />)}</div>
+      {isLoading ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-36 loading-pulse rounded-2xl border bg-muted/40" />)}</div>
         : isError ? <EmptyState tone="warning" icon={<RefreshCw />} title="تعذر تحميل الطلبات" description="تحقق من الاتصال ثم أعد المحاولة." action={<Button variant="outline" onClick={() => void refetch()}>إعادة المحاولة</Button>} />
           : items.length ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map((order) => <IntentPrefetchLink key={order.id} href={`/orders/${encodeURIComponent(order.id)}`} prefetch={false} className="block rounded-2xl border bg-card p-4 shadow-sm transition hover:border-primary/50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate font-bold">{kind === 'seller' ? order.buyer?.name ?? 'مشتري' : order.store?.name ?? 'المتجر'}</p><p className="mt-1 text-xs text-muted-foreground">طلب #{order.id.slice(-8)}</p></div><span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">{statusLabels[order.status]}</span></div>

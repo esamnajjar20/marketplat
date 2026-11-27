@@ -86,7 +86,7 @@ describe('AdminStoresTable', () => {
     it('shows a loading spinner while fetching', () => {
       mockStoresData([], { isLoading: true });
       render(<AdminStoresTable />);
-      expect(document.querySelector('.skeleton-shimmer, .animate-pulse, .bg-muted')).toBeTruthy();
+      expect(document.querySelector('.skeleton-shimmer, .loading-pulse, .animate-pulse, .bg-muted')).toBeTruthy();
     });
 
     it('shows an error state with a retry option that calls refetch', async () => {

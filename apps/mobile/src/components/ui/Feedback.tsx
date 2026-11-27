@@ -1,13 +1,17 @@
 import { AppText as Text } from './AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { type ReactNode, useEffect } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Animated, View, type StyleProp, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, View } from 'react-native';
 import { radius, spacing, ux } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { COPY } from '@/lib/copy';
+import { Spinner } from './Spinner';
+import { getLoadingLabel, type LoadingPhase } from '@marketplat/contracts';
 import { AppIcon, type GlyphName } from '@/components/Icons';
 import { PrimaryButton } from './Button';
 import { useUIStyles } from './styles';
+
+export { Spinner } from './Spinner';
 
 export function Notice({
   children,
@@ -103,27 +107,14 @@ export function Chip({
   );
 }
 
-/** مؤشر تحميل مشترك — يُستخدم بدل ActivityIndicator المباشر في الشاشات. */
-export function Spinner({
-  size = 'small',
-  color,
-  style,
-}: {
-  size?: 'small' | 'large';
-  color?: string;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const { colors } = useAppTheme();
-  return <ActivityIndicator size={size} color={color ?? colors.brand} style={style} />;
-}
-
-export function LoadingState({ message = COPY.loading }: { message?: string }) {
+export function LoadingState({ message, phase = 'initial' }: { message?: string; phase?: LoadingPhase }) {
+  const resolvedMessage = message ?? getLoadingLabel(phase);
   const s = useUIStyles();
   const { colors } = useAppTheme();
   return (
-    <View accessibilityRole="progressbar" accessibilityLabel={message} accessibilityLiveRegion="polite" style={s.stateBox}>
+    <View accessibilityRole="progressbar" accessibilityLabel={resolvedMessage} accessibilityLiveRegion="polite" style={s.stateBox}>
       <Spinner size="large" color={colors.brand} />
-      <Text style={s.stateMessage}>{message}</Text>
+      <Text style={s.stateMessage}>{resolvedMessage}</Text>
     </View>
   );
 }

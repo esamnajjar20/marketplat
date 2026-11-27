@@ -43,7 +43,7 @@ const PAGE_SIZE = 20;
 const NotificationRow = dynamic(
   () => import('@/components/notifications/NotificationRow').then((m) => m.NotificationRow),
   {
-    loading: () => <li className="h-28 animate-pulse bg-muted/30" aria-hidden />,
+    loading: () => <li className="h-28 loading-pulse bg-muted/30" aria-hidden />,
   },
 );
 
@@ -279,7 +279,7 @@ export function NotificationsPage() {
         {isLoading ? (
           <div className="divide-y" role="status" aria-label="جارٍ التحميل">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="flex items-start gap-3 p-4 animate-pulse">
+              <div key={i} className="flex items-start gap-3 p-4 loading-pulse">
                 <div className="h-10 w-10 shrink-0 rounded-full bg-muted" />
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="h-3.5 w-1/3 rounded bg-muted" />

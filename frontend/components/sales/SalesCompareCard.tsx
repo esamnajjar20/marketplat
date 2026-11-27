@@ -42,7 +42,7 @@ export function SalesCompareCard() {
   const [period, setPeriod] = useState<'week' | 'month' | 'year'>('month');
   const { data, isLoading, isError } = useSalesCompare(period);
 
-  if (isLoading) return <div role="status" aria-label="جارٍ تحميل مقارنة الأداء" className="h-64 animate-pulse rounded-2xl border border-border/70 bg-muted/40" />;
+  if (isLoading) return <div role="status" aria-label="جارٍ تحميل مقارنة الأداء" className="h-64 loading-pulse rounded-2xl border border-border/70 bg-muted/40" />;
 
   // Defensive: any of current/previous/samePeriodLastYear may be missing
   // for a new user or when the backend returns partial data.

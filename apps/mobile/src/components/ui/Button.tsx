@@ -1,8 +1,10 @@
 import { AppText as Text } from './AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { ActivityIndicator, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { useUIStyles } from './styles';
+import { Spinner } from './Spinner';
+import { getLoadingLabel, type LoadingPhase } from '@marketplat/contracts';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type ButtonSize = 'md' | 'sm';
@@ -11,6 +13,7 @@ export function PrimaryButton({
   label,
   onPress,
   busy,
+  busyPhase = 'processing',
   disabled,
   variant = 'primary',
   size = 'md',
@@ -20,6 +23,7 @@ export function PrimaryButton({
   label: string;
   onPress: () => void;
   busy?: boolean;
+  busyPhase?: LoadingPhase;
   disabled?: boolean;
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -34,6 +38,7 @@ export function PrimaryButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled || !!busy, busy: !!busy }}
+      accessibilityValue={busy ? { text: getLoadingLabel(busyPhase) } : undefined}
       disabled={disabled || busy}
       onPress={onPress}
       style={({ pressed }) => [
@@ -48,7 +53,7 @@ export function PrimaryButton({
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={variant === 'danger' ? colors.onDanger : isFilled ? colors.onBrand : colors.brand} />
+        <Spinner color={variant === 'danger' ? colors.onDanger : isFilled ? colors.onBrand : colors.brand} />
       ) : (
         <Text
           maxFontSizeMultiplier={1.3}

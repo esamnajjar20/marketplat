@@ -3,10 +3,11 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { LOADING_COPY } from '@/lib/loadingCopy';
+import { LOADING_TIMING } from '@marketplat/contracts';
 
 const START_EVENT = 'marketplace:nav-start';
-const SHOW_DELAY_MS = 120;
-const FAILSAFE_MS = 12_000;
+const SHOW_DELAY_MS = LOADING_TIMING.navigationStartDelayMs;
+const FAILSAFE_MS = LOADING_TIMING.navigationSafetyTimeoutMs;
 
 /** Global route feedback plus a visible recovery action for stalled App Router transitions. */
 export function NavigationProgress() {

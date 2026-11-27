@@ -83,10 +83,10 @@ describe('MyProductsList', () => {
 
   it('shows a loading spinner while fetching', () => {
     // FIX P1-9: the loading state renders skeleton rows (AdListItemSkeleton,
-    // using animate-pulse), not a spinner — mirrors MyAdsList's same fix.
+    // using the shared loading-pulse token), not a spinner — mirrors MyAdsList's same fix.
     (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: true });
     const { container } = render(<MyProductsList />);
-    expect(container.querySelectorAll('.skeleton-shimmer').length + container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.skeleton-shimmer').length + container.querySelectorAll('.animate-pulse, .loading-pulse').length).toBeGreaterThan(0);
   });
 
   it('shows the empty state when there are no products', () => {
@@ -294,7 +294,7 @@ describe('MyProductsList', () => {
       isLoading: false,
     });
     const { container } = render(<MyProductsList />);
-    expect(container.querySelectorAll('.skeleton-shimmer').length + container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.skeleton-shimmer').length + container.querySelectorAll('.animate-pulse, .loading-pulse').length).toBeGreaterThan(0);
     expect(screen.queryByText('لا توجد منتجات')).not.toBeInTheDocument();
   });
 });

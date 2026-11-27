@@ -90,10 +90,10 @@ describe('MyAdsList', () => {
 
   it('shows a loading spinner while fetching', () => {
     // Loading state renders skeleton rows (AdListItemSkeleton, using
-    // animate-pulse), not a spinner.
+    // loading-pulse), not a spinner.
     (useMyAds as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: true });
     const { container } = render(<MyAdsList />);
-    expect(container.querySelectorAll('.animate-pulse, .skeleton-shimmer').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.loading-pulse, .animate-pulse, .skeleton-shimmer').length).toBeGreaterThan(0);
   });
 
   it('shows the empty state when there are no ads', () => {

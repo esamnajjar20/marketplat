@@ -99,7 +99,7 @@ describe('AdminSellersTable', () => {
     it('shows a loading spinner while fetching', () => {
       mockSellersData([], { isLoading: true });
       render(<AdminSellersTable />);
-      expect(document.querySelector('.skeleton-shimmer, .animate-pulse, .bg-muted')).toBeTruthy();
+      expect(document.querySelector('.skeleton-shimmer, .loading-pulse, .animate-pulse, .bg-muted')).toBeTruthy();
     });
 
     it('shows an error state with a retry option that calls refetch', async () => {

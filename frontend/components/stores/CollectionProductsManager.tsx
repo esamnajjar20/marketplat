@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { ArrowRight, Check, Package, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowRight, Check, Package, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkeleton';
@@ -133,8 +133,14 @@ export function CollectionProductsManager({ collectionId }: Props) {
           })}
           {hasLoadMore ? (
             <div className="flex justify-center pt-2">
-              <Button type="button" variant="outline" disabled={productsQuery.isFetchingNextPage} onClick={() => void productsQuery.fetchNextPage()} className="gap-2">
-                {productsQuery.isFetchingNextPage ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              <Button
+                type="button"
+                variant="outline"
+                loading={productsQuery.isFetchingNextPage}
+                loadingPhase="loadingMore"
+                onClick={() => void productsQuery.fetchNextPage()}
+                className="gap-2"
+              >
                 تحميل المزيد من المنتجات
               </Button>
             </div>

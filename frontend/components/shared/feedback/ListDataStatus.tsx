@@ -45,7 +45,7 @@ export function ListDataStatus({
         role="status"
         aria-atomic="true"
         className={cn(
-          'mb-2 animate-pulse text-center text-2xs text-muted-foreground sm:text-xs',
+          'mb-2 loading-pulse text-center text-2xs text-muted-foreground sm:text-xs',
           className,
         )}
       >

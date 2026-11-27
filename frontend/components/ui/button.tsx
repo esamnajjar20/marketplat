@@ -4,6 +4,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
+import type { LoadingPhase } from '@marketplat/contracts';
 
 const buttonVariants = cva(
   'inline-flex min-w-fit items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-control)] text-sm font-medium leading-5 transition-[transform,background-color,border-color,color,box-shadow] duration-150 ease-out active:scale-[0.99] active:brightness-95 disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100 disabled:active:brightness-100 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
@@ -55,11 +56,13 @@ export interface ButtonProps
    */
   loading?: boolean;
   loadingText?: React.ReactNode;
+  /** Shared semantic operation, exposed for diagnostics and consistent tooling. */
+  loadingPhase?: LoadingPhase;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
-    { className, variant, size, asChild = false, loading = false, loadingText, disabled, children, ...props },
+    { className, variant, size, asChild = false, loading = false, loadingText, loadingPhase = 'processing', disabled, children, ...props },
     ref,
   ) => {
     if (asChild) {
@@ -83,6 +86,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         aria-busy={loading || undefined}
         data-loading={loading || undefined}
+        data-loading-phase={loading ? loadingPhase : undefined}
         {...props}
       >
         {!loading && children}

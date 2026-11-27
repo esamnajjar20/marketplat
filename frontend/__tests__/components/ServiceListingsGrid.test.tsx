@@ -70,7 +70,7 @@ describe('ServiceListingsGrid', () => {
   it('shows skeleton placeholder cards while loading', () => {
     mockQueryState({ isLoading: true });
     const { container } = renderGrid();
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.loading-pulse, .animate-pulse').length).toBeGreaterThan(0);
     expect(screen.queryByTestId('listing-card')).not.toBeInTheDocument();
   });
 

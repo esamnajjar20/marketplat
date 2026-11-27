@@ -6,6 +6,8 @@
  *  - ذيل رسائل الخطأ للمستخدم: `COPY.tryAgain` («حاول مرة أخرى.»).
  *  - لا تكتب هذه الصياغات يدويًا في الشاشات.
  */
+import { LOADING_COPY } from '@marketplat/contracts';
+
 export const COPY = {
   /** نص زر إعادة التنفيذ. */
   retryAction: 'إعادة المحاولة',
@@ -14,7 +16,7 @@ export const COPY = {
   /** إضافة جاهزة بعد جملة خطأ: `${msg} ${COPY.tryAgain}` */
   tryAgainLater: 'حاول مرة أخرى لاحقًا.',
   /** رسالة التحميل الافتراضية في كل الحالات. */
-  loading: 'جاري التحميل…',
+  loading: LOADING_COPY.default,
   /** عنوان حالة الخطأ الافتراضي. */
   errorTitle: 'حدث خطأ',
   /** نص شريط عدم الاتصال الافتراضي. */

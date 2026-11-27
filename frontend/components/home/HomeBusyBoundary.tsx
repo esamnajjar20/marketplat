@@ -36,7 +36,7 @@ export function HomeBusyBoundary({ children }: { children: ReactNode }) {
         {busy ? 'جارٍ تحديث النتائج' : ''}
       </p>
       {busy ? (
-        <div aria-hidden className="fixed inset-x-0 top-0 z-50 h-0.5 animate-pulse bg-primary" />
+        <div aria-hidden className="fixed inset-x-0 top-0 z-50 h-0.5 loading-pulse bg-primary" />
       ) : null}
       <div className={cn('transition-opacity duration-200', busy && 'opacity-60')}>{children}</div>
     </div>

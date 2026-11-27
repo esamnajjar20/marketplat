@@ -2,12 +2,14 @@
  * حالة تحميل صفحة موحّدة — هياكل ناعمة تطابق تصميم الواجهات
  * (الرئيسية، التصفح، البحث، التفاصيل، المتجر، الملف، الرسائل، المحادثة، المبيعات، الإعدادات).
  *
- * `delayed` (الافتراضي true): يبقى شفافاً أول 200ms عبر .loading-delayed
+ * `delayed` (الافتراضي true): يبقى شفافاً للمدة المحددة في LOADING_TIMING.routeFallbackDelayMs عبر .loading-delayed
  * لمنع الوميض عند التنقّل السريع (يعمل داخل Server Components).
  */
+import type React from 'react';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import { LOADING_COPY } from '@/lib/loadingCopy';
+import { LOADING_TIMING } from '@marketplat/contracts';
 
 export type PageLoadingVariant =
   | 'home'
@@ -30,7 +32,7 @@ interface PageLoadingStateProps {
   title?: string;
   description?: string;
   variant?: PageLoadingVariant;
-  /** إخفاء أول 200ms لمنع الوميض (افتراضي true). */
+  /** إخفاء المدة المحددة في LOADING_TIMING.routeFallbackDelayMs لمنع الوميض (افتراضي true). */
   delayed?: boolean;
   className?: string;
 }
@@ -76,6 +78,7 @@ export function PageLoadingState({
   return (
     <div
       className={cn('w-full bg-background', delayed && 'loading-delayed', className)}
+      style={delayed ? { '--loading-delay': `${LOADING_TIMING.routeFallbackDelayMs}ms` } as React.CSSProperties : undefined}
       role="status"
       aria-busy="true"
       aria-label={title}

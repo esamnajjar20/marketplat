@@ -519,7 +519,7 @@ export function ImageUpload({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="h-full w-full animate-pulse bg-muted" aria-hidden="true" />
+                <div className="h-full w-full loading-pulse bg-muted" aria-hidden="true" />
               )}
               <button
                 type="button"

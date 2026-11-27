@@ -128,18 +128,18 @@ function ListSkeleton() {
       {Array.from({ length: 2 }).map((_, i) => (
         <div key={i} className="rounded-card border border-border bg-card p-3.5">
           <div className="flex gap-3">
-            <div className="h-9 w-9 animate-pulse rounded-[10px] bg-border" />
+            <div className="h-9 w-9 loading-pulse rounded-[10px] bg-border" />
             <div className="min-w-0 flex-1 space-y-2">
-              <div className="ms-auto h-5 w-16 animate-pulse rounded-full bg-muted" />
-              <div className="h-4 w-2/5 animate-pulse rounded bg-border" />
+              <div className="ms-auto h-5 w-16 loading-pulse rounded-full bg-muted" />
+              <div className="h-4 w-2/5 loading-pulse rounded bg-border" />
               <div className="flex gap-1.5">
-                <div className="h-6 w-16 animate-pulse rounded-full bg-muted" />
-                <div className="h-6 w-20 animate-pulse rounded-full bg-muted" />
+                <div className="h-6 w-16 loading-pulse rounded-full bg-muted" />
+                <div className="h-6 w-20 loading-pulse rounded-full bg-muted" />
               </div>
-              <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+              <div className="h-3 w-1/3 loading-pulse rounded bg-muted" />
             </div>
           </div>
-          <div className="mt-3 h-10 w-full animate-pulse rounded-[10px] bg-muted" />
+          <div className="mt-3 h-10 w-full loading-pulse rounded-[10px] bg-muted" />
         </div>
       ))}
     </div>

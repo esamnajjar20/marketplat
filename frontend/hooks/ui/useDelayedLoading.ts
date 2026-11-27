@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { LOADING_TIMING } from '@marketplat/contracts';
 
 export interface DelayedLoadingOptions {
   /** لا تُظهر المؤشر إلا إذا استمر التحميل أكثر من هذه المدة (ms). يمنع الوميض في الطلبات السريعة. */
@@ -16,7 +17,7 @@ export interface DelayedLoadingOptions {
  */
 export function useDelayedLoading(
   isLoading: boolean,
-  { delay = 500, minDuration = 500 }: DelayedLoadingOptions = {},
+  { delay = LOADING_TIMING.gateDelayMs, minDuration = LOADING_TIMING.minVisibleMs }: DelayedLoadingOptions = {},
 ): boolean {
   const [visible, setVisible] = useState(false);
   const shownAt = useRef(0);

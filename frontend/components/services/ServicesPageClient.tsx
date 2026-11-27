@@ -25,7 +25,7 @@ const ServiceListingsGrid = dynamic(
         <p className="text-sm text-muted-foreground">جارٍ تحميل الخدمات…</p>
         <div className="space-y-2.5">
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-2xl bg-muted" />
+            <div key={i} className="h-28 loading-pulse rounded-2xl bg-muted" />
           ))}
         </div>
       </div>

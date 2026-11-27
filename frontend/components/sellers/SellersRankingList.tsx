@@ -83,10 +83,10 @@ function RankingSkeleton() {
           <Skeleton className="h-8 w-8 rounded-lg" />
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-3 w-2/5 rounded" />
-            <div className="h-2.5 w-3/5 animate-pulse rounded bg-muted/70" />
+            <div className="h-2.5 w-3/5 loading-pulse rounded bg-muted/70" />
           </div>
           <Skeleton className="h-9 w-9 rounded-full" />
-          <div className="h-6 w-6 animate-pulse rounded-full bg-muted/70" />
+          <div className="h-6 w-6 loading-pulse rounded-full bg-muted/70" />
         </div>
       ))}
     </div>

@@ -54,7 +54,7 @@ export function SalesPageClient() {
           </Button>
         </div>
         {isLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 animate-pulse rounded-2xl border bg-muted/40" />)}</div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 sm:gap-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-32 loading-pulse rounded-2xl border bg-muted/40" />)}</div>
         ) : isError ? (
           <div className="rounded-[var(--radius-card)] border p-6 text-center shadow-xs"><p className="text-sm text-destructive">تعذر تحميل أحدث المبيعات.</p><Button className="mt-3" variant="outline" onClick={() => void refetch()}>إعادة المحاولة</Button></div>
         ) : items.length ? (

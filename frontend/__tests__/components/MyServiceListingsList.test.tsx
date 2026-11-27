@@ -112,7 +112,7 @@ describe('MyServiceListingsList', () => {
   it('shows skeleton rows while loading', () => {
     mockListingsState({ isLoading: true });
     const { container } = render(<MyServiceListingsList />);
-    expect(container.querySelectorAll('.skeleton-shimmer').length + container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.skeleton-shimmer').length + container.querySelectorAll('.animate-pulse, .loading-pulse').length).toBeGreaterThan(0);
   });
 
   it('shows an error state with a retry option that calls refetch', async () => {

@@ -48,12 +48,13 @@
     "simulator:browser:install": "npm --prefix tools/user-simulator run install:browser",
     "simulator:start": "npm --prefix tools/user-simulator start",
     "simulator:test": "npm --prefix tools/user-simulator test",
-    "verify:all": "pnpm run verify:workspace && pnpm run verify:prisma-layout && pnpm run lint:all && pnpm run type-check:all && pnpm run test:all && pnpm run build:all",
+    "verify:all": "pnpm run verify:workspace && pnpm run verify:prisma-layout && pnpm run lint:all && pnpm run type-check:all && pnpm run test:all && pnpm run build:all && pnpm run ux:loading-contract-audit",
     "verify:type-suppressions": "node tools/check-type-suppressions.mjs",
     "lint": "pnpm run lint:all",
     "type-check": "pnpm run type-check:all",
     "cache:sync": "node tools/sync-cache-artifacts.mjs",
     "cache:layer-audit": "node tools/audit-cache-policy.mjs",
-    "build:contracts": "pnpm --filter @marketplat/contracts build"
+    "build:contracts": "pnpm --filter @marketplat/contracts build",
+    "ux:loading-contract-audit": "node tools/audit-loading-contract.mjs"
   }
 }

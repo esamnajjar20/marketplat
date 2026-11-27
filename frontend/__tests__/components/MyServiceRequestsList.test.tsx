@@ -9,7 +9,7 @@
  *
  * Coverage targets:
  *  - Loading state shows a spinner (LoadingSpinner, not skeleton rows
- *    — different from MyProductsList/MyAdsList's animate-pulse)
+ *    — different from MyProductsList/MyAdsList's skeleton layout)
  *  - Error state shows a retry button that calls refetch
  *  - Empty state shown when there are no requests
  *  - Renders request title, provider name, status badge, price

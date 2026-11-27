@@ -202,8 +202,8 @@ function DisclosureGroup({
 function RoleNavSkeleton() {
   return (
     <div className="space-y-1 px-1 py-0.5" aria-hidden>
-      <div className="h-9 animate-pulse rounded-md bg-muted/70" />
-      <div className="h-9 animate-pulse rounded-md bg-muted/50" />
+      <div className="h-9 loading-pulse rounded-md bg-muted/70" />
+      <div className="h-9 loading-pulse rounded-md bg-muted/50" />
     </div>
   );
 }

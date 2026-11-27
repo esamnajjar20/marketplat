@@ -7,7 +7,7 @@ import { formatMoney } from '@/lib/formatters';
 
 export function SalesSmartInsights() {
   const { data, isLoading, isError } = useSalesSmartInsights();
-  if (isLoading) return <div className="h-72 animate-pulse rounded-xl border bg-muted/40" />;
+  if (isLoading) return <div className="h-72 loading-pulse rounded-xl border bg-muted/40" />;
   if (isError || !data) return <div className="rounded-xl border p-6 text-center text-sm text-destructive">تعذر تحميل التحليلات الذكية.</div>;
   return <section className="space-y-4" dir="rtl">
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

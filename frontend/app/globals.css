@@ -667,6 +667,13 @@
   to { transform: translateX(-100%); }
 }
 
+@keyframes loading-pulse {
+  50% { opacity: 0.45; }
+}
+.loading-pulse {
+  animation: loading-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 /* ── نظام التحميل الموحّد (انظر docs/LOADING_SYSTEM.md) ─────────────────
    .loading-delayed: يبقى شفافاً --loading-delay (200ms) ثم يظهر بنعومة.
    CSS فقط ⇒ يعمل داخل Server Components (loading.tsx) وبلا وميض عند التنقّل السريع.
@@ -713,6 +720,7 @@ a, button, [role="button"] {
   .section-enter,
   .skeleton-shimmer,
   .skeleton-shimmer::after,
+  .loading-pulse,
   .nav-progress-bar {
     animation: none !important;
     opacity: 1;

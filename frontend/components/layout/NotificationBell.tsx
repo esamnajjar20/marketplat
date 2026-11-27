@@ -285,7 +285,7 @@ export function NotificationBell() {
           {isLoading ? (
             <div className="flex flex-col gap-0 divide-y" role="status" aria-label="جارٍ التحميل">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-start gap-2.5 p-3 animate-pulse">
+                <div key={i} className="flex items-start gap-2.5 p-3 loading-pulse">
                   <div className="h-8 w-8 shrink-0 rounded-full bg-muted" />
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="h-3 w-2/3 rounded bg-muted" />

@@ -25,7 +25,7 @@ describe('CategoryHero', () => {
       isError: false,
     } as never);
     const { container } = render(<CategoryHero slug="cars" />);
-    expect(container.querySelector('.animate-pulse')).toBeTruthy();
+    expect(container.querySelector('.loading-pulse, .animate-pulse')).toBeTruthy();
   });
 
   it('shows error notice when fetch fails', () => {
