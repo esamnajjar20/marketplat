@@ -4,7 +4,7 @@
  */
 import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
-import { fontSizes, fontWeights, elevation, radius, sizes, spacing, typography, ux, type ColorPalette } from '@/theme/tokens';
+import { fontSizes, fontWeights, elevation, layout, radius, sizes, spacing, typography, ux, type ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 
 function createUIStyles(palette: ColorPalette) {
@@ -14,9 +14,9 @@ function createUIStyles(palette: ColorPalette) {
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: sizes.headerHeight,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    minHeight: layout.pageHeaderMinHeight,
+    paddingHorizontal: layout.pageHeaderHorizontal,
+    paddingVertical: layout.pageHeaderVertical,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: palette.border,
     backgroundColor: palette.surface,
@@ -43,15 +43,16 @@ function createUIStyles(palette: ColorPalette) {
   headerSpacer: { width: sizes.iconButton, height: sizes.iconButton },
 
   content: {
-    padding: spacing.lg,
-    gap: spacing.xl,
+    paddingHorizontal: layout.pageHorizontal,
+    paddingTop: layout.pageVertical,
+    gap: layout.pageSectionGap,
     paddingBottom: spacing.x5l + sizes.bottomNavHeight / 2,
   },
   detailContent: {
-    gap: spacing.lg,
+    gap: layout.detailSectionGap,
     paddingBottom: spacing.xxxl,
     paddingTop: spacing.sm,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: layout.pageHorizontal,
   },
   detailFooter: {
     paddingHorizontal: spacing.lg,

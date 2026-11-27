@@ -19,11 +19,11 @@
  *  - Switching tabs drops per-tab query params (page/status/q/section …).
  */
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { TabsBar } from '@/components/shared/ui/TabsBar';
 
 export interface HubTabMeta {
   label: string;
@@ -66,7 +66,6 @@ export function TabsHub<T extends string>({
   const urlTab: T = resolveTab(sp.toString() ? `?${sp.toString()}` : '') ?? defaultTab;
 
   const [active, setActive] = useState<T>(urlTab);
-  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
     setActive(urlTab);
@@ -94,25 +93,6 @@ export function TabsHub<T extends string>({
     [writeUrl, searchForTabSwitch, onActiveChange],
   );
 
-  const onTabKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLButtonElement>, current: T) => {
-      const index = tabs.indexOf(current);
-      if (index < 0) return;
-      let nextIndex = index;
-      if (event.key === 'ArrowLeft') nextIndex = index === 0 ? tabs.length - 1 : index - 1;
-      else if (event.key === 'ArrowRight') nextIndex = index === tabs.length - 1 ? 0 : index + 1;
-      else if (event.key === 'Home') nextIndex = 0;
-      else if (event.key === 'End') nextIndex = tabs.length - 1;
-      else return;
-
-      event.preventDefault();
-      const nextTab = tabs[nextIndex];
-      if (!nextTab) return;
-      select(nextTab);
-      requestAnimationFrame(() => tabRefs.current[nextTab]?.focus());
-    },
-    [select, tabs],
-  );
 
   const onPanelClickCapture = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -143,39 +123,24 @@ export function TabsHub<T extends string>({
 
   return (
     <section aria-label={sectionLabel} className="w-full text-start">
-      <div
-        role="tablist"
-        aria-label={tabListLabel}
-        className="sticky top-16 z-30 -mx-1 mb-5 flex snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain border-b border-border bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/85 [scrollbar-width:thin] sm:mb-6 lg:-mx-2 lg:px-2"
-      >
-        {tabs.map((tab) => {
+      <TabsBar
+        value={active}
+        onChange={select}
+        options={tabs.map((tab) => {
           const { label, Icon } = meta[tab];
-          const selected = tab === active;
-          return (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              id={`${idPrefix}-tab-${tab}`}
-              aria-selected={selected}
-              aria-controls={`${idPrefix}-panel-${tab}`}
-              ref={(node) => { tabRefs.current[tab] = node; }}
-              tabIndex={selected ? 0 : -1}
-              onClick={() => select(tab)}
-              onKeyDown={(event) => onTabKeyDown(event, tab)}
-              className={cn(
-                'relative flex min-h-11 shrink-0 snap-start items-center gap-2 border-b-2 px-3 py-2.5 text-sm-tight font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-3.5',
-                selected
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Icon className="h-4 w-4" aria-hidden={true} />
-              <span className="whitespace-nowrap">{label}</span>
-            </button>
-          );
+          return {
+            value: tab,
+            label,
+            icon: <Icon className="h-4 w-4" aria-hidden="true" />,
+            panelId: `${idPrefix}-panel-${tab}`,
+          };
         })}
-      </div>
+        ariaLabel={tabListLabel}
+        variant="underline"
+        idPrefix={idPrefix}
+        listClassName="-mx-1 sticky top-16 z-30 mb-5 snap-x snap-mandatory border-border bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/85 [scrollbar-width:thin] sm:mb-6 lg:-mx-2 lg:px-2"
+        itemClassName="snap-start px-3 py-2.5 text-sm-tight font-bold sm:px-3.5"
+      />
 
       <div
         role="tabpanel"

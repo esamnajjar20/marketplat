@@ -20,15 +20,14 @@ import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { cn } from '@/lib/utils';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import { useMyActivity } from '@/hooks/queries/useActivity';
 import { ROUTES } from '@/lib/constants';
 import type { ActivityGroup, UserActivity } from '@/types/activity.types';
 
 /** Matches activity.validation.ts's ACTIVITY_GROUPS exactly — same 8
  * tabs (الكل/الإعلانات/المنتجات/الخدمات/المتاجر/الرسائل/الطلبات/الحساب),
- * same button-group pattern as SearchTabs.tsx (no shadcn Tabs
- * primitive is installed in this project). */
+ * same shared FilterChipGroup implementation used by other activity lists. */
 const GROUP_TABS: { value: ActivityGroup; label: string }[] = [
   { value: 'ALL', label: 'الكل' },
   { value: 'ADS', label: 'الإعلانات' },
@@ -185,29 +184,13 @@ export function Timeline() {
 
   return (
     <div className="space-y-4">
-      <div
-        role="tablist"
-        aria-label="تصفية النشاط"
-        className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1"
-      >
-        {GROUP_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            role="tab"
-            aria-selected={group === tab.value}
-            onClick={() => handleGroupChange(tab.value)}
-            className={cn(
-              'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors',
-              group === tab.value
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <FilterChipGroup
+        label="تصفية النشاط"
+        value={group}
+        options={GROUP_TABS}
+        onChange={(next) => handleGroupChange(next as ActivityGroup)}
+        role="group"
+      />
 
       <div className="relative">
         {/* RTL-01 FIX: start-3/ps-9 (logical) instead of right-3/pr-9

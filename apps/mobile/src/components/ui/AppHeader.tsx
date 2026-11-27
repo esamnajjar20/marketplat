@@ -7,7 +7,7 @@ import { useUIStyles } from './styles';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { AppIcon } from '@/components/Icons';
-import { spacing } from '@/theme/tokens';
+import { layout } from '@/theme/tokens';
 
 export function AppHeader({
   title,
@@ -54,5 +54,5 @@ export function AppHeader({
 }
 
 const styles = {
-  headerActions: { flexDirection: 'row' as const, gap: spacing.sm, minWidth: 44, alignItems: 'center' as const, justifyContent: 'center' as const },
+  headerActions: { flexDirection: 'row' as const, gap: layout.pageHeaderActionGap, minWidth: 44, alignItems: 'center' as const, justifyContent: 'center' as const },
 };

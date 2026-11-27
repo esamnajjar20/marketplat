@@ -52,7 +52,6 @@ function MyRequestOffersContent() {
           { value: 'WITHDRAWN', label: 'مسحوب' },
         ]}
         onChange={(value) => filters.update('status', value || null, { mode: 'push' })}
-        role="tablist"
         className="flex-wrap"
       />
 

@@ -20,6 +20,7 @@ describe('AdminPageShell (UI-PHASE-F)', () => {
       </AdminPageShell>,
     );
     expect(screen.getByRole('heading', { name: 'إدارة الإعلانات' })).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toHaveAttribute('data-variant', 'admin');
     expect(screen.getByText('وصف')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'تصدير' })).toBeInTheDocument();
     expect(screen.getByText('صف')).toBeInTheDocument();

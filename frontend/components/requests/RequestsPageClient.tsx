@@ -23,6 +23,7 @@ import {
   type RequestSort,
 } from '@/components/requests/RequestFilters';
 import { RequestListSkeleton } from '@/components/requests/RequestListSkeleton';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
@@ -143,34 +144,22 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
           </div>
         </div>
 
-        {/* Type tabs */}
-        <div
-          className="flex gap-1 overflow-x-auto border-b border-[var(--color-border)] dark:border-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          role="tablist"
-          aria-label="تصفية حسب النوع"
-        >
-          {TYPE_CHIPS.map(({ value, label, icon: Icon }) => {
-            const active = value === type || (value === undefined && !type);
-            return (
-              <button
-                key={label}
-                type="button"
-                onClick={() => filters.updateMany({ type: value ?? null, serviceTypeId: value === 'SERVICE' ? serviceTypeId ?? null : null }, { mode: 'push' })}
-                role="tab"
-                aria-selected={active}
-                className={cn(
-                  'inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 px-3 text-sm-tight font-semibold transition-colors',
-                  active
-                    ? 'border-[var(--color-primary)] font-extrabold text-[var(--color-primary-strong)] dark:border-primary dark:text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" aria-hidden />
-                {label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Request type selection uses the shared filter-chip primitive. */}
+        <FilterChipGroup
+          label="تصفية حسب النوع"
+          value={type ?? ''}
+          options={TYPE_CHIPS.map(({ value, label, icon: Icon }) => ({
+            value: value ?? '',
+            label,
+            icon: <Icon className="h-3.5 w-3.5" />,
+          }))}
+          onChange={(next) => filters.updateMany({
+            type: (next || null) as RequestType | null,
+            serviceTypeId: next === 'SERVICE' ? serviceTypeId ?? null : null,
+          }, { mode: 'push' })}
+          variant="underline"
+          className="[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        />
 
         <RequestFilters
           type={type}

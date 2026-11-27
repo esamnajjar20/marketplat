@@ -16,7 +16,7 @@ import { DataSaverToggle } from '@/components/shared/DataSaverToggle';
 import { SellerSettingsSection } from '@/components/sellers/SellerSettingsSection';
 import { ServiceProviderSettingsSection } from '@/components/services/ServiceProviderSettingsSection';
 import { ROUTES } from '@/lib/constants';
-import { cn } from '@/lib/utils';
+import { TabsBar } from '@/components/shared/ui/TabsBar';
 import {
   resolveProfileSection,
   settingsProfileSectionHref,
@@ -57,35 +57,20 @@ export function UnifiedProfileSettings() {
 
   return (
     <div className="space-y-6">
-      <div
-        role="tablist"
-        aria-label="أقسام الملف"
-        className="flex gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {TABS.map(({ id, label, icon: Icon }) => {
-          const isActive = active === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              id={`settings-profile-tab-${id}`}
-              aria-controls={`settings-profile-panel-${id}`}
-              aria-selected={isActive}
-              onClick={() => selectSection(id)}
-              className={cn(
-                'flex min-h-10 min-w-fit shrink-0 items-center justify-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-sm',
-                isActive
-                  ? 'border-primary/30 bg-primary-soft text-primary'
-                  : 'border-border bg-card text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-              <span className="whitespace-nowrap">{label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <TabsBar
+        value={active}
+        onChange={selectSection}
+        options={TABS.map(({ id, label, icon: Icon }) => ({
+          value: id,
+          label,
+          icon: <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden="true" />,
+          panelId: `settings-profile-panel-${id}`,
+        }))}
+        ariaLabel="أقسام الملف"
+        variant="pills"
+        idPrefix="settings-profile"
+        itemClassName="min-w-fit px-3.5 text-xs font-bold sm:text-sm"
+      />
 
       <div role="tabpanel" id={`settings-profile-panel-${active}`} aria-labelledby={`settings-profile-tab-${active}`} key={active}>
         {active === 'personal' && (

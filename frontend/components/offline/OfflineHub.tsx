@@ -33,6 +33,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TabsBar } from '@/components/shared/ui/TabsBar';
 import { useAuthStore, selectUser, selectIsHydrated } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
@@ -646,72 +647,38 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
         )}
       </header>
 
-      <div
-        role="tablist"
-        aria-label="أقسام مركز الأوفلاين"
-        className={cn(
-          'sticky top-2 z-20 -mx-1 mb-5 flex snap-x snap-mandatory gap-0.5 overflow-x-auto overscroll-x-contain border-b border-[var(--color-border)] bg-[var(--color-page)]/95 dark:border-border dark:bg-background/95',
-          '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-        )}
-      >
-        {orderedTabs.map((tab) => {
+      <TabsBar
+        value={active}
+        onChange={select}
+        options={orderedTabs.map((tab) => {
           const { label, shortLabel, Icon } = TAB_META[tab];
-          const selected = tab === active;
-          const badge =
-            tab === 'drafts'
-              ? draftsCount
-              : tab === 'sync'
-                ? pendingQueue + failedQueue
-                : 0;
+          const badge = tab === 'drafts' ? draftsCount : tab === 'sync' ? pendingQueue + failedQueue : 0;
           const badgeTone = tab === 'sync' && failedQueue > 0 ? 'danger' : 'default';
-          return (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              id={`offline-tab-${tab}`}
-              aria-selected={selected}
-              aria-controls={`offline-panel-${tab}`}
-              data-selected={selected}
-              tabIndex={selected ? 0 : -1}
-              onClick={() => select(tab)}
-              onKeyDown={(event) => {
-                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-                event.preventDefault();
-                const currentIndex = tabs.indexOf(tab);
-                const isRtl = document.documentElement.dir === 'rtl' || getComputedStyle(event.currentTarget).direction === 'rtl';
-                let nextIndex = currentIndex;
-                if (event.key === 'Home') nextIndex = 0;
-                else if (event.key === 'End') nextIndex = tabs.length - 1;
-                else if (event.key === 'ArrowRight') nextIndex = (currentIndex + (isRtl ? -1 : 1) + tabs.length) % tabs.length;
-                else if (event.key === 'ArrowLeft') nextIndex = (currentIndex + (isRtl ? 1 : -1) + tabs.length) % tabs.length;
-                const nextTab = tabs[nextIndex];
-                if (nextTab) {
-                  select(nextTab);
-                  window.requestAnimationFrame(() => document.getElementById(`offline-tab-${nextTab}`)?.focus());
-                }
-              }}
-              className={cn(
-                'group flex min-h-10 snap-start shrink-0 items-center justify-center gap-1.5 border-b-2 px-3 text-sm-tight font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                selected
-                  ? 'border-[var(--color-primary)] font-extrabold text-[var(--color-primary-strong)] dark:border-primary dark:text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />
-              <span className="sm:hidden">{shortLabel}</span>
-              <span className="hidden sm:inline">{label}</span>
-              {isSignedIn && (
-                <TabBadge
-                  count={badge}
-                  tone={badgeTone}
-                  label={tab === 'drafts' ? 'مسودات غير مكتملة' : failedQueue > 0 ? 'عمليات مزامنة معلّقة أو فاشلة' : 'عمليات بانتظار المزامنة'}
-                />
-              )}
-            </button>
-          );
+          return {
+            value: tab,
+            icon: <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />,
+            label: (
+              <>
+                <span className="sm:hidden">{shortLabel}</span>
+                <span className="hidden sm:inline">{label}</span>
+                {isSignedIn ? (
+                  <TabBadge
+                    count={badge}
+                    tone={badgeTone}
+                    label={tab === 'drafts' ? 'مسودات غير مكتملة' : failedQueue > 0 ? 'عمليات مزامنة معلّقة أو فاشلة' : 'عمليات بانتظار المزامنة'}
+                  />
+                ) : null}
+              </>
+            ),
+            panelId: `offline-panel-${tab}`,
+          };
         })}
-      </div>
+        ariaLabel="أقسام مركز الأوفلاين"
+        variant="underline"
+        idPrefix="offline"
+        listClassName="-mx-1 sticky top-2 z-20 mb-5 snap-x snap-mandatory border-[var(--color-border)] bg-[var(--color-page)]/95 dark:border-border dark:bg-background/95 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        itemClassName="snap-start px-3 text-sm-tight font-semibold"
+      />
 
       <div
         role="tabpanel"

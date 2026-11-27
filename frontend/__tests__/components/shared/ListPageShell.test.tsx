@@ -26,6 +26,7 @@ describe('ListPageShell', () => {
       </ListPageShell>,
     );
     expect(screen.getByRole('heading', { name: 'الإعلانات' })).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toHaveAttribute('data-variant', 'browse');
     expect(screen.getByText('وصف')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'فلاتر' })).toBeInTheDocument();
     expect(screen.getByTestId('sidebar')).toBeInTheDocument();

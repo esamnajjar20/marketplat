@@ -24,10 +24,11 @@ import { COPY } from '@/lib/copy';                                      // ال�
 | `typography` / `fontSizes` / `fontWeights` | `title`, `body`, `caption`, `button` |
 | `elevation` | `sm`, `md` |
 | `sizes` | `buttonHeight`, `headerHeight`, `touchTarget` |
+| `layout` | `pageHorizontal`, `pageVertical`, `pageSectionGap`, `pageHeaderMinHeight` |
 
 ## المكوّنات (`@/components/ui`)
 `PageShell`, `AppHeader`, `SectionHeader`, `SectionCard`, `ListRow`, `Field`, `PrimaryButton`,
-`SecondaryButton`, `Notice`, `Badge`, `Chip`, `SearchBar`, `DetailScaffold`, `ProductCard`،
+`SecondaryButton`, `Notice`, `Badge`, `Chip`, `FilterChip`, `SearchBar`, `DetailScaffold`, `ProductCard`،
 وحالات القوائم: `LoadingState`, `Spinner`, `Skeleton*`, `EmptyState`, `ErrorState`,
 `ListEmpty`, `ListStaleError`, `PaginatedFooter`, `OfflineBanner`.
 
@@ -38,7 +39,15 @@ import { COPY } from '@/lib/copy';                                      // ال�
 4. **نصوص الأخطاء/إعادة المحاولة من `COPY`**: زر = «إعادة المحاولة» (`COPY.retryAction`)، رسالة = «حاول مرة أخرى.» (`COPY.tryAgain`).
 5. المسافات والزوايا من `spacing` و`radius` وليس أرقامًا مباشرة (تتبّع التقدّم: `pnpm report:tokens`). الأدوار المشتركة: control=10dp، card=14dp، modal=16dp، shell=20dp، hero=24dp.
 6. حالات التحميل/الفراغ/الخطأ عبر مكوّنات `ui` ولا تبنِ حالات محلية.
-7. الشريط السفلي يُخفى تلقائيًا في التفاصيل والمحررات (`navigation-policy.ts`).
+7. `FilterChip` هو مكوّن الاختيار المرئي المشترك على Native؛ أبقِ الارتفاع والحدود والألوان مرتبطة بـ `spacing` و`radius` و`colors`، ولا تنشئ شرائح محلية متكررة.
+8. الشريط السفلي يُخفى تلقائيًا في التفاصيل والمحررات (`navigation-policy.ts`).
+
+## تخطيط الصفحات
+
+- `PageShell` و`DetailScaffold` يستخدمان `AppHeader` نفسه؛ الاختلاف بينهما في منطقة المحتوى والتمرير وليس في بنية رأس الشاشة.
+- قياسات الصفحة المشتركة معرفة في `layout` داخل `src/theme/tokens.ts`، وتُستهلك عبر `src/components/ui/styles.ts`.
+- استخدم `SectionHeader` لعناوين أقسام المحتوى، ولا تستبدله بعنوان شاشة ثانٍ.
+- يجوز أن يختلف حجم النص أو كثافة الترتيب عن الويب لتناسب الهاتف، لكن يجب الحفاظ على ترتيب الأولوية البصرية وأدوار الألوان والمسافات والزوايا.
 
 ## التنسيق
 Prettier هو المرجع (`.prettierrc.json`):

@@ -1,7 +1,6 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useRef, type KeyboardEvent } from 'react';
 
 import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { Star } from 'lucide-react';
@@ -12,16 +11,11 @@ const StoreProducts = dynamic(
   { loading: () => <SuspenseFallback /> },
 );
 import { StoreReviewButton } from '@/components/stores/StoreReviewButton';
-import { cn } from '@/lib/utils';
+import { TabsBar } from '@/components/shared/ui/TabsBar';
 import { ROUTES } from '@/lib/constants';
 import { getStoreTypePresentation, type StoreWithSellerAndCounts } from '@/types/store.types';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
-import {
-  ENTITY_TABLIST_STICKY,
-  ENTITY_TAB_BTN,
-  ENTITY_TAB_ACTIVE,
-  ENTITY_TAB_IDLE,
-} from '@/components/shared/entity-page/entityPageTokens';
+import { ENTITY_TABLIST_STICKY } from '@/components/shared/entity-page/entityPageTokens';
 
 const StoreAds = dynamic(
   () => import('@/components/stores/StoreAds').then((m) => m.StoreAds),
@@ -68,23 +62,6 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   const presentation = getStoreTypePresentation(store?.storeType);
   const active: Tab = TABS.some((t) => t.id === tab) ? tab : 'products';
   const tabs = TABS.map((item) => ({ ...item, label: presentation.page[item.id === 'products' ? 'products' : item.id === 'offers' ? 'offers' : item.id === 'collections' ? 'collections' : item.id === 'ads' ? 'ads' : item.id === 'reviews' ? 'reviews' : 'about'] }));
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-
-  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    let next = index;
-    if (event.key === 'ArrowLeft') next = index + 1;
-    else if (event.key === 'ArrowRight') next = index - 1;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = tabs.length - 1;
-    else return;
-    event.preventDefault();
-    const bounded = (next + tabs.length) % tabs.length;
-    const nextTab = tabs[bounded];
-    if (!nextTab) return;
-    setTab(nextTab.id);
-    tabRefs.current[bounded]?.focus();
-  }
 
   function setTab(next: Tab) {
     filters.updateMany({
@@ -95,32 +72,19 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <div
-        className={ENTITY_TABLIST_STICKY}
-        role="tablist"
-        aria-label="أقسام المتجر"
-      >
-        {tabs.map(({ id, label }, index) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`store-tab-${id}`}
-            aria-selected={active === id}
-            aria-controls={`store-panel-${id}`}
-            tabIndex={active === id ? 0 : -1}
-            ref={(el) => { tabRefs.current[index] = el; }}
-            onKeyDown={(event) => handleTabKeyDown(event, index)}
-            onClick={() => setTab(id)}
-            className={cn(
-              ENTITY_TAB_BTN,
-              active === id ? ENTITY_TAB_ACTIVE : ENTITY_TAB_IDLE,
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <TabsBar
+        value={active}
+        onChange={setTab}
+        options={tabs.map(({ id, label }) => ({
+          value: id,
+          label,
+          panelId: `store-panel-${id}`,
+        }))}
+        ariaLabel="أقسام المتجر"
+        variant="underline"
+        idPrefix="store"
+        listClassName={ENTITY_TABLIST_STICKY}
+      />
 
       {active === 'products' && (
         <section className="rounded-2xl border border-border/60 bg-background/60 p-1" role="tabpanel"

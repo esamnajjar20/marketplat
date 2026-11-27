@@ -74,14 +74,19 @@ check('wide tables/charts are horizontally scrollable or replaced on mobile', un
   `${wideMinWidthFiles.length} wide-layout source files inspected; ${uncontainedWideFiles.length} lack overflow handling`);
 
 const cardTokens = read('components/shared/cards/cardTokens.ts');
-const cards = [
-  ['ad cards', read('components/ads/AdCard.tsx'), 'cardPlaceholderToneForId(ad.id)'],
-  ['product cards', read('components/stores/ProductCard.tsx'), 'cardPlaceholderToneForId(product.id)'],
-  ['service cards', read('components/services/ServiceListingCard.tsx'), 'cardPlaceholderToneForId(listing.id)'],
-];
+const adCard = read('components/ads/AdCard.tsx');
+const productCard = read('components/stores/ProductCard.tsx');
+const serviceCard = read('components/services/ServiceListingCard.tsx');
+const marketCard = read('components/shared/cards/MarketCard.tsx');
+const cardConsumers = [adCard, productCard, serviceCard];
+const noPrivatePlaceholderPalettes = cardConsumers.every((source) => !/PASTEL_BGS|const PASTEL\b|function pastelForId|function pastel\(/.test(source));
 check('missing-image placeholders share one palette and one hash function',
-  cardTokens.includes('CARD_PLACEHOLDER_SURFACES') && cards.every(([, source, call]) => source.includes(call) && !/PASTEL_BGS|const PASTEL\b|function pastelForId|function pastel\(/.test(source)),
-  'ad, product and service cards consume cardPlaceholderToneForId');
+  cardTokens.includes('CARD_PLACEHOLDER_SURFACES') &&
+  marketCard.includes('cardPlaceholderToneForId(id)') &&
+  adCard.includes('<MarketCard') &&
+  productCard.includes('cardPlaceholderToneForId(product.id)') && productCard.includes('<MarketCard') &&
+  serviceCard.includes('cardPlaceholderToneForId(listing.id)') && noPrivatePlaceholderPalettes,
+  'ad grid delegates to MarketCard; product grid delegates and list uses the same palette; services share the hash function');
 
 const requestDetail = read('app/(public)/requests/[id]/page.tsx');
 check('request summary tiles avoid narrow 3-column overflow on small phones', /grid-cols-1 gap-2 min-\[420px\]:grid-cols-3/.test(requestDetail), '1 column below 420px; 3 columns from 420px');

@@ -385,6 +385,18 @@ export const insets = {
   pageBottom: 52,
 } as const;
 
+/** أدوار تخطيط الشاشة المشتركة؛ تُستخدم في PageShell وAppHeader وDetailScaffold. */
+export const layout = {
+  pageHorizontal: spacing.lg,
+  pageVertical: spacing.lg,
+  pageSectionGap: spacing.xl,
+  pageHeaderMinHeight: sizes.headerHeight,
+  pageHeaderHorizontal: spacing.lg,
+  pageHeaderVertical: spacing.sm,
+  pageHeaderActionGap: spacing.sm,
+  detailSectionGap: spacing.lg,
+} as const;
+
 export type ColorToken = keyof typeof colors;
 export type SpacingToken = keyof typeof spacing;
 export type RadiusToken = keyof typeof radius;

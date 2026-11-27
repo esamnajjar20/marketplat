@@ -134,7 +134,8 @@
     "pretype-check": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
     "pretest": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
     "cache:layer-audit": "node ../tools/audit-cache-policy.mjs",
-    "prebuild:cf": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs"
+    "prebuild:cf": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
+    "uiux:unification-audit": "node scripts/uiux-unification-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

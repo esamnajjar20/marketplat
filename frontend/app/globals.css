@@ -389,6 +389,20 @@
  * Single source for BottomNav height + safe area (mobile sticky bars).
  * Components should prefer bottom-[var(--bottom-nav-offset)] over hard-coded 4.25rem.
  */
+/* Canonical Web page-layout roles; mirror the semantic roles in apps/mobile/src/theme/tokens.ts. */
+:root {
+  --page-container-max: 80rem;
+  --page-gutter: 0.75rem;
+  --page-gutter-sm: 1rem;
+  --page-section-gap: 1rem;
+  --page-section-gap-lg: 1.5rem;
+  --page-title-size: 1.5rem;
+  --page-title-size-compact: 1.25rem;
+  --page-title-size-admin: 1.375rem;
+  --page-title-line-height: 1.3;
+  --page-description-line-height: 1.7;
+}
+
 :root {
   --bottom-nav-offset: calc(4.25rem + env(safe-area-inset-bottom, 0px));
 }
@@ -538,6 +552,144 @@
   .ring-glow-accent:focus-visible {
     outline: none;
     box-shadow: var(--shadow-glow-accent);
+  }
+
+  /* Canonical page chrome: all Web route shells compose this same heading structure. */
+  .page-container {
+    width: 100%;
+    max-width: var(--page-container-max);
+    margin-inline: auto;
+    padding-inline: var(--page-gutter);
+  }
+  .page-content-stack {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--page-section-gap);
+  }
+  .page-content-stack--account { gap: var(--page-section-gap-lg); }
+  .page-content-stack--admin { gap: var(--page-section-gap); }
+  .page-header-frame {
+    border-bottom: 1px solid hsl(var(--border) / 0.7);
+    background: hsl(var(--surface-1) / 0.95);
+    box-shadow: 0 1px 0 hsl(var(--border) / 0.35);
+  }
+  .page-header-frame--account { background: hsl(var(--surface-1) / 0.9); }
+  .page-header {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .page-header__main {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+  .page-header__copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .page-header__icon {
+    display: flex;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.125rem;
+    border-radius: var(--radius-control);
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+  }
+  .page-header__title {
+    margin: 0;
+    color: hsl(var(--foreground));
+    font-size: var(--page-title-size);
+    font-weight: 700;
+    line-height: var(--page-title-line-height);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  .page-header__description {
+    max-width: 48rem;
+    margin: 0;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+    line-height: var(--page-description-line-height);
+    text-wrap: pretty;
+  }
+  .page-header__eyebrow {
+    color: hsl(var(--primary));
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .page-header__actions {
+    display: flex;
+    min-width: 0;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .page-header--standard {
+    align-items: flex-start;
+    border: 1px solid hsl(var(--border) / 0.7);
+    border-radius: var(--radius-shell);
+    background: hsl(var(--card));
+    padding: var(--space-5);
+    box-shadow: var(--shadow-xs);
+  }
+  .page-header--standard::before {
+    position: absolute;
+    inset-block: var(--space-5);
+    inset-inline-start: 0;
+    width: 0.25rem;
+    border-start-end-radius: 0.25rem;
+    border-end-end-radius: 0.25rem;
+    background: hsl(var(--primary) / 0.7);
+    content: '';
+  }
+  .page-header--browse { min-height: 5rem; padding-block: var(--space-4); }
+  .page-header--browse .page-header__title { font-size: var(--page-title-size-compact); }
+  .page-header--browse .page-header__icon { width: 2.75rem; height: 2.75rem; }
+  .page-header--account { min-height: 4.5rem; padding-block: var(--space-3); }
+  .page-header--account .page-header__title { font-size: var(--page-title-size-compact); }
+  .page-header--admin { align-items: flex-start; padding-block: 0; }
+  .page-header--admin .page-header__title { font-size: var(--page-title-size-admin); }
+  .page-header--detail {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: 0;
+  }
+  .page-header--detail .page-header__title { font-size: var(--page-title-size); }
+
+  @media (min-width: 640px) {
+    .page-container { padding-inline: var(--page-gutter-sm); }
+    .page-header--standard { padding: var(--space-6); }
+    .page-header--standard .page-header__title { font-size: 1.875rem; }
+    .page-header--standard::before { inset-block: var(--space-6); }
+    .page-header--browse .page-header__title { font-size: var(--page-title-size); }
+    .page-header--account .page-header__title { font-size: var(--page-title-size); }
+    .page-header--account .page-header__actions { width: auto; justify-content: flex-end; }
+  }
+  @media (min-width: 1024px) {
+    .page-header--standard { padding: var(--space-7); }
+    .page-header--standard::before { inset-block: var(--space-7); }
+    .page-header--browse .page-header__title { font-size: 1.65rem; }
+  }
+  @media (max-width: 639px) {
+    .page-header--account .page-header__actions { width: 100%; }
   }
 
   /* Second-pass desktop polish: shared page chrome, readable density, and restrained elevation. */

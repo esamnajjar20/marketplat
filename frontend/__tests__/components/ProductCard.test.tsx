@@ -31,6 +31,7 @@ import { renderWithProviders as render } from '@/test-support/render';
 import { screen } from '@testing-library/react';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { formatPrice } from '@/lib/formatters';
+import { cardPlaceholderToneForId } from '@/components/shared/cards/cardTokens';
 import type { ProductWithStore, EffectivePrice } from '@/types/product.types';
 
 vi.mock('@/components/shared/FavoriteButton', () => ({
@@ -194,6 +195,15 @@ describe('ProductCard', () => {
     const img = screen.getByAltText('خلاط كهربائي 500 واط');
     expect(img).toBeInTheDocument();
     expect(img.getAttribute('src')).toBeTruthy();
+  });
+
+  it('uses the same themed placeholder palette in list layout when the image is missing', () => {
+    render(<ProductCard product={{ ...baseProduct, images: [] }} storeId="store-1" layout="list" />);
+    const media = document.querySelector('[data-card-media="list"]');
+    expect(media).toBeInTheDocument();
+    expect(media).toHaveClass(cardPlaceholderToneForId(baseProduct.id));
+    expect(media?.querySelector('svg')).toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: baseProduct.name })).not.toBeInTheDocument();
   });
 
   it('keeps long product names available to users when the visible title is clamped', () => {

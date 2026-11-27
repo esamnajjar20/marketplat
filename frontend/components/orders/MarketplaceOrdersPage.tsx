@@ -4,6 +4,7 @@ import { useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import { useMarketplaceOrders } from '@/hooks/queries/useMarketplaceOrders';
 import { formatDateTimeMedium } from '@/lib/formatters';
 import type { MarketplaceOrderStatus } from '@/api/marketplaceOrders.api';
@@ -33,10 +34,16 @@ export function MarketplaceOrdersPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="نوع الطلبات">
-        <Button role="tab" aria-selected={kind === 'buyer'} variant={kind === 'buyer' ? 'default' : 'outline'} onClick={() => { setKind('buyer'); setPage(1); }}><ShoppingBag className="ms-2 h-4 w-4" />طلباتي كمشتري</Button>
-        <Button role="tab" aria-selected={kind === 'seller'} variant={kind === 'seller' ? 'default' : 'outline'} onClick={() => { setKind('seller'); setPage(1); }}><Store className="ms-2 h-4 w-4" />طلبات متجري</Button>
-      </div>
+      <FilterChipGroup
+        label="نوع الطلبات"
+        value={kind}
+        options={[
+          { value: 'buyer', label: 'طلباتي كمشتري', icon: <ShoppingBag className="h-4 w-4" /> },
+          { value: 'seller', label: 'طلبات متجري', icon: <Store className="h-4 w-4" /> },
+        ]}
+        onChange={(next) => { setKind(next as 'buyer' | 'seller'); setPage(1); }}
+        className="flex-wrap"
+      />
 
       {isLoading ? <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-36 loading-pulse rounded-2xl border bg-muted/40" />)}</div>
         : isError ? <EmptyState tone="warning" icon={<RefreshCw />} title="تعذر تحميل الطلبات" description="تحقق من الاتصال ثم أعد المحاولة." action={<Button variant="outline" onClick={() => void refetch()}>إعادة المحاولة</Button>} />

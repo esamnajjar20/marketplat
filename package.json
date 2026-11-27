@@ -48,7 +48,7 @@
     "simulator:browser:install": "npm --prefix tools/user-simulator run install:browser",
     "simulator:start": "npm --prefix tools/user-simulator start",
     "simulator:test": "npm --prefix tools/user-simulator test",
-    "verify:all": "pnpm run verify:workspace && pnpm run verify:prisma-layout && pnpm run lint:all && pnpm run type-check:all && pnpm run test:all && pnpm run build:all && pnpm run ux:loading-contract-audit && pnpm run perf:render-unification-audit",
+    "verify:all": "pnpm run verify:workspace && pnpm run verify:prisma-layout && pnpm run lint:all && pnpm run type-check:all && pnpm run test:all && pnpm run build:all && pnpm run ux:loading-contract-audit && pnpm run uiux:unification-audit && pnpm run perf:render-unification-audit",
     "verify:type-suppressions": "node tools/check-type-suppressions.mjs",
     "lint": "pnpm run lint:all",
     "type-check": "pnpm run type-check:all",
@@ -56,6 +56,7 @@
     "cache:layer-audit": "node tools/audit-cache-policy.mjs",
     "build:contracts": "pnpm --filter @marketplat/contracts build",
     "ux:loading-contract-audit": "node tools/audit-loading-contract.mjs",
-    "perf:render-unification-audit": "node tools/audit-rendering-unification.mjs"
+    "perf:render-unification-audit": "node tools/audit-rendering-unification.mjs",
+    "uiux:unification-audit": "npm --prefix frontend run uiux:unification-audit"
   }
 }

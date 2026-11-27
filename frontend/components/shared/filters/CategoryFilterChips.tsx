@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@/lib/utils';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 
 export interface CategoryChipOption {
   id: string;
@@ -15,51 +15,30 @@ interface CategoryFilterChipsProps {
   ariaLabel: string;
 }
 
-/** Shared horizontal category quick-filter UI for ads, services, and products. */
+/** Shared category shortcut chips; visual and touch behavior comes from FilterChipGroup. */
 export function CategoryFilterChips({
   categories,
   activeId,
   onSelect,
   ariaLabel,
 }: CategoryFilterChipsProps) {
+  const options = [
+    { value: '', label: 'الكل' },
+    ...categories.map((category) => ({
+      value: category.id,
+      label: category.nameAr || category.name || '',
+    })),
+  ];
+
   return (
-    <div
-      className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      role="toolbar"
-      aria-label={ariaLabel}
-    >
-      <button
-        type="button"
-        aria-pressed={!activeId}
-        onClick={() => onSelect('')}
-        className={cn(
-          'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors',
-          !activeId
-            ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-[var(--color-border)] bg-card text-[var(--color-text-primary)] hover:border-primary/40 dark:border-border dark:bg-card dark:text-foreground',
-        )}
-      >
-        الكل
-      </button>
-      {categories.map((category) => {
-        const selected = activeId === category.id;
-        return (
-          <button
-            key={category.id}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => onSelect(category.id)}
-            className={cn(
-              'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors',
-              selected
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-[var(--color-border)] bg-card text-[var(--color-text-primary)] hover:border-primary/40 dark:border-border dark:bg-card dark:text-foreground',
-            )}
-          >
-            {category.nameAr || category.name}
-          </button>
-        );
-      })}
-    </div>
+    <FilterChipGroup
+      label={ariaLabel}
+      value={activeId}
+      options={options}
+      onChange={onSelect}
+      role="group"
+      className="pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      optionClassName="px-3"
+    />
   );
 }

@@ -13,8 +13,8 @@ import {
   CARD_FOCUS,
   CARD_HOVER,
   CARD_IMAGE_HOVER,
+  CARD_IMAGE_LIST,
   CARD_HEART_POSITION,
-  CARD_IMAGE_43,
   CARD_IMAGE_SHADE,
   CARD_META_ITEM,
   CARD_PRICE_ROW,
@@ -28,7 +28,8 @@ import {
 import { Badge } from '@/components/shared/ui/Badge';
 import { formatPrice } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
-import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
+import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl } from '@/lib/cloudinary';
+import { cardPlaceholderToneForId } from '@/components/shared/cards/cardTokens';
 import { cn } from '@/lib/utils';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import type { ProductWithStore } from '@/types/product.types';
@@ -65,7 +66,7 @@ export const ProductCard = memo(function ProductCard({
   const isCatalogGrid = context === 'catalog' && layout === 'grid';
   const detailHref = ROUTES.productDetail(product.id);
   const rawImage = product.images?.[0];
-  const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 240) : PLACEHOLDER_SVG;
+  const thumb = rawImage ? getListThumbnailUrl(rawImage, 320, 240) : null;
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const outOfStock = product.availability === 'OUT_OF_STOCK';
   const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
@@ -221,18 +222,31 @@ export const ProductCard = memo(function ProductCard({
           CARD_PRESS,
         )}
       >
-        <div className={cn(CARD_IMAGE_43, 'aspect-auto h-24 w-24 shrink-0 sm:h-32 sm:w-40')}>
-          <SafeImage
-            src={thumb}
-            alt={product.name}
-            fill
-            className={cn('object-cover', CARD_IMAGE_HOVER, outOfStock && 'opacity-60')}
-            sizes="(max-width: 640px) 96px, 160px"
-            priority={priority}
-            loading={priority ? undefined : 'lazy'}
-            {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
-          />
-          <div className={CARD_IMAGE_SHADE} aria-hidden />
+        <div
+          data-card-media="list"
+          className={cn(
+            CARD_IMAGE_LIST,
+            'flex items-center justify-center',
+            rawImage ? 'bg-muted' : cardPlaceholderToneForId(product.id),
+          )}
+        >
+          {rawImage && thumb ? (
+            <>
+              <SafeImage
+                src={thumb}
+                alt={product.name}
+                fill
+                className={cn('object-cover', CARD_IMAGE_HOVER, outOfStock && 'opacity-60')}
+                sizes="(max-width: 640px) 112px, 144px"
+                priority={priority}
+                loading={priority ? undefined : 'lazy'}
+                {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
+              />
+              <div className={CARD_IMAGE_SHADE} aria-hidden />
+            </>
+          ) : (
+            <Package className="h-8 w-8 text-primary/50" aria-hidden="true" />
+          )}
           {outOfStock && (
             <div
               className="absolute inset-0 z-[1] flex items-center justify-center bg-foreground/35"

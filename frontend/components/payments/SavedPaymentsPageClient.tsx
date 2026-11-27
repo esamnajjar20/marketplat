@@ -5,7 +5,7 @@
  * بدون QR / مسح (مخفي لأن النظام غير مستقر) — الإضافة والتعديل اليدوي هما الأساس.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Banknote,
   Wifi,
@@ -23,6 +23,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
+import { TabsBar } from '@/components/shared/ui/TabsBar';
 import { Input } from '@/components/shared/ui/Input';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
@@ -249,19 +250,7 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
     window.location.href = ussdTelHref(code);
   }
 
-  const paymentTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  function handlePaymentTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    let next = index;
-    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') next = index === 0 ? 1 : 0;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = 1;
-    else return;
-    event.preventDefault();
-    const nextTab = next === 0 ? 'pay' : 'cards';
-    setTab(nextTab);
-    paymentTabRefs.current[next]?.focus();
-  }
 
   return (
     <div className={cn('space-y-6', embedded && 'space-y-5')}>
@@ -325,40 +314,21 @@ export function SavedPaymentsPageClient({ embedded = false }: { embedded?: boole
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border p-1" role="tablist" aria-label="نوع المحفوظات">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'pay'}
-          tabIndex={tab === 'pay' ? 0 : -1}
-          ref={(el) => { paymentTabRefs.current[0] = el; }}
-          onKeyDown={(event) => handlePaymentTabKeyDown(event, 0)}
-          onClick={() => setTab('pay')}
-          className={cn(
-            'flex min-h-[48px] items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition',
-            tab === 'pay' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
-          )}
-        >
-          <Banknote className="h-4 w-4" />
-          جهات الدفع ({payees.length})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'cards'}
-          tabIndex={tab === 'cards' ? 0 : -1}
-          ref={(el) => { paymentTabRefs.current[1] = el; }}
-          onKeyDown={(event) => handlePaymentTabKeyDown(event, 1)}
-          onClick={() => setTab('cards')}
-          className={cn(
-            'flex min-h-[48px] items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition',
-            tab === 'cards' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
-          )}
-        >
-          <Wifi className="h-4 w-4" />
-          بطاقات نت ({cards.length})
-        </button>
-      </div>
+      <TabsBar
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: 'pay', label: `جهات الدفع (${payees.length})`, icon: <Banknote className="h-4 w-4" /> },
+          { value: 'cards', label: `بطاقات نت (${cards.length})`, icon: <Wifi className="h-4 w-4" /> },
+        ]}
+        ariaLabel="نوع المحفوظات"
+        variant="segmented"
+        idPrefix="saved-payments"
+        className="grid grid-cols-2 gap-2 rounded-2xl border p-1"
+        itemClassName="min-h-12 rounded-xl py-2.5 text-sm font-semibold"
+        activeItemClassName="bg-primary text-primary-foreground shadow-sm"
+        inactiveItemClassName="hover:bg-muted"
+      />
 
       {tab === 'pay' && (
         <section className="space-y-4" role="tabpanel" aria-label="جهات الدفع المحفوظة">

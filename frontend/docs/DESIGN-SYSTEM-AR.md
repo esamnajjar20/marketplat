@@ -70,20 +70,33 @@ Native button/input use the `control` value through `radius.button` and `radius.
 
 عند مقارنة الشاشتين، يجب أن تتطابق الأولوية الهرمية والقراءة والوزن النسبي، وليس بالضرورة قياسًا نقطيًا واحدًا أو شكل حروف متطابقًا. أي تغيير مستقبلي لعائلة الخط Native يحتاج اختبار حجم الحزمة ولقطات Android فعلية قبل اعتماده.
 
-## 5. المكونات والحقول
+## 5. تخطيط الصفحات وعناوينها
 
-- استخدم `Button`, `Input`, `Card`, `FormField` ومكونات Radix/Shadcn المشتركة بدل بناء عناصر منفصلة في كل صفحة.
+- `PageHeader` هو المصدر الوحيد لبنية عنوان الصفحة في الويب؛ لا تنشئ `<h1>` مخصصاً داخل أغلفة الصفحات العامة أو الحساب أو الإدارة.
+- استخدم المتغيرات `standard` و`browse` و`account` و`admin` و`detail` لتغيير كثافة العرض فقط، مع بقاء الهيكل الدلالي واحداً.
+- `ListPageShell` و`AccountPageShell` و`AdminPageShell` مسؤولة عن تخطيط المحتوى، وتفوض العنوان إلى `PageHeader`.
+- قياسات حاوية الصفحة والهوامش الرأسية وعنوان الصفحة معرفة كمتغيرات `--page-*` في `globals.css`.
+- صفحة التعديل تستخدم `EditPageHeader` الذي يعيد استخدام `PageHeader` ويضيف رابط رجوع واضحاً.
+
+## 6. المكونات والحقول
+
+- استخدم `Button`, `Input`, `Card`, `FormField` ومكونات Radix/Shadcn المشتركة بدل بناء عناصر منفصلة في كل صفحة. ملفات `components/shared/ui/*` هي واجهة الاستيراد المتوافقة للمكونات الأساسية وليست تطبيقات موازية.
+- استخدم `TabsBar` لجميع تبويبات المحتوى؛ يدعم `underline` و`pills` و`segmented`، ويتولى roving focus والتنقل بلوحة المفاتيح بما يراعي RTL. لا تستخدم `role="tablist"` يدوياً في الصفحات.
+- استخدم `FilterChipGroup` لتصفية القوائم والاختيارات متعددة الأزرار. يدعم مظهري `pills` و`underline` ويعرض الحالة عبر `aria-pressed`. لا تستخدم دلالات `tablist` لفلتر لا يملك لوحة تبويب.
+- `CategoryFilterChips` غلاف بيانات فقط فوق `FilterChipGroup`، ويجب ألا يعيد بناء أزرار التصنيف أو أسلوبها.
+- استخدم `PageHeader` و`ListPageShell` و`AccountPageShell` و`AdminPageShell` بدلاً من بناء هياكل عناوين منفصلة.
 - استخدم `rounded-card` مع `Card`.
 - يجب أن تحافظ عناصر التحكم على focus-visible، حالة disabled، ورسائل الخطأ، وألا تزيل مؤشر التركيز.
-- أزرار الأيقونات يجب أن توفر اسمًا accessible label ومنطقة تفاعل 44px على الأقل.
+- أزرار الأيقونات والشرائح والحقول التفاعلية يجب أن توفر اسمًا accessible label ومنطقة لمس لا تقل عن 44px.
 - حافظ على ارتفاعات الأسطر والمساحات قابلة للتمدد عند تكبير النص أو ظهور ترجمة أطول.
 
-## 6. الاختبارات والحوكمة
+## 7. الاختبارات والحوكمة
 
 نفّذ من جذر المستودع:
 
 ```bash
 pnpm --filter frontend design-system:token-audit
+pnpm --filter frontend uiux:unification-audit
 pnpm --filter @marketplat/mobile verify:design-system-parity
 pnpm --filter @marketplat/mobile verify:a11y
 pnpm --filter @marketplat/mobile report:tokens

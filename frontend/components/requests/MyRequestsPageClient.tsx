@@ -56,7 +56,6 @@ export default function MyRequestsPage() {
         value={status ?? ''}
         options={STATUS_TABS.map((tab) => ({ value: tab.value ?? '', label: tab.label }))}
         onChange={(value) => filters.update('status', value || null, { mode: 'push' })}
-        role="tablist"
         className="-mx-1 px-1"
       />
 

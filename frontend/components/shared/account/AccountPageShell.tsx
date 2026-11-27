@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/shared/layout/PageHeader';
 
-/**
- * Shared chrome for protected account surfaces (messages, notifications,
- * favorites, my-ads, settings). UI-
- */
+/** Shared chrome for protected account surfaces (messages, notifications, favorites, settings). */
 export function AccountPageShell({
   title,
   description,
@@ -19,24 +17,20 @@ export function AccountPageShell({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(
-        'pb-0',
-        className,
-      )}
-    >
-      <header className="border-b border-border/70 bg-surface-1/90 shadow-[0_1px_0_hsl(var(--border)/0.3)]">
-        <div className="container mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-3 px-3 py-3 sm:min-h-20 sm:px-4 sm:py-4 lg:min-h-22 lg:py-5">
-          <div className="min-w-0">
-            <h1 className="text-balance text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
-            {description ? (
-              <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground sm:text-sm">{description}</p>
-            ) : null}
-          </div>
-          {actions ? <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">{actions}</div> : null}
+    <div className={cn('pb-0', className)}>
+      <div className="page-header-frame page-header-frame--account">
+        <div className="page-container">
+          <PageHeader
+            variant="account"
+            title={title}
+            description={description}
+            actions={actions}
+          />
         </div>
-      </header>
-      <div className="container mx-auto w-full max-w-7xl px-3 pt-4 sm:px-4 sm:pt-6 lg:pt-7">{children}</div>
+      </div>
+      <div className="page-container page-content-stack page-content-stack--account">
+        {children}
+      </div>
     </div>
   );
 }

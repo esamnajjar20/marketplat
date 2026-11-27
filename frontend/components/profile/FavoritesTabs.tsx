@@ -1,8 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useRef, type KeyboardEvent } from 'react';
-import { cn } from '@/lib/utils';
+import { TabsBar } from '@/components/shared/ui/TabsBar';
 import { ROUTES } from '@/lib/constants';
 import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { parseFilterEnum } from '../../../shared/filters';
@@ -30,9 +29,8 @@ const TABS: { value: FavoritesTabValue; label: string }[] = [
  * FEAT-FAVORITE-POLYMORPHIC PR3: the backend has no combined/mixed
  * response for GET /favorites (favorites.validation.ts's
  * getFavoritesSchema comment), so the page picks exactly one type at
- * a time via a URL-bound tab strip — same custom-button-group pattern
- * SearchTabs.tsx/SearchTabsWrapper.tsx already established (no shadcn
- * Tabs primitive in this project). Defaulting to 'ad' with no ?type=
+ * a time via a URL-bound tab strip backed by the shared TabsBar.
+ * Defaulting to 'ad' with no ?type=
  * param at all preserves the pre-PR3 favorites page exactly: same
  * URL, same default view, same FavoritesList component untouched.
  */
@@ -40,59 +38,20 @@ export function FavoritesTabs() {
   const filters = useUnifiedFilters({ basePath: ROUTES.favorites, profile: 'favorites', mode: 'replace' });
   const type: FavoritesTabValue = parseFilterEnum(filters.get('type'), ['product', 'store', 'service'] as const) ?? 'ad';
 
-  const refs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    let next = index;
-    if (event.key === 'ArrowLeft') next = index + 1;
-    else if (event.key === 'ArrowRight') next = index - 1;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = TABS.length - 1;
-    else return;
-    event.preventDefault();
-    const bounded = (next + TABS.length) % TABS.length;
-    const nextTab = TABS[bounded];
-    if (!nextTab) return;
-    handleChange(nextTab.value);
-    refs.current[bounded]?.focus();
-  }
-
   function handleChange(next: FavoritesTabValue) {
     filters.update('type', next === 'ad' ? null : next, { mode: 'replace' });
   }
 
   return (
     <div className="space-y-4">
-      <div
-        role="tablist"
-        aria-label="نوع المفضلة"
-        className="flex gap-5 overflow-x-auto overscroll-x-contain border-b border-border/80 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {TABS.map((tab, index) => (
-          <button
-            key={tab.value}
-            type="button"
-            role="tab"
-            aria-selected={type === tab.value}
-            aria-controls={`favorites-panel-${tab.value}`}
-            tabIndex={type === tab.value ? 0 : -1}
-            ref={(el) => { refs.current[index] = el; }}
-            onKeyDown={(event) => handleKeyDown(event, index)}
-            onClick={() => handleChange(tab.value)}
-            className={cn(
-              'relative min-h-11 shrink-0 pb-2.5 pt-1 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              type === tab.value
-                ? 'font-bold text-primary'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {tab.label}
-            {type === tab.value && (
-              <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-t-full bg-primary" aria-hidden />
-            )}
-          </button>
-        ))}
-      </div>
+      <TabsBar
+        value={type}
+        onChange={handleChange}
+        options={TABS.map((tab) => ({ ...tab, panelId: `favorites-panel-${tab.value}` }))}
+        ariaLabel="نوع المفضلة"
+        variant="underline"
+        idPrefix="favorites-type"
+      />
 
       <div id={`favorites-panel-${type}`} role="tabpanel" tabIndex={-1} aria-label={TABS.find((tab) => tab.value === type)?.label}>
         {type === 'ad' && <FavoritesList />}

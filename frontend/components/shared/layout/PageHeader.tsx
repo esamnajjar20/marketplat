@@ -1,32 +1,51 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
+export type PageHeaderVariant = 'standard' | 'browse' | 'account' | 'admin' | 'detail';
+
+export interface PageHeaderProps {
+  icon?: ReactNode;
+  eyebrow?: ReactNode;
+  title: string;
+  description?: ReactNode;
+  actions?: ReactNode;
+  /** Controls density and surface treatment without duplicating header markup. */
+  variant?: PageHeaderVariant;
+  /** Optional stable heading ID for landmarks that reference the title. */
+  titleId?: string;
+  className?: string;
+}
+
+/**
+ * Canonical page heading for Web. Public browse, account, admin and detail
+ * pages share one semantic structure; variants only change visual density.
+ * Platform-specific navigation (e.g. the Native AppHeader) remains separate.
+ */
 export function PageHeader({
   icon,
   eyebrow,
   title,
   description,
   actions,
+  variant = 'standard',
+  titleId,
   className,
-}: {
-  icon?: ReactNode;
-  eyebrow?: ReactNode;
-  title: string;
-  description?: ReactNode;
-  actions?: ReactNode;
-  className?: string;
-}) {
+}: PageHeaderProps) {
   return (
-    <header className={cn('desktop-page-header', 'gap-3 sm:gap-4', className)}>
-      <div className="flex min-w-0 items-start gap-3">
-        {icon ? <div className="desktop-page-header__icon" aria-hidden>{icon}</div> : null}
-        <div className="min-w-0 space-y-1">
-          {eyebrow ? <p className="text-xs font-semibold text-primary">{eyebrow}</p> : null}
-          <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-          {description ? <p className="max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">{description}</p> : null}
+    <header
+      data-page-header
+      data-variant={variant}
+      className={cn('page-header', `page-header--${variant}`, className)}
+    >
+      <div className="page-header__main">
+        {icon ? <div className="page-header__icon" aria-hidden="true">{icon}</div> : null}
+        <div className="page-header__copy">
+          {eyebrow ? <div className="page-header__eyebrow">{eyebrow}</div> : null}
+          <h1 id={titleId} className="page-header__title">{title}</h1>
+          {description ? <p className="page-header__description">{description}</p> : null}
         </div>
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="page-header__actions">{actions}</div> : null}
     </header>
   );
 }

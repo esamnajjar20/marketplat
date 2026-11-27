@@ -12,7 +12,7 @@ import {
 } from '@/lib/conversationMediaStore';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import { cn } from '@/lib/utils';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import { getThumbnailUrl } from '@/lib/cloudinary';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { MediaDownloadButton } from './MediaDownloadButton';
@@ -256,9 +256,13 @@ export function MessageMediaGallery({
   }
 
   return <>
-    <div className="mb-3 flex gap-1 overflow-x-auto overscroll-x-contain pb-1" role="tablist" aria-label="نوع الوسائط">
-      {tabs.map(([id, label, count]) => <button key={id} type="button" role="tab" aria-selected={kind === id} onClick={() => setKind(id)} className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-medium', kind === id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}>{label} <span className="opacity-70">{count}</span></button>)}
-    </div>
+    <FilterChipGroup
+      label="نوع الوسائط"
+      value={kind}
+      options={tabs.map(([id, label, count]) => ({ value: id, label: <>{label} <span className="opacity-70">{count}</span></> }))}
+      onChange={(next) => setKind(next as Kind)}
+      className="mb-3"
+    />
 
     {!filtered.length ? <div className="py-8 text-center text-sm text-muted-foreground">لا توجد وسائط من هذا النوع.</div> :
       <div className="grid max-h-[min(60vh,520px)] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">

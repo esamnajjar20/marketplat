@@ -1,11 +1,8 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/shared/layout/PageHeader';
 
-/**
- * Shared chrome for admin table/dashboard pages.
- * Matches the provided design: plain title + subtitle, actions on the side.
- * Dense desktop-first layout — not for the consumer mobile app.
- */
+/** Shared chrome for admin table/dashboard pages. */
 export function AdminPageShell({
   title,
   description,
@@ -20,22 +17,8 @@ export function AdminPageShell({
   className?: string;
 }) {
   return (
-    <div className={cn('mx-auto w-full max-w-[1600px] space-y-4 sm:space-y-5 lg:space-y-6', className)}>
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-balance text-[22px] font-extrabold tracking-tight text-foreground">
-            {title}
-          </h1>
-          {description ? (
-            <p className="mt-0.5 max-w-2xl text-pretty text-sm-tight leading-5 text-muted-foreground">
-              {description}
-            </p>
-          ) : null}
-        </div>
-        {actions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
-        ) : null}
-      </header>
+    <div className={cn('page-content-stack page-content-stack--admin mx-auto w-full max-w-[1600px]', className)}>
+      <PageHeader variant="admin" title={title} description={description} actions={actions} />
       {children}
     </div>
   );

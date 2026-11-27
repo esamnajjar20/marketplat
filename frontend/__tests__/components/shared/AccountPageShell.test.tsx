@@ -10,6 +10,7 @@ describe('AccountPageShell', () => {
       </AccountPageShell>,
     );
     expect(screen.getByRole('heading', { name: 'المفضلة' })).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toHaveAttribute('data-variant', 'account');
     expect(screen.getByText('وصف')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'فعل' })).toBeInTheDocument();
     expect(screen.getByText('محتوى')).toBeInTheDocument();

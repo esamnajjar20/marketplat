@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { DesktopOnly } from '@/components/shared/layout/DesktopOnly';
+import { PageHeader } from '@/components/shared/layout/PageHeader';
 
 /**
  * Shared chrome for public browse pages (/ads, /products, /services, /stores, …).
- * UI-one header + toolbar + optional desktop sidebar + main column.
+ * The canonical PageHeader owns title/description/actions; this shell owns
+ * browse-specific toolbar, sidebar and content geometry.
  */
 export interface ListPageShellProps {
-  /** Optional leading icon in the header. Omit for a title-only header. */
   icon?: ReactNode;
   title: string;
   description?: string;
@@ -45,41 +46,25 @@ export function ListPageShell({
   const titleId = `list-page-title-${title.replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase()}`;
 
   return (
-    <div
-      className={cn(
-        'pb-0 md:pb-8',
-        className,
-      )}
-    >
-      <header className="border-b border-border/70 bg-surface-1/95 shadow-[0_1px_0_hsl(var(--border)/0.35)]">
-        <div className="container mx-auto flex min-h-20 max-w-7xl flex-wrap items-center justify-between gap-4 px-3 py-4 sm:px-4 sm:py-5 lg:min-h-24 lg:py-6">
-          <div className="flex min-w-0 items-center gap-3">
-            {icon ? (
-              <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-                aria-hidden
-              >
-                {icon}
-              </div>
-            ) : null}
-            <div className="min-w-0">
-              <h1 id={titleId} className="text-balance text-xl font-extrabold tracking-tight text-foreground sm:text-2xl lg:text-[1.65rem]">
-                {title}
-              </h1>
-              {description ? (
-                <p className="mt-0.5 text-pretty text-xs text-muted-foreground sm:text-sm">
-                  {description}
-                </p>
-              ) : null}
-            </div>
-          </div>
-          {headerEnd}
+    <div className={cn('page-content-stack pb-0 md:pb-8', className)}>
+      <div className="page-header-frame">
+        <div className="page-container">
+          <PageHeader
+            variant="browse"
+            icon={icon}
+            title={title}
+            description={description}
+            actions={headerEnd}
+            titleId={titleId}
+          />
         </div>
-      </header>
+      </div>
 
-      <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-4 sm:space-y-6 sm:px-4 sm:pt-6 lg:pt-7" aria-labelledby={titleId}>
+      <div className="page-container page-content-stack" aria-labelledby={titleId}>
         {toolbar ? (
-          <div className="desktop-toolbar flex flex-wrap items-center gap-2 [&_button]:min-h-11 [&_a]:min-h-11 [&_button]:touch-manipulation [&_a]:touch-manipulation" role="toolbar" aria-label={`أدوات ${title}`}>{toolbar}</div>
+          <div className="desktop-toolbar flex flex-wrap items-center gap-2 [&_button]:min-h-11 [&_a]:min-h-11 [&_button]:touch-manipulation [&_a]:touch-manipulation" role="toolbar" aria-label={`أدوات ${title}`}>
+            {toolbar}
+          </div>
         ) : null}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-7">

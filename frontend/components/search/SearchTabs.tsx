@@ -1,7 +1,6 @@
 'use client';
 
-import { useId, useRef, type KeyboardEvent } from 'react';
-import { cn } from '@/lib/utils';
+import { TabsBar } from '@/components/shared/ui/TabsBar';
 import type { SearchType } from '@/types/search.types';
 
 interface Props {
@@ -11,68 +10,24 @@ interface Props {
 }
 
 const TABS: { value: SearchType; label: string }[] = [
-  { value: 'all',      label: 'الكل' },
+  { value: 'all', label: 'الكل' },
   { value: 'products', label: 'المنتجات' },
-  { value: 'stores',   label: 'المحلات' },
-  { value: 'ads',      label: 'الإعلانات' },
+  { value: 'stores', label: 'المحلات' },
+  { value: 'ads', label: 'الإعلانات' },
   { value: 'services', label: 'الخدمات' },
 ];
 
-/**
- * Lightweight tab strip — no shadcn Tabs primitive is installed in
- * this project (components/ui/ has no tabs.tsx, and no other page uses
- * one), so this follows the same custom-button-group pattern
- * SearchResults.tsx's own grid/list view toggle already established
- * rather than introducing a new UI primitive for one feature.
- */
+/** Controlled search tabs; URL synchronization remains in SearchTabsWrapper. */
 export function SearchTabs({ value, onChange, className }: Props) {
-  const refs = useRef<Array<HTMLButtonElement | null>>([]);
-  const tabListId = useId();
-
-  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    let next = index;
-    if (event.key === 'ArrowLeft') next = index + 1;
-    else if (event.key === 'ArrowRight') next = index - 1;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = TABS.length - 1;
-    else return;
-    event.preventDefault();
-    const bounded = (next + TABS.length) % TABS.length;
-    const nextTab = TABS[bounded];
-    if (!nextTab) return;
-    onChange(nextTab.value);
-    refs.current[bounded]?.focus();
-  }
-
   return (
-    <div
-      role="tablist"
-      aria-label="نوع النتائج"
-      id={tabListId}
-      className={cn('flex gap-0.5 overflow-x-auto overscroll-x-contain border-b border-[var(--color-border)] dark:border-border', className)}
-    >
-      {TABS.map((tab, index) => (
-        <button
-          key={tab.value}
-          type="button"
-          role="tab"
-          id={`${tabListId}-${tab.value}`}
-          aria-selected={value === tab.value}
-          aria-controls="search-results-panel"
-          tabIndex={value === tab.value ? 0 : -1}
-          ref={(el) => { refs.current[index] = el; }}
-          onKeyDown={(event) => onKeyDown(event, index)}
-          onClick={() => onChange(tab.value)}
-          className={cn(
-            'min-h-10 shrink-0 border-b-2 px-3 py-2 text-sm-tight font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            value === tab.value
-              ? 'border-[var(--color-primary)] font-extrabold text-[var(--color-primary-strong)] dark:border-primary dark:text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}
-        >
-          {tab.label}
-        </button>
-      ))}
-    </div>
+    <TabsBar
+      value={value}
+      onChange={onChange}
+      options={TABS.map((tab) => ({ ...tab, panelId: 'search-results-panel' }))}
+      ariaLabel="نوع النتائج"
+      variant="underline"
+      className={className}
+      idPrefix="search-type"
+    />
   );
 }

@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import type { Conversation, ConversationListItem } from '@/types/conversation.types';
 import { ConversationRow } from './ConversationRow';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
+import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 
 import { Spinner } from '@/components/ui/spinner';
 import { PullToRefresh } from '@/components/shared/ui/PullToRefresh';
@@ -106,6 +107,22 @@ export function ConversationList({ selectedId }: Props = {}) {
     [items],
   );
 
+  const inboxOptions = [
+    { value: 'all', label: 'الكل' },
+    { value: 'users', label: 'شخصي' },
+    { value: 'stores', label: 'متجر' },
+  ] as const;
+  const statusValue = archivedOnly ? 'archived' : unreadOnly ? 'unread' : 'all';
+  const statusOptions = [
+    { value: 'all', label: 'الكل' },
+    { value: 'unread', label: `غير مقروء${totalUnread > 0 ? ` (${totalUnread})` : ''}` },
+    { value: 'archived', label: 'الأرشيف' },
+  ] as const;
+  const handleStatusChange = (next: string) => {
+    setUnreadOnly(next === 'unread');
+    setArchivedOnly(next === 'archived');
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-0 divide-y" role="status" aria-label="جارٍ التحميل">
@@ -177,25 +194,13 @@ export function ConversationList({ selectedId }: Props = {}) {
             </span>
           )}
         </div>
-        <div className="flex gap-2 px-1 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
-          {([['all', 'الكل'], ['users', 'شخصي'], ['stores', 'متجر']] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={inbox === value}
-              onClick={() => setInbox(value)}
-              className={cn(
-                'min-h-9 shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-colors',
-                inbox === value
-                  ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-                  : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <FilterChipGroup
+          label="مصدر المحادثة"
+          value={inbox}
+          options={inboxOptions}
+          onChange={(next) => setInbox(next as 'all' | 'users' | 'stores')}
+          className="px-1 [&::-webkit-scrollbar]:hidden"
+        />
         <div className="relative px-1">
           <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -217,31 +222,14 @@ export function ConversationList({ selectedId }: Props = {}) {
             </button>
           )}
         </div>
-        <div className="flex gap-5 border-b border-border/80 px-1" role="tablist" aria-label="حالة المحادثة">
-          {[
-            { value: 'all' as const, label: 'الكل', active: !unreadOnly && !archivedOnly },
-            { value: 'unread' as const, label: `غير مقروء${totalUnread > 0 ? ` (${totalUnread})` : ''}`, active: unreadOnly && !archivedOnly },
-            { value: 'archived' as const, label: 'الأرشيف', active: archivedOnly },
-          ].map(({ value, label, active }) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => {
-                setUnreadOnly(value === 'unread');
-                setArchivedOnly(value === 'archived');
-              }}
-              className={cn(
-                'relative min-h-10 shrink-0 pb-2.5 pt-1 text-sm font-semibold transition-colors',
-                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {label}
-              {active && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-t-full bg-primary" aria-hidden />}
-            </button>
-          ))}
-        </div>
+        <FilterChipGroup
+          label="حالة المحادثة"
+          value={statusValue}
+          options={statusOptions}
+          onChange={handleStatusChange}
+          variant="underline"
+          className="px-1"
+        />
       </div>
 
       {/* Mobile header — matches design: title + badge, search, chips, underline tabs */}
@@ -278,52 +266,21 @@ export function ConversationList({ selectedId }: Props = {}) {
             </button>
           )}
         </div>
-        <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="مصدر المحادثة">
-          {([['all', 'الكل'], ['users', 'شخصي'], ['stores', 'متجر']] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={inbox === value}
-              onClick={() => setInbox(value)}
-              className={cn(
-                'min-h-9 shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-colors',
-                inbox === value
-                  ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-                  : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-5 border-b border-border/80" role="tablist" aria-label="حالة المحادثة">
-          {[
-            { value: 'all' as const, label: 'الكل', active: !unreadOnly && !archivedOnly },
-            { value: 'unread' as const, label: `غير مقروء${totalUnread > 0 ? ` (${totalUnread})` : ''}`, active: unreadOnly && !archivedOnly },
-            { value: 'archived' as const, label: 'الأرشيف', active: archivedOnly },
-          ].map(({ value, label, active }) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => {
-                setUnreadOnly(value === 'unread');
-                setArchivedOnly(value === 'archived');
-              }}
-              className={cn(
-                'relative min-h-10 shrink-0 pb-2.5 pt-1 text-sm font-semibold transition-colors',
-                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {label}
-              {active && (
-                <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-t-full bg-primary" aria-hidden />
-              )}
-            </button>
-          ))}
-        </div>
+        <FilterChipGroup
+          label="مصدر المحادثة"
+          value={inbox}
+          options={inboxOptions}
+          onChange={(next) => setInbox(next as 'all' | 'users' | 'stores')}
+          className="px-1 [&::-webkit-scrollbar]:hidden"
+        />
+        <FilterChipGroup
+          label="حالة المحادثة"
+          value={statusValue}
+          options={statusOptions}
+          onChange={handleStatusChange}
+          variant="underline"
+          className="px-1"
+        />
       </div>
 
       {(query.trim() || unreadOnly || archivedOnly || inbox !== 'all') && filtered.length > 0 && (
