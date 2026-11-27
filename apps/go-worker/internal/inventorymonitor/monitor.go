@@ -18,7 +18,7 @@ const (
 	AdvisoryLockID    int64 = 731904304
 )
 
-const alertPreferenceSQL = `CASE WHEN LOWER(COALESCE(user_row."notificationPreferences" ->> 'lowStockAlerts', 'true')) = 'false' THEN FALSE ELSE TRUE END`
+const alertPreferenceSQL = `COALESCE((user_row."notificationPreferences" ->> 'lowStockAlerts') <> 'false', TRUE) = TRUE`
 
 const alertQuery = `
 		WITH candidates AS MATERIALIZED (

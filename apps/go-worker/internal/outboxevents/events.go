@@ -265,7 +265,7 @@ func processSavedSearchMatch(ctx context.Context, tx *sql.Tx, event eventRow) er
 		), eligible AS (
 			SELECT m."userId", m."savedSearchId", m."label"
 			FROM matches m INNER JOIN "users" u ON u."id" = m."userId"
-			WHERE COALESCE((u."notificationPreferences" ->> 'savedSearch')::boolean, TRUE) = TRUE
+			WHERE COALESCE((u."notificationPreferences" ->> 'savedSearch') <> 'false', TRUE) = TRUE
 		), inserted AS (
 			INSERT INTO "notifications" ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")
 			SELECT 'go_' || md5(random()::text || clock_timestamp()::text || e."userId" || e."savedSearchId"),
@@ -335,7 +335,7 @@ func processFollowedActivity(ctx context.Context, tx *sql.Tx, event eventRow) er
 			FROM "follows" f INNER JOIN targets t
 				ON f."targetType"::text = t."targetType" AND f."targetId" = t."targetId"
 			INNER JOIN "users" u ON u."id" = f."followerId"
-			WHERE COALESCE((u."notificationPreferences" ->> 'followUpdates')::boolean, TRUE) = TRUE
+			WHERE COALESCE((u."notificationPreferences" ->> 'followUpdates') <> 'false', TRUE) = TRUE
 		), inserted AS (
 			INSERT INTO "notifications" ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")
 			SELECT 'go_' || md5(random()::text || clock_timestamp()::text || r."userId"),

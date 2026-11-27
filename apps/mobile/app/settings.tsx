@@ -55,10 +55,14 @@ export default function SettingsScreen() {
       const profile = await fetchMyProfile(token, user?.id);
       const saved = profile.notificationPreferences ?? {};
       const merged: Preferences = { ...DEFAULT_PREFS };
-      for (const key of Object.keys(DEFAULT_PREFS)) {
+      for (const key of Object.keys(DEFAULT_PREFS) as Array<keyof Preferences>) {
+        const fallback = DEFAULT_PREFS[key];
         const value = saved[key];
-        if (typeof DEFAULT_PREFS[key] === 'boolean' && typeof value === 'boolean') merged[key] = value;
-        if (typeof DEFAULT_PREFS[key] === 'string' && typeof value === 'string') merged[key] = value;
+        if (typeof fallback === 'boolean' && typeof value === 'boolean') {
+          Object.assign(merged, { [key]: value });
+        } else if (typeof fallback === 'string' && typeof value === 'string') {
+          Object.assign(merged, { [key]: value });
+        }
       }
       // This is optional by design: do not inject a default here, because the
       // first activation should pin the device's current timezone.

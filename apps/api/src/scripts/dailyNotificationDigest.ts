@@ -10,6 +10,7 @@ import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
+import { notificationDispatcher } from '../shared/notifications/notificationDispatcher';
 
 const BATCH_SIZE = 100;
 // Must match notificationDigestLockID in apps/go-worker/cmd/server/main.go.
@@ -19,12 +20,16 @@ type DigestBatchResult = {
   lastUserId: string | null;
   digestsCreated: bigint | number;
   rowsMarkedRead: bigint | number;
+  notificationIdsJson: string;
+  affectedUserIdsJson: string;
 };
 
 type NotificationDigestResult = {
   digestsCreated: number;
   rowsMarkedRead: number;
   batches: number;
+  notificationIds: string[];
+  affectedUserIds: string[];
 };
 
 function isNotificationDigestResult(value: unknown): value is NotificationDigestResult {
@@ -36,7 +41,13 @@ function isNotificationDigestResult(value: unknown): value is NotificationDigest
     Number.isSafeInteger(result.rowsMarkedRead) &&
     (result.rowsMarkedRead as number) >= 0 &&
     Number.isSafeInteger(result.batches) &&
-    (result.batches as number) >= 0
+    (result.batches as number) >= 0 &&
+    Array.isArray(result.notificationIds) &&
+    result.notificationIds.every(id => typeof id === 'string' && id.length > 0) &&
+    result.notificationIds.length === result.digestsCreated &&
+    Array.isArray(result.affectedUserIds) &&
+    result.affectedUserIds.every(userId => typeof userId === 'string' && userId.length > 0) &&
+    ((result.rowsMarkedRead as number) === 0 || result.affectedUserIds.length > 0)
   );
 }
 
@@ -162,12 +173,14 @@ async function processDigestBatch(
       FROM eligible AS e
       INNER JOIN created AS c ON c."userId" = e."userId"
       WHERE n."id" = e."id"
-      RETURNING n."id"
+      RETURNING n."userId"
     )
     SELECT
       (SELECT MAX("userId") FROM selected) AS "lastUserId",
       (SELECT COUNT(*) FROM created)::bigint AS "digestsCreated",
-      (SELECT COUNT(*) FROM updated)::bigint AS "rowsMarkedRead"
+      (SELECT COUNT(*) FROM updated)::bigint AS "rowsMarkedRead",
+      COALESCE((SELECT json_agg("id")::text FROM created), '[]') AS "notificationIdsJson",
+      COALESCE((SELECT json_agg("userId")::text FROM (SELECT DISTINCT "userId" FROM updated ORDER BY "userId") affected), '[]') AS "affectedUserIdsJson"
   `;
 
   if (!rows[0]) throw new Error('Notification digest query returned no status row');
@@ -180,6 +193,7 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
   let digestsCreated = 0;
   let rowsMarkedRead = 0;
   let batches = 0;
+  const notificationIds: string[] = [];
 
   for (;;) {
     const batch = await runAdvisoryLockedBatch(
@@ -204,6 +218,28 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
     const nextUserId = batch.value.lastUserId;
     digestsCreated += Number(batch.value.digestsCreated);
     rowsMarkedRead += Number(batch.value.rowsMarkedRead);
+    const createdIds: unknown = JSON.parse(batch.value.notificationIdsJson);
+    if (
+      !Array.isArray(createdIds) ||
+      createdIds.some(id => typeof id !== 'string' || id.length === 0) ||
+      createdIds.length !== Number(batch.value.digestsCreated)
+    ) {
+      throw new Error('Notification digest fallback returned invalid notification IDs');
+    }
+    const batchIds = createdIds as string[];
+    notificationIds.push(...batchIds);
+    const affectedIds: unknown = JSON.parse(batch.value.affectedUserIdsJson);
+    if (!Array.isArray(affectedIds) || affectedIds.some(userId => typeof userId !== 'string' || userId.length === 0)) {
+      throw new Error('Notification digest fallback returned invalid affected user IDs');
+    }
+    // The transaction has committed at this point. Publish both the new digest
+    // and the read transition of all source notifications that it absorbed.
+    await notificationDispatcher.publishDurable(prisma, batchIds, 'notification-digest Express fallback');
+    await notificationDispatcher.publishStateChanges({
+      userIds: affectedIds as string[],
+      action: 'read',
+      label: 'notification-digest Express fallback',
+    });
     if (nextUserId === null) break;
     if (nextUserId === lastUserId) {
       throw new Error('Notification digest cursor did not advance');
@@ -218,6 +254,9 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
     rowsMarkedRead,
     batches,
   });
+  if (notificationIds.length !== digestsCreated) {
+    throw new Error('Notification digest fallback count does not match its created IDs');
+  }
   return 'completed';
 }
 
@@ -228,6 +267,18 @@ async function main(): Promise<void> {
     body: {},
     validateResult: isNotificationDigestResult,
     runExpressFallback,
+    onGoSuccess: async result => {
+      await notificationDispatcher.publishDurable(
+        prisma,
+        result.notificationIds,
+        'notification-digest Go worker'
+      );
+      await notificationDispatcher.publishStateChanges({
+        userIds: result.affectedUserIds,
+        action: 'read',
+        label: 'notification-digest Go worker',
+      });
+    },
   });
 }
 

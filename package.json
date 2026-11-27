@@ -57,6 +57,7 @@
     "build:contracts": "pnpm --filter @marketplat/contracts build",
     "ux:loading-contract-audit": "node tools/audit-loading-contract.mjs",
     "perf:render-unification-audit": "node tools/audit-rendering-unification.mjs",
-    "uiux:unification-audit": "npm --prefix frontend run uiux:unification-audit"
+    "uiux:unification-audit": "npm --prefix frontend run uiux:unification-audit",
+    "audit:notification-contract": "node tools/audit-notification-contract.mjs"
   }
 }

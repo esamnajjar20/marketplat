@@ -15,6 +15,7 @@ jest.mock('../../src/config/prisma', () => ({
       findMany: jest.fn(),
       count: jest.fn(),
       updateMany: jest.fn(),
+      deleteMany: jest.fn(),
     },
   },
 }));
@@ -64,7 +65,7 @@ describe('notificationsRepository', () => {
 
   describe('SSE payload carries deep-link data', () => {
     it('create publishes notification.data (plain objects only)', async () => {
-      const { publishNotificationEvent } = jest.requireMock(
+      const { publishNotificationEventsToMany } = jest.requireMock(
         '../../src/shared/realtime/notificationStream',
       );
       (prisma.notification.create as jest.Mock).mockResolvedValue({
@@ -83,10 +84,17 @@ describe('notificationsRepository', () => {
         data: { conversationId: 'conv-1' },
       });
 
-      expect(publishNotificationEvent).toHaveBeenCalledWith(
-        userId,
-        expect.objectContaining({ data: { conversationId: 'conv-1' } }),
-      );
+      expect(publishNotificationEventsToMany).toHaveBeenCalledWith([
+        {
+          userId,
+          event: expect.objectContaining({
+            action: 'created',
+            notificationId: 'n1',
+            notificationType: 'NEW_MESSAGE',
+            data: { conversationId: 'conv-1' },
+          }),
+        },
+      ]);
     });
   });
 
@@ -207,10 +215,38 @@ describe('notificationsRepository', () => {
 
       expect(result).toEqual({ count: 0 });
     });
+
+    it('publishes a read event after successfully marking the item read', async () => {
+      (prisma.notification.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await notificationsRepository.markRead('notif-1', userId);
+
+      const { publishNotificationEventsToMany } = jest.requireMock(
+        '../../src/shared/realtime/notificationStream',
+      );
+      expect(publishNotificationEventsToMany).toHaveBeenCalledWith([
+        { userId, event: { type: 'notification', action: 'read', notificationId: 'notif-1' } },
+      ]);
+    });
+  });
+
+  describe('markUnread', () => {
+    it('publishes an updated event after changing an item back to unread', async () => {
+      (prisma.notification.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await notificationsRepository.markUnread('notif-1', userId);
+
+      const { publishNotificationEventsToMany } = jest.requireMock(
+        '../../src/shared/realtime/notificationStream',
+      );
+      expect(publishNotificationEventsToMany).toHaveBeenCalledWith([
+        { userId, event: { type: 'notification', action: 'updated', notificationId: 'notif-1' } },
+      ]);
+    });
   });
 
   describe('markAllRead', () => {
-    it('marks every unread notification for the user as read', async () => {
+    it('marks every unread notification for the user as read and publishes a bulk read event', async () => {
       (prisma.notification.updateMany as jest.Mock).mockResolvedValue({ count: 3 });
 
       const result = await notificationsRepository.markAllRead(userId);
@@ -220,6 +256,40 @@ describe('notificationsRepository', () => {
         data: { readAt: expect.any(Date) },
       });
       expect(result).toEqual({ count: 3 });
+      const { publishNotificationEventsToMany } = jest.requireMock(
+        '../../src/shared/realtime/notificationStream',
+      );
+      expect(publishNotificationEventsToMany).toHaveBeenCalledWith([
+        { userId, event: { type: 'notification', action: 'read' } },
+      ]);
+    });
+  });
+
+  describe('deletion synchronization', () => {
+    it('publishes deleted for a single notification after deletion', async () => {
+      (prisma.notification.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await notificationsRepository.deleteForUser('notif-1', userId);
+
+      const { publishNotificationEventsToMany } = jest.requireMock(
+        '../../src/shared/realtime/notificationStream',
+      );
+      expect(publishNotificationEventsToMany).toHaveBeenCalledWith([
+        { userId, event: { type: 'notification', action: 'deleted', notificationId: 'notif-1' } },
+      ]);
+    });
+
+    it('publishes a bulk deleted signal after clearing read notifications', async () => {
+      (prisma.notification.deleteMany as jest.Mock).mockResolvedValue({ count: 4 });
+
+      await notificationsRepository.deleteAllReadForUser(userId);
+
+      const { publishNotificationEventsToMany } = jest.requireMock(
+        '../../src/shared/realtime/notificationStream',
+      );
+      expect(publishNotificationEventsToMany).toHaveBeenCalledWith([
+        { userId, event: { type: 'notification', action: 'deleted' } },
+      ]);
     });
   });
 

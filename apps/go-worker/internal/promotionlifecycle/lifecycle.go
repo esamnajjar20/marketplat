@@ -141,7 +141,7 @@ WITH due AS (
     INNER JOIN "store_details" sd ON sd."id" = s."storeId"
     INNER JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
     INNER JOIN "users" u ON u."id" = sp."userId"
-    WHERE u."notificationPreferences" ->> 'myPromotions' = 'true'
+    WHERE COALESCE((u."notificationPreferences" ->> 'myPromotions') <> 'false', TRUE) = TRUE
 ), follower_recipients AS (
     SELECT
         s."id" AS "promotionId", s."storeId", s."productId", u."id" AS "userId",
@@ -228,7 +228,7 @@ WITH due AS (
     INNER JOIN "store_details" sd ON sd."id" = w."storeId"
     INNER JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
     INNER JOIN "users" u ON u."id" = sp."userId"
-    WHERE u."notificationPreferences" ->> 'myPromotions' = 'true'
+    WHERE COALESCE((u."notificationPreferences" ->> 'myPromotions') <> 'false', TRUE) = TRUE
 ), inserted AS (
     INSERT INTO "notifications"
         ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")
@@ -293,7 +293,7 @@ WITH due AS (
     INNER JOIN "store_details" sd ON sd."id" = e."storeId"
     INNER JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
     INNER JOIN "users" u ON u."id" = sp."userId"
-    WHERE u."notificationPreferences" ->> 'myPromotions' = 'true'
+    WHERE COALESCE((u."notificationPreferences" ->> 'myPromotions') <> 'false', TRUE) = TRUE
 ), inserted AS (
     INSERT INTO "notifications"
         ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")

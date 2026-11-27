@@ -9,8 +9,7 @@ import {
 } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { logger } from '../observability/logger';
-import { unreadNotificationsCache } from '../cache/unreadNotificationsCache';
-import { publishNotificationEventsToMany } from '../realtime/notificationStream';
+import { notificationDispatcher } from '../notifications/notificationDispatcher';
 import { pushService, type PushPayload } from '../notifications/pushService';
 import { pushSubscriptionsRepository } from '../notifications/pushSubscriptionsRepository';
 import { fcmDeviceTokensRepository } from '../notifications/fcmDeviceTokensRepository';
@@ -22,6 +21,7 @@ import { deliverEdgePurgeTags } from '../cache/edgePurge';
 import { asPlainObject } from '../utils/asPlainObject';
 import { getGoWorkerBaseUrl, getGoWorkerToken } from '../go-worker/goWorkerConfig';
 import { matchesSearchQuery } from '../search/searchTextMatch';
+import { readNotificationPreference } from '@marketplat/contracts';
 
 // Claim one event at a time: leasing a batch and then processing it serially lets
 // later events' leases expire while they wait behind a slow high-fan-out event.
@@ -49,26 +49,6 @@ const MAX_BACKOFF_MS = 60 * 60 * 1_000;
 const POST_COMMIT_BATCH_SIZE = 50;
 const PUSH_DISPATCH_MAX_PER_POLL = 10;
 const PUSH_DISPATCH_MAX_ATTEMPTS = 25;
-
-async function invalidateUnreadCachesBestEffort(userIds: string[], eventId: string): Promise<void> {
-  const uniqueIds = Array.from(new Set(userIds));
-  for (let i = 0; i < uniqueIds.length; i += POST_COMMIT_BATCH_SIZE) {
-    const batch = uniqueIds.slice(i, i + POST_COMMIT_BATCH_SIZE);
-    const results = await Promise.allSettled(
-      batch.map(userId => unreadNotificationsCache.invalidate(userId))
-    );
-    const failures = results.filter(result => result.status === 'rejected').length;
-    if (failures > 0) {
-      // Cache invalidation is a post-commit hint. It must not prevent SSE/push
-      // delivery after the durable notification rows and outbox acknowledgement committed.
-      logger.warn('Outbox unread-cache invalidation partially failed after durable commit', {
-        eventId,
-        batchSize: batch.length,
-        failures,
-      });
-    }
-  }
-}
 
 interface ActivityPayload {
   userId: string;
@@ -143,179 +123,11 @@ function parseMarketplaceOrderNotificationPayload(
 }
 
 function preferenceAllowsStoreUpdates(value: unknown): boolean {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
-  const preferences = value as Record<string, unknown>;
-  return Object.prototype.hasOwnProperty.call(preferences, 'storeUpdates')
-    ? Boolean(preferences.storeUpdates)
-    : true;
-}
-
-function parseActivityPayload(value: unknown): ActivityPayload {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Outbox activity payload must be an object');
-  }
-  const payload = value as Record<string, unknown>;
-  const activityTypes = Object.values(UserActivityType) as string[];
-  if (
-    typeof payload.userId !== 'string' ||
-    !payload.userId ||
-    typeof payload.type !== 'string' ||
-    !activityTypes.includes(payload.type) ||
-    typeof payload.title !== 'string' ||
-    !payload.title
-  ) {
-    throw new Error('Outbox activity payload is missing valid userId, type, or title');
-  }
-  for (const key of ['description', 'entityType', 'entityId'] as const) {
-    if (payload[key] !== undefined && payload[key] !== null && typeof payload[key] !== 'string') {
-      throw new Error(`Outbox activity payload field ${key} must be a string or null`);
-    }
-  }
-  if (
-    payload.entityType !== undefined &&
-    payload.entityType !== null &&
-    !Object.values(ActivityEntityType).includes(payload.entityType as ActivityEntityType)
-  ) {
-    throw new Error('Outbox activity payload field entityType is not a valid ActivityEntityType');
-  }
-  return payload as unknown as ActivityPayload;
-}
-
-function parseFollowedActivityPayload(value: unknown): FollowedActivityPayload {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Followed-activity outbox payload must be an object');
-  }
-  const payload = value as Record<string, unknown>;
-  const targetTypes = Object.values(FollowTargetType) as string[];
-  const notificationTypes = [
-    NotificationType.FOLLOWED_USER_ACTIVITY,
-    NotificationType.FOLLOWED_STORE_ACTIVITY,
-    NotificationType.FOLLOWED_CATEGORY_ACTIVITY,
-  ] as string[];
-  if (
-    !Array.isArray(payload.targets) ||
-    payload.targets.length === 0 ||
-    payload.targets.length > 10 ||
-    !payload.targets.every(target => {
-      if (!target || typeof target !== 'object' || Array.isArray(target)) return false;
-      const item = target as Record<string, unknown>;
-      return (
-        typeof item.targetType === 'string' &&
-        targetTypes.includes(item.targetType) &&
-        typeof item.targetId === 'string' &&
-        item.targetId.length > 0
-      );
-    })
-  )
-    throw new Error('Followed-activity outbox targets are invalid');
-  if (typeof payload.title !== 'string' || !payload.title || typeof payload.body !== 'string' || payload.body.length > 500) {
-    throw new Error('Followed-activity outbox title/body are invalid');
-  }
-  if (typeof payload.type !== 'string' || !notificationTypes.includes(payload.type)) {
-    throw new Error('Followed-activity outbox notification type is invalid');
-  }
-  if (!payload.data || typeof payload.data !== 'object' || Array.isArray(payload.data)) {
-    throw new Error('Followed-activity outbox data must be an object');
-  }
-  return payload as unknown as FollowedActivityPayload;
-}
-
-interface SavedSearchMatchPayload {
-  adId: string;
-  adTitle: string;
-  matches: Array<{ userId: string; savedSearchId: string; label: string }>;
-}
-
-interface SavedSearchMatchScanPayload {
-  adId: string;
-  adTitle: string;
-  ownerUserId: string;
-  title: string;
-  description: string;
-  city: string | null;
-  categoryId: string | null;
-  condition: string | null;
-  price: string | null;
-  snapshotAt: string;
-  cursor: string | null;
-}
-
-function parseSavedSearchMatchScanPayload(value: unknown): SavedSearchMatchScanPayload {
-  const payload = asPlainObject(value);
-  if (
-    !payload ||
-    typeof payload.adId !== 'string' || !payload.adId ||
-    typeof payload.adTitle !== 'string' || !payload.adTitle ||
-    typeof payload.ownerUserId !== 'string' || !payload.ownerUserId ||
-    typeof payload.title !== 'string' ||
-    typeof payload.description !== 'string' ||
-    (payload.city !== null && typeof payload.city !== 'string') ||
-    (payload.categoryId !== null && typeof payload.categoryId !== 'string') ||
-    (payload.condition !== null && typeof payload.condition !== 'string') ||
-    (payload.price !== null && typeof payload.price !== 'string') ||
-    typeof payload.snapshotAt !== 'string' || Number.isNaN(Date.parse(payload.snapshotAt)) ||
-    (payload.cursor !== null && typeof payload.cursor !== 'string')
-  ) {
-    throw new Error('Saved-search scan outbox payload is invalid');
-  }
-  return payload as unknown as SavedSearchMatchScanPayload;
-}
-
-function savedSearchMatchesAd(filtersValue: unknown, ad: SavedSearchMatchScanPayload): boolean {
-  const filters = asPlainObject(filtersValue) ?? {};
-  if (filters.type !== undefined && filters.type !== 'ads') return false;
-  if (typeof filters.q === 'string' && filters.q &&
-      !matchesSearchQuery([ad.title, ad.description], filters.q)) return false;
-  if (typeof filters.city === 'string' && filters.city &&
-      (ad.city ?? '').toLocaleLowerCase() !== filters.city.toLocaleLowerCase()) return false;
-  if (typeof filters.categoryId === 'string' && filters.categoryId !== ad.categoryId) return false;
-  if (typeof filters.condition === 'string' && filters.condition !== ad.condition) return false;
-
-  const price = ad.price === null ? null : Number(ad.price);
-  if (typeof filters.minPrice === 'number' && (price === null || price < filters.minPrice)) return false;
-  if (typeof filters.maxPrice === 'number' && (price === null || price > filters.maxPrice)) return false;
-  return true;
-}
-
-function parseSavedSearchMatchPayload(value: unknown): SavedSearchMatchPayload {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Saved-search outbox payload must be an object');
-  }
-  const payload = value as Record<string, unknown>;
-  if (
-    typeof payload.adId !== 'string' ||
-    !payload.adId ||
-    typeof payload.adTitle !== 'string' ||
-    !payload.adTitle
-  ) {
-    throw new Error('Saved-search outbox payload is missing adId or adTitle');
-  }
-  if (
-    !Array.isArray(payload.matches) ||
-    payload.matches.length > 5000 ||
-    payload.adTitle.length > 2000 ||
-    !payload.matches.every(match => {
-      if (!match || typeof match !== 'object' || Array.isArray(match)) return false;
-      const row = match as Record<string, unknown>;
-      return (
-        typeof row.userId === 'string' &&
-        row.userId.length > 0 &&
-        typeof row.savedSearchId === 'string' &&
-        row.savedSearchId.length > 0 &&
-        typeof row.label === 'string'
-      );
-    })
-  )
-    throw new Error('Saved-search outbox matches are invalid');
-  return payload as unknown as SavedSearchMatchPayload;
+  return readNotificationPreference(value, 'storeUpdates');
 }
 
 function preferenceAllowsSavedSearch(value: unknown): boolean {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
-  const preferences = value as Record<string, unknown>;
-  return Object.prototype.hasOwnProperty.call(preferences, 'savedSearch')
-    ? Boolean(preferences.savedSearch)
-    : true;
+  return readNotificationPreference(value, 'savedSearch');
 }
 
 interface GoOutboxNotification {
@@ -552,31 +364,7 @@ async function publishOutboxNotifications(
   label: string
 ): Promise<void> {
   if (created.length === 0) return;
-  const recipientIds = Array.from(new Set(created.map(row => row.userId)));
-  await invalidateUnreadCachesBestEffort(recipientIds, eventId);
-  try {
-    void publishNotificationEventsToMany(
-      created.map(row => ({
-        userId: row.userId,
-        event: {
-          type: 'notification' as const,
-          action: 'created' as const,
-          notificationId: row.id,
-          notificationType: row.type as NotificationType,
-          title: row.title,
-          body: row.body,
-          data: asPlainObject(row.data),
-        },
-      }))
-    ).catch(error =>
-      logger.warn(`${label} outbox SSE publish failed after durable commit`, {
-        eventId,
-        error,
-      })
-    );
-  } catch (error) {
-    logger.warn(`${label} outbox SSE publish failed after durable commit`, { eventId, error });
-  }
+  await notificationDispatcher.publishCreated(created, `${label} outbox:${eventId}`);
 }
 
 async function publishOutboxEventNotificationsByEvent(
@@ -1059,11 +847,7 @@ async function processActivityEvent(
 }
 
 function preferenceAllowsFollowUpdates(value: unknown): boolean {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
-  const preferences = value as Record<string, unknown>;
-  return Object.prototype.hasOwnProperty.call(preferences, 'followUpdates')
-    ? Boolean(preferences.followUpdates)
-    : true;
+  return readNotificationPreference(value, 'followUpdates');
 }
 
 async function processFollowedActivityEvent(

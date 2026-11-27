@@ -16,13 +16,14 @@ const (
 	MaxRetentionDays     = 3650
 )
 
-// Result contains aggregate counts only; notification IDs and user data are
-// never returned to the caller or written to logs.
+// Result contains aggregate counts and affected account IDs for post-commit
+// notification-list invalidation by the API. IDs are never written to logs.
 type Result struct {
-	Deleted       int64     `json:"deleted"`
-	Batches       int       `json:"batches"`
-	Cutoff        time.Time `json:"cutoff"`
-	RetentionDays int       `json:"retentionDays"`
+	Deleted         int64     `json:"deleted"`
+	Batches         int       `json:"batches"`
+	Cutoff          time.Time `json:"cutoff"`
+	RetentionDays   int       `json:"retentionDays"`
+	AffectedUserIDs []string  `json:"affectedUserIds"`
 }
 
 type queryer interface {
@@ -46,7 +47,8 @@ func Run(ctx context.Context, db queryer, retentionDays, batchSize int, now time
 
 	now = now.UTC()
 	cutoff := now.Add(-time.Duration(retentionDays) * 24 * time.Hour)
-	result := Result{Cutoff: cutoff, RetentionDays: retentionDays}
+	result := Result{Cutoff: cutoff, RetentionDays: retentionDays, AffectedUserIDs: make([]string, 0)}
+	seenUsers := make(map[string]struct{})
 
 	for {
 		rows, err := db.QueryContext(ctx, deleteBatchSQL, cutoff, batchSize)
@@ -56,10 +58,14 @@ func Run(ctx context.Context, db queryer, retentionDays, batchSize int, now time
 
 		var batchDeleted int64
 		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
+			var userID string
+			if err := rows.Scan(&userID); err != nil {
 				_ = rows.Close()
-				return result, fmt.Errorf("read deleted notification id: %w", err)
+				return result, fmt.Errorf("read affected notification owner: %w", err)
+			}
+			if _, exists := seenUsers[userID]; !exists {
+				seenUsers[userID] = struct{}{}
+				result.AffectedUserIDs = append(result.AffectedUserIDs, userID)
 			}
 			batchDeleted++
 		}
@@ -104,5 +110,5 @@ const deleteBatchSQL = `
 	DELETE FROM "notifications" AS n
 	USING doomed
 	WHERE n."id" = doomed."id"
-	RETURNING n."id"
+	RETURNING n."userId"
 `

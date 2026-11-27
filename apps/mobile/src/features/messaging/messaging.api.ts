@@ -1,4 +1,5 @@
 import { buildFilterParams } from '../../../../../shared/filters';
+import type { NotificationCategory } from '@marketplat/contracts';
 import { apiRequest, UPLOAD_TIMEOUT_MS } from '@/api/client';
 import { secureRandomToken } from '@/lib/operation-id';
 import {
@@ -28,18 +29,19 @@ export async function sendMessage(conversationId: string, body: string, token: s
 export async function startConversationFromAd(adId: string, token: string, csrfToken?: string | null): Promise<{ id: string }> { const response = await apiRequest<ApiEnvelope<{ id: string }>>('/api/v1/conversations', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ adId }), responseSchema: conversationCreatedEnvelopeResponseSchema as ZodType<ApiEnvelope<{ id: string }>> }); return requireData(response, 'بدء المحادثة'); }
 export async function startConversationWithUser(userId: string, token: string, context?: { type: 'product' | 'service'; id: string }, csrfToken?: string | null): Promise<{ id: string }> { const response = await apiRequest<ApiEnvelope<{ id: string }>>('/api/v1/conversations', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ userId, ...(context ? { context } : {}) }), responseSchema: conversationCreatedEnvelopeResponseSchema as ZodType<ApiEnvelope<{ id: string }>> }); return requireData(response, 'بدء المحادثة'); }
 export type NotificationPage = { items: AppNotification[]; page: number; totalPages: number; total: number };
-export async function fetchNotificationsPage(token: string, page = 1, limit = 50, unreadOnly = false, signal?: AbortSignal, ownerId?: string | null): Promise<NotificationPage> {
+export async function fetchNotificationsPage(token: string, page = 1, limit = 50, unreadOnly = false, signal?: AbortSignal, ownerId?: string | null, category?: 'all' | NotificationCategory): Promise<NotificationPage> {
   const safePage = Math.max(1, Math.floor(Number(page) || 1));
   const safeLimit = Math.max(1, Math.min(100, Math.floor(Number(limit) || 50)));
   const query = buildFilterParams({ page: safePage, limit: safeLimit, unreadOnly: unreadOnly ? true : undefined }, { profile: 'notifications' });
+  if (category && category !== 'all') query.set('category', category);
   const response = await apiRequest<ApiEnvelope<AppNotification[]>>(`/api/v1/notifications?${query.toString()}`, { token, signal, cacheOwnerId: ownerId ?? undefined, responseSchema: notificationListEnvelopeResponseSchema as ZodType<ApiEnvelope<AppNotification[]>> });
   const items = requireData(response, 'الإشعارات');
   if (!Array.isArray(items)) throw new Error('قائمة الإشعارات غير صالحة.');
   const meta = response.meta?.pagination;
   return { items, page: meta?.page ?? safePage, totalPages: meta?.totalPages ?? (items.length >= safeLimit ? safePage + 1 : safePage), total: meta?.total ?? items.length };
 }
-export async function fetchNotifications(token: string, unreadOnly = false, ownerId?: string | null): Promise<AppNotification[]> {
-  return (await fetchNotificationsPage(token, 1, 50, unreadOnly, undefined, ownerId)).items;
+export async function fetchNotifications(token: string, unreadOnly = false, ownerId?: string | null, category?: 'all' | NotificationCategory): Promise<AppNotification[]> {
+  return (await fetchNotificationsPage(token, 1, 50, unreadOnly, undefined, ownerId, category)).items;
 }
 export async function fetchUnreadCounts(token: string): Promise<Partial<{ messages: number; notifications: number }>> { const [messagesR, notificationsR] = await Promise.allSettled([apiRequest<ApiEnvelope<{ count: number }>>('/api/v1/conversations/unread-count', { token, responseSchema: unreadCountEnvelopeResponseSchema as ZodType<ApiEnvelope<{ count: number }>> }), apiRequest<ApiEnvelope<{ count: number }>>('/api/v1/notifications/unread-count', { token, responseSchema: unreadCountEnvelopeResponseSchema as ZodType<ApiEnvelope<{ count: number }>> })]); const result: Partial<{ messages: number; notifications: number }> = {}; if (messagesR.status === 'fulfilled') { try { result.messages = Math.max(0, Number(requireData(messagesR.value, 'عدد الرسائل غير المقروءة').count) || 0); } catch { /* count unavailable */ } } if (notificationsR.status === 'fulfilled') { try { result.notifications = Math.max(0, Number(requireData(notificationsR.value, 'عدد الإشعارات غير المقروءة').count) || 0); } catch { /* count unavailable */ } } return result; }
 export async function markNotificationRead(id: string, token: string, csrfToken?: string | null, ownerId?: string | null): Promise<void> { await apiRequest<ApiEnvelope<unknown>>(`/api/v1/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH', token, cacheOwnerId: ownerId ?? undefined, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined }); }

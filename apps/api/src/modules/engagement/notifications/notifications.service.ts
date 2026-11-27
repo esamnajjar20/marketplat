@@ -8,7 +8,7 @@ import {
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
 import { buildPaginationMeta } from '../../../shared/http/pagination';
 import { PaginatedResult } from '../../../shared/types/pagination.types';
-import { pushService } from '../../../shared/notifications/pushService';
+import { notificationDispatcher } from '../../../shared/notifications/notificationDispatcher';
 import { prisma } from '../../../config/prisma';
 import { TooManyRequestsError } from '../../../shared/errors/TooManyRequestsError';
 import { pushSubscriptionsRepository } from '../../../shared/notifications/pushSubscriptionsRepository';
@@ -18,7 +18,10 @@ import {
   labelForNativePlatform,
   labelFromUserAgent,
 } from '../../../shared/auth/deviceLabel';
-import { NOTIFICATION_CATEGORY_TYPES, NotificationCategory } from './notifications.validation';
+import { NOTIFICATION_CATEGORY_TYPES } from './notifications.validation';
+import type { NotificationCategory } from './notifications.validation';
+import { readNotificationPreference } from '@marketplat/contracts';
+import type { NotificationContentPreferenceKey } from '@marketplat/contracts';
 
 export type DeviceKind = 'web' | 'native';
 
@@ -37,46 +40,10 @@ export interface NotificationDevice {
 
 /** Keys stored on User.notificationPreferences — must stay aligned with
  * frontend NotificationPreferences and users.validation.ts. */
-type PrefKey =
-  | 'newMessage'
-  | 'adViews'
-  | 'favAdUpdated'
-  | 'promotions'
-  | 'myPromotions'
-  | 'savedSearch'
-  | 'storeUpdates'
-  | 'followUpdates'
-  | 'serviceQuotes'
-  | 'salesAlerts'
-  | 'lowStockAlerts'
-  | 'installmentAlerts'
-  | 'debtAlerts'
-  | 'weeklySalesReport';
-
-/** Same defaults as NotificationSettingsForm — used when a key is missing
- * from the JSON blob (older accounts). */
-const DEFAULT_PREFS: Record<PrefKey, boolean> = {
-  newMessage: true,
-  adViews: false,
-  favAdUpdated: true,
-  promotions: false,
-  myPromotions: true,
-  savedSearch: true,
-  storeUpdates: true,
-  followUpdates: true,
-  serviceQuotes: true,
-  salesAlerts: true,
-  lowStockAlerts: true,
-  installmentAlerts: true,
-  debtAlerts: true,
-  weeklySalesReport: true,
-};
+type PrefKey = NotificationContentPreferenceKey;
 
 function readPref(raw: unknown, key: PrefKey): boolean {
-  if (raw && typeof raw === 'object' && key in (raw as object)) {
-    return Boolean((raw as Record<string, unknown>)[key]);
-  }
-  return DEFAULT_PREFS[key];
+  return readNotificationPreference(raw, key);
 }
 
 /** Returns the subset of userIds whose notificationPreferences allow `key`. */
@@ -156,7 +123,7 @@ export const notificationsService = {
   ) => {
     if (!(await userAllowsPref(userId, key))) return null;
     const notification = await notificationsRepository.create({ userId, type, title, body, data });
-    void pushService.notifyUsers([userId], { title, body, url: '/account/sales', tag: type, type });
+    void notificationDispatcher.pushUsers([userId], { title, body, url: '/account/sales', tag: type, type });
     return notification;
   },
 
@@ -176,7 +143,7 @@ export const notificationsService = {
     });
     if (existing) return null;
     const notification = await notificationsRepository.create({ userId, type, title, body, data });
-    void pushService.notifyUsers([userId], { title, body, url: '/account/sales', tag: type, type });
+    void notificationDispatcher.pushUsers([userId], { title, body, url: '/account/sales', tag: type, type });
     return notification;
   },
 
@@ -234,8 +201,8 @@ export const notificationsService = {
       // Apply backpressure: finish the current page's push dispatch before
       // reading the next database page. Failures are logged, not propagated,
       // because in-app notification rows have already been committed.
-      await pushService
-        .notifyUsers(recipients, {
+      await notificationDispatcher
+        .pushUsers(recipients, {
           title,
           body,
           url: '/notifications',
@@ -295,7 +262,7 @@ export const notificationsService = {
       for (const [k, t] of testPushLastSent)
         if (now - t > TEST_PUSH_COOLDOWN_MS) testPushLastSent.delete(k);
     }
-    await pushService.notifyUser(userId, {
+    await notificationDispatcher.pushUser(userId, {
       title: 'إشعار تجريبي',
       body: 'إذا ظهر لك هذا الإشعار فإشعارات هذا الجهاز تعمل.',
       url: '/notifications',
@@ -459,9 +426,9 @@ export const notificationsService = {
 // recipient list, fire a push, then createMany the in-app rows —
 // differing only in whether the push/notification content is the same
 // for every recipient (price-changed, new-product: one shared
-// pushService.notifyUsers call) or varies per recipient (saved-search
+// notificationDispatcher.pushUsers call) or varies per recipient (saved-search
 // match, which needs each recipient's own savedSearchId/label in the
-// tag and copy: one pushService.notifyUser call each). This helper
+// tag and copy: one notificationDispatcher.pushUser call each). This helper
 // covers the "same content for everyone" shape; onSavedSearchMatched's
 // per-recipient variant is left inline since collapsing it in here
 // would just move the branching rather than remove it.
@@ -512,8 +479,8 @@ async function fanOutSameContentNotification(
     // Wait for this bounded push slice before pulling the next recipient
     // page. This applies backpressure instead of accumulating one detached
     // network fan-out promise for every page of a very large audience.
-    await pushService
-      .notifyUsers(recipients, {
+    await notificationDispatcher
+      .pushUsers(recipients, {
         title,
         body,
         url: pushUrl,
@@ -618,8 +585,8 @@ export const notificationEvents = {
           body: event.body,
           data,
         });
-        void pushService
-          .notifyUser(event.userId, {
+        void notificationDispatcher
+          .pushUser(event.userId, {
             title: event.title,
             body: event.body,
             url: `/orders/${input.orderId}`,
@@ -679,8 +646,8 @@ export const notificationEvents = {
       body,
       data,
     });
-    void pushService
-      .notifyUser(recipientId, {
+    void notificationDispatcher
+      .pushUser(recipientId, {
         title: copy.title,
         body,
         url: `/orders/${input.orderId}`,
@@ -705,8 +672,8 @@ export const notificationEvents = {
     const body = `سينتهي إعلان "${adTitle}" خلال 7 أيام تقريبًا`;
     const data = { adId, expiresAt: expiresAt.toISOString(), event: 'expiring' };
     await notificationsRepository.create({ userId, type: 'AD_EXPIRING_SOON', title, body, data });
-    void pushService
-      .notifyUser(userId, {
+    void notificationDispatcher
+      .pushUser(userId, {
         title,
         body,
         url: `/ads/${adId}`,
@@ -727,8 +694,8 @@ export const notificationEvents = {
     const body = `انتهت مدة نشر "${adTitle}". يمكنك تجديده من إعلاناتك.`;
     const data = { adId, event: 'expired' };
     await notificationsRepository.create({ userId, type: 'AD_EXPIRED', title, body, data });
-    void pushService
-      .notifyUser(userId, {
+    void notificationDispatcher
+      .pushUser(userId, {
         title,
         body,
         url: `/ads/${adId}`,
@@ -764,8 +731,8 @@ export const notificationEvents = {
       targetType: input.targetType,
       targetId: input.targetId,
     };
-    void pushService
-      .notifyUsers(userIds, {
+    void notificationDispatcher
+      .pushUsers(userIds, {
         title,
         body,
         url: '/admin?tab=reports',
@@ -809,8 +776,8 @@ export const notificationEvents = {
       targetId: input.targetId,
       status: input.status,
     };
-    void pushService
-      .notifyUsers(input.userIds, {
+    void notificationDispatcher
+      .pushUsers(input.userIds, {
         title,
         body,
         url: '/notifications',
@@ -893,8 +860,8 @@ export const notificationEvents = {
       body,
     });
     const count = unreadMessageCount(row.data);
-    void pushService
-      .notifyUser(recipientUserId, {
+    void notificationDispatcher
+      .pushUser(recipientUserId, {
         title: count > 1 ? `${count} رسائل جديدة` : title,
         body: count > 1 ? `${count} رسائل من ${senderName}` : body,
         url: `/messages/${conversationId}`,
@@ -1053,7 +1020,7 @@ export const notificationEvents = {
       // next page. One 500-match group is the maximum in-flight fan-out.
       await Promise.all(
         batch.map(({ userId, savedSearchId, label }) =>
-          pushService.notifyUser(userId, {
+          notificationDispatcher.pushUser(userId, {
             title,
             body: `"${entity.title}" يطابق بحثك المحفوظ "${label}"`,
             url,
@@ -1160,8 +1127,8 @@ export const notificationEvents = {
     if (!(await userAllowsPref(targetUserId, 'storeUpdates'))) return null;
     const title = 'دعوة انضمام لمتجر';
     const body = `تمت دعوتك للانضمام إلى فريق متجر \"${storeName}\"`;
-    void pushService
-      .notifyUser(targetUserId, {
+    void notificationDispatcher
+      .pushUser(targetUserId, {
         title,
         body,
         url: '/my-store?tab=members',
@@ -1194,8 +1161,8 @@ export const notificationEvents = {
     if (!(await userAllowsPref(customerId, 'serviceQuotes'))) return null;
     const title = 'عرض جديد على طلبك';
     const body = `${offererName} أرسل عرضًا على طلبك "${requestTitle}"`;
-    void pushService
-      .notifyUser(customerId, {
+    void notificationDispatcher
+      .pushUser(customerId, {
         title,
         body,
         url: `/requests/${requestId}`,
@@ -1227,8 +1194,8 @@ export const notificationEvents = {
     if (!(await userAllowsPref(offererUserId, 'serviceQuotes'))) return null;
     const title = 'تم قبول عرضك';
     const body = `تم قبول عرضك على طلب "${requestTitle}"`;
-    void pushService
-      .notifyUser(offererUserId, {
+    void notificationDispatcher
+      .pushUser(offererUserId, {
         title,
         body,
         url: `/requests/${requestId}`,
@@ -1263,8 +1230,8 @@ export const notificationEvents = {
       'عميل';
     const title = 'طلب خدمة جديد';
     const body = `${customerName} أرسل طلبًا على "${listingTitle}"`;
-    void pushService
-      .notifyUser(providerUserId, {
+    void notificationDispatcher
+      .pushUser(providerUserId, {
         title,
         body,
         url: `/service-requests/${requestId}`,
@@ -1301,8 +1268,8 @@ export const notificationEvents = {
     if (!(await userAllowsPref(recipientUserId, 'serviceQuotes'))) return null;
     const title = copy.title;
     const body = copy.body(listingTitle);
-    void pushService
-      .notifyUser(recipientUserId, {
+    void notificationDispatcher
+      .pushUser(recipientUserId, {
         title,
         body,
         url: `/service-requests/${requestId}`,
@@ -1338,8 +1305,8 @@ export const notificationEvents = {
     const title = 'انتهت مهلة طلبك';
     // FIX SR-EXPIRY-BODY (audit H4): no hardcoded 7 — follows the TTL constant.
     const body = `لم يردّ مقدم الخدمة على طلبك \"${listingTitle}\" خلال ${ttlDays} أيام فتم إغلاقه — يمكنك تقديم طلب جديد أو اختيار مقدم خدمة آخر`;
-    void pushService
-      .notifyUser(customerUserId, {
+    void notificationDispatcher
+      .pushUser(customerUserId, {
         title,
         body,
         url: `/service-requests/${requestId}`,
@@ -1414,8 +1381,8 @@ export const notificationEvents = {
     const eventTag = appointmentId
       ? `appointment-${appointmentId}-${kind}`
       : `service-request-${requestId}-${kind}`;
-    void pushService
-      .notifyUser(recipientUserId, {
+    void notificationDispatcher
+      .pushUser(recipientUserId, {
         title,
         body,
         url: `/service-requests/${requestId}`,

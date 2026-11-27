@@ -8,7 +8,7 @@ import (
 func TestSalesJobsAreIdempotentAndCreateDurablePushDispatches(t *testing.T) {
 	for _, job := range []string{DailyReminder, DebtReminder, OverdueInstallments, WeeklyReport} {
 		q := SQLForTest(job)
-		for _, fragment := range []string{`ON CONFLICT ("idempotencyKey") DO NOTHING`, `INSERT INTO "notification_push_dispatches"`, `RETURNING "id"`} {
+		for _, fragment := range []string{`ON CONFLICT ("idempotencyKey") DO NOTHING`, `INSERT INTO "notification_push_dispatches"`, `RETURNING "id"`, `json_agg("id")`} {
 			if !strings.Contains(q, fragment) {
 				t.Fatalf("%s query missing %q", job, fragment)
 			}

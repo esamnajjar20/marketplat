@@ -5,6 +5,7 @@
 import { prisma } from '../config/prisma';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../shared/observability/logger';
+import { notificationDispatcher } from '../shared/notifications/notificationDispatcher';
 import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,
@@ -20,6 +21,7 @@ type NotificationRetentionResult = {
   batches: number;
   cutoff: string;
   retentionDays: number;
+  affectedUserIds: string[];
 };
 
 function isNotificationRetentionResult(value: unknown): value is NotificationRetentionResult {
@@ -32,15 +34,17 @@ function isNotificationRetentionResult(value: unknown): value is NotificationRet
     (result.batches as number) >= 0 &&
     result.retentionDays === RETENTION_DAYS &&
     typeof result.cutoff === 'string' &&
-    Number.isFinite(Date.parse(result.cutoff))
+    Number.isFinite(Date.parse(result.cutoff)) &&
+    Array.isArray(result.affectedUserIds) &&
+    result.affectedUserIds.every(userId => typeof userId === 'string' && userId.length > 0)
   );
 }
 
 async function deleteReadNotificationBatch(
   tx: Prisma.TransactionClient,
   cutoff: Date
-): Promise<number> {
-  const rows = await tx.$queryRaw<{ id: string }[]>`
+): Promise<string[]> {
+  const rows = await tx.$queryRaw<{ userId: string }[]>`
     WITH doomed AS (
       SELECT n."id"
       FROM "notifications" AS n
@@ -59,9 +63,9 @@ async function deleteReadNotificationBatch(
     DELETE FROM "notifications" AS n
     USING doomed
     WHERE n."id" = doomed."id"
-    RETURNING n."id"
+    RETURNING n."userId" AS "userId"
   `;
-  return rows.length;
+  return rows.map(row => row.userId);
 }
 
 async function runExpressFallback(): Promise<'completed' | 'busy'> {
@@ -85,16 +89,20 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
       return 'busy';
     }
 
-    deleted += batch.value;
-    if (batch.value > 0) batches += 1;
-    if (batch.value < BATCH_SIZE) break;
+    deleted += batch.value.length;
+    if (batch.value.length > 0) {
+      batches += 1;
+      await Promise.all(Array.from(new Set(batch.value)).map(userId =>
+        notificationDispatcher.publishStateChange({
+          userId, action: 'deleted', label: 'notification-retention',
+        })
+      ));
+    }
+    if (batch.value.length < BATCH_SIZE) break;
   }
 
   logger.info('[notification-retention] Express fallback completed', {
-    deleted,
-    batches,
-    cutoff: cutoff.toISOString(),
-    retentionDays: RETENTION_DAYS,
+    deleted, batches, cutoff: cutoff.toISOString(), retentionDays: RETENTION_DAYS,
   });
   return 'completed';
 }
@@ -105,6 +113,11 @@ async function main(): Promise<void> {
     path: '/internal/jobs/notification-retention',
     body: { retentionDays: RETENTION_DAYS },
     validateResult: isNotificationRetentionResult,
+    onGoSuccess: async result => {
+      await Promise.all(result.affectedUserIds.map(userId =>
+        notificationDispatcher.publishStateChange({ userId, action: 'deleted', label: 'notification-retention Go worker' })
+      ));
+    },
     runExpressFallback,
   });
 }

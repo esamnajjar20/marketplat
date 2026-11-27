@@ -1,121 +1,19 @@
 import { z } from 'zod';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
-import { optionalQueryBooleanSchema } from '@marketplat/contracts';
+import {
+  NOTIFICATION_CATEGORY_TYPES,
+  notificationCategorySchema,
+  notificationTypeSchema,
+  optionalQueryBooleanSchema,
+} from '@marketplat/contracts';
+import type { NotificationCategory } from '@marketplat/contracts';
 
 const optionalQueryBoolean = optionalQueryBooleanSchema;
 
-/** أنواع Prisma NotificationType — تُبقى متوافقة مع الـ enum في schema. */
-// this enum was out of sync with
-// schema.prisma's NotificationType and with the types actually
-// produced by notifications.service.ts. Four were missing:
-//   - NEW_REQUEST_OFFER / REQUEST_OFFER_ACCEPTED — created by the
-//     Open Requests marketplace flow, so ?type=NEW_REQUEST_OFFER
-//     returned a 400 ("Invalid enum value") instead of the user's
-//     offers.
-//   - WEEKLY_STORE_VIEWS_REPORT / WEEKLY_SERVICE_VIEWS_REPORT —
-//     written by the weekly report scripts, same 400 on filter.
-// Kept in the same order as schema.prisma's enum for visual diffing.
-const notificationTypeEnum = z.enum([
-  'NEW_MESSAGE',
-  'NEW_FOLLOWER',
-  'FOLLOWED_USER_ACTIVITY',
-  'FOLLOWED_STORE_ACTIVITY',
-  'FOLLOWED_CATEGORY_ACTIVITY',
-  'FAV_AD_PRICE_CHANGED',
-  'FAV_AD_SOLD',
-  'PROMOTION',
-  'WEEKLY_AD_VIEWS_REPORT',
-  'WEEKLY_STORE_VIEWS_REPORT',
-  'WEEKLY_SERVICE_VIEWS_REPORT',
-  'SAVED_SEARCH_MATCH',
-  'PROMOTION_STATUS_CHANGE',
-  'STORE_NEW_PRODUCT',
-  'STORE_PROMOTION_STARTED',
-  'STORE_PRODUCT_RESTOCKED',
-  'NEW_REQUEST_OFFER',
-  'REQUEST_OFFER_ACCEPTED',
-  'STORE_MEMBER_INVITED',
-  'NEW_SERVICE_QUOTE',
-  'SERVICE_QUOTE_ACCEPTED',
-  'SERVICE_REQUEST_NEW',
-  'SERVICE_REQUEST_UPDATE',
-  'APPOINTMENT_UPDATE',
-  'MARKETPLACE_ORDER_NEW',
-  'MARKETPLACE_ORDER_UPDATE',
-  'AD_EXPIRING_SOON',
-  'AD_EXPIRED',
-  'MODERATION_REPORT_RECEIVED',
-  'MODERATION_DECISION',
-  'SALES_DAILY_REMINDER',
-  'SALES_LOW_STOCK',
-  'SALES_OVERDUE_INSTALLMENT',
-  'SALES_DEBT_REMINDER',
-  'SALES_WEEKLY_REPORT',
-  // Sales automation additions (apps/api/src/modules/commerce/sales/sales-automation.service.ts)
-  'SALES_OVERDUE_DEBT',
-  'SALES_UPCOMING_INSTALLMENT',
-  'SALES_INACTIVE_CUSTOMER',
-  'SALES_DAILY_SUMMARY',
-  'SALES_SMART_INSIGHT',
-]);
-
-/** فئة واجهة المستخدم → مجموعة أنواع (نفس تجميع الواجهة). */
-export const NOTIFICATION_CATEGORY_TYPES = {
-  messages: ['NEW_MESSAGE'],
-  favorites: ['FAV_AD_PRICE_CHANGED', 'FAV_AD_SOLD', 'SAVED_SEARCH_MATCH'],
-  stores: [
-    'STORE_NEW_PRODUCT',
-    'STORE_PROMOTION_STARTED',
-    'STORE_PRODUCT_RESTOCKED',
-    'PROMOTION_STATUS_CHANGE',
-    'STORE_MEMBER_INVITED',
-  ],
-  // requests-marketplace events belong
-  // under the 'services' UI category — a customer filtering their
-  // notifications by 'services' should see an offer on their open
-  // request. (T780 — service-broadcast quote types removed with the
-  // ServiceBroadcast feature.)
-  orders: ['MARKETPLACE_ORDER_NEW', 'MARKETPLACE_ORDER_UPDATE'],
-  services: [
-    'NEW_REQUEST_OFFER',
-    'REQUEST_OFFER_ACCEPTED',
-    'NEW_SERVICE_QUOTE',
-    'SERVICE_QUOTE_ACCEPTED',
-    'SERVICE_REQUEST_NEW',
-    'SERVICE_REQUEST_UPDATE',
-    'APPOINTMENT_UPDATE',
-  ],
-  following: [
-    'NEW_FOLLOWER',
-    'FOLLOWED_USER_ACTIVITY',
-    'FOLLOWED_STORE_ACTIVITY',
-    'FOLLOWED_CATEGORY_ACTIVITY',
-  ],
-  system: [
-    'PROMOTION',
-    'WEEKLY_AD_VIEWS_REPORT',
-    'WEEKLY_STORE_VIEWS_REPORT',
-    'WEEKLY_SERVICE_VIEWS_REPORT',
-    'AD_EXPIRING_SOON',
-    'AD_EXPIRED',
-    'MODERATION_REPORT_RECEIVED',
-    'MODERATION_DECISION',
-  ],
-  sales: [
-    'SALES_DAILY_REMINDER',
-    'SALES_LOW_STOCK',
-    'SALES_OVERDUE_INSTALLMENT',
-    'SALES_DEBT_REMINDER',
-    'SALES_WEEKLY_REPORT',
-    'SALES_OVERDUE_DEBT',
-    'SALES_UPCOMING_INSTALLMENT',
-    'SALES_INACTIVE_CUSTOMER',
-    'SALES_DAILY_SUMMARY',
-    'SALES_SMART_INSIGHT',
-  ],
-} as const;
-
-export type NotificationCategory = keyof typeof NOTIFICATION_CATEGORY_TYPES;
+/** Shared notification enums and category mappings are the canonical contract. */
+export { NOTIFICATION_CATEGORY_TYPES };
+export type { NotificationCategory };
+const notificationTypeEnum = notificationTypeSchema;
 
 export const getNotificationsSchema = z.object({
   query: z.object({
@@ -124,22 +22,8 @@ export const getNotificationsSchema = z.object({
     unreadOnly: optionalQueryBoolean,
     /** فلتر نوع واحد */
     type: notificationTypeEnum.optional(),
-    /**
-     * فئة واجهة: messages | favorites | stores | services | system
-     * تُحوَّل في الخدمة إلى قائمة types.
-     */
-    category: z
-      .enum([
-        'messages',
-        'favorites',
-        'stores',
-        'services',
-        'orders',
-        'following',
-        'system',
-        'sales',
-      ])
-      .optional(),
+    /** All shared categories (including following and sales) map to type sets. */
+    category: notificationCategorySchema.optional(),
   }),
 });
 

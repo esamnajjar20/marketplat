@@ -19,11 +19,12 @@ const (
 )
 
 type Result struct {
-	Kind                 Kind   `json:"kind"`
-	NotificationsCreated int64  `json:"notificationsCreated"`
-	BaselinesAdvanced    int64  `json:"baselinesAdvanced"`
-	OwnersConsidered     int64  `json:"ownersConsidered"`
-	RunKey               string `json:"runKey"`
+	Kind                 Kind     `json:"kind"`
+	NotificationsCreated int64    `json:"notificationsCreated"`
+	BaselinesAdvanced    int64    `json:"baselinesAdvanced"`
+	OwnersConsidered     int64    `json:"ownersConsidered"`
+	RunKey               string   `json:"runKey"`
+	NotificationIDs      []string `json:"notificationIds"`
 }
 
 type delta struct {
@@ -87,7 +88,12 @@ func Run(ctx context.Context, conn *sql.Conn, kind Kind, now time.Time) (Result,
 	if err != nil {
 		return Result{}, err
 	}
-	result := Result{Kind: kind, OwnersConsidered: int64(len(rows)), RunKey: now.UTC().Format("2006-01-02")}
+	result := Result{
+		Kind:             kind,
+		OwnersConsidered: int64(len(rows)),
+		RunKey:           now.UTC().Format("2006-01-02"),
+		NotificationIDs:  make([]string, 0),
+	}
 	for _, row := range rows {
 		if row.totalDelta <= 0 || len(row.entityIDs) == 0 || len(row.entityIDs) != len(row.viewSnapshot) {
 			continue
@@ -157,6 +163,7 @@ func Run(ctx context.Context, conn *sql.Conn, kind Kind, now time.Time) (Result,
 			return result, err
 		}
 		result.NotificationsCreated += 1
+		result.NotificationIDs = append(result.NotificationIDs, id)
 		result.BaselinesAdvanced += advanced
 	}
 	if err := tx.Commit(); err != nil {
@@ -173,7 +180,7 @@ func loadDeltas(ctx context.Context, tx *sql.Tx, kind Kind) ([]delta, error) {
 			COUNT(*)::bigint, ARRAY_AGG(a."id" ORDER BY a."id"), ARRAY_AGG(a."views"::bigint ORDER BY a."id"), ''
 			FROM "ads" a INNER JOIN "users" u ON u."id" = a."userId"
 			WHERE a."status" = 'ACTIVE' AND a."views" > a."viewsAtLastReport"
-			AND COALESCE((u."notificationPreferences" ->> 'adViews')::boolean, FALSE) = TRUE
+			AND COALESCE((u."notificationPreferences" ->> 'adViews') = 'true', FALSE) = TRUE
 			GROUP BY a."userId" HAVING SUM(a."views" - a."viewsAtLastReport") > 0`
 	case Stores:
 		query = `SELECT sp."userId", (s."views" - s."viewsAtLastReport")::bigint, 1::bigint,
@@ -182,7 +189,7 @@ func loadDeltas(ctx context.Context, tx *sql.Tx, kind Kind) ([]delta, error) {
 			INNER JOIN "seller_profiles" sp ON sp."id" = s."sellerProfileId"
 			INNER JOIN "users" u ON u."id" = sp."userId"
 			WHERE s."status" = 'ACTIVE' AND s."views" > s."viewsAtLastReport"
-			AND COALESCE((u."notificationPreferences" ->> 'adViews')::boolean, FALSE) = TRUE`
+			AND COALESCE((u."notificationPreferences" ->> 'adViews') = 'true', FALSE) = TRUE`
 	case Services:
 		query = `SELECT u."id", SUM(sl."views" - sl."viewsAtLastReport")::bigint,
 			COUNT(*)::bigint, ARRAY_AGG(sl."id" ORDER BY sl."id"), ARRAY_AGG(sl."views"::bigint ORDER BY sl."id"), spd."id"
@@ -191,7 +198,7 @@ func loadDeltas(ctx context.Context, tx *sql.Tx, kind Kind) ([]delta, error) {
 			INNER JOIN "seller_profiles" sp ON sp."id" = spd."sellerProfileId"
 			INNER JOIN "users" u ON u."id" = sp."userId"
 			WHERE sl."status" = 'ACTIVE' AND sl."views" > sl."viewsAtLastReport"
-			AND COALESCE((u."notificationPreferences" ->> 'adViews')::boolean, FALSE) = TRUE
+			AND COALESCE((u."notificationPreferences" ->> 'adViews') = 'true', FALSE) = TRUE
 			GROUP BY u."id", spd."id" HAVING SUM(sl."views" - sl."viewsAtLastReport") > 0`
 	default:
 		return nil, fmt.Errorf("unsupported weekly report kind %q", kind)

@@ -1,85 +1,12 @@
-/**
- * Notification types — in-app bell/list + deep-link payloads.
- *
- * External delivery (Web Push + FCM) is wired on the backend
- * (pushService / fcmPushService) and the frontend toggle
- * (PushNotificationToggle + lib/pwa). Delivery still requires
- * configured VAPID keys (web) and/or Firebase (native).
- *
- * Keep this union in sync with prisma `NotificationType` and
- * backend `notifications.validation.ts` notificationTypeEnum.
- */
-export type NotificationType =
-  | 'NEW_MESSAGE'
-  | 'FAV_AD_PRICE_CHANGED'
-  | 'FAV_AD_SOLD'
-  | 'PROMOTION'
-  | 'WEEKLY_AD_VIEWS_REPORT'
-  | 'WEEKLY_STORE_VIEWS_REPORT'
-  | 'WEEKLY_SERVICE_VIEWS_REPORT'
-  | 'SAVED_SEARCH_MATCH'
-  | 'PROMOTION_STATUS_CHANGE'
-  | 'STORE_NEW_PRODUCT'
-  | 'STORE_PROMOTION_STARTED'
-  | 'STORE_PRODUCT_RESTOCKED'
-  | 'STORE_MEMBER_INVITED'
-  | 'NEW_REQUEST_OFFER'
-  | 'REQUEST_OFFER_ACCEPTED'
-  | 'NEW_SERVICE_QUOTE'
-  | 'SERVICE_QUOTE_ACCEPTED'
-  | 'SERVICE_REQUEST_NEW'
-  | 'SERVICE_REQUEST_UPDATE'
-  | 'APPOINTMENT_UPDATE'
-  | 'MARKETPLACE_ORDER_NEW'
-  | 'MARKETPLACE_ORDER_UPDATE'
-  | 'AD_EXPIRING_SOON'
-  | 'AD_EXPIRED'
-  | 'MODERATION_REPORT_RECEIVED'
-  | 'MODERATION_DECISION'
-  | 'SALES_DAILY_REMINDER'
-  | 'SALES_LOW_STOCK'
-  | 'SALES_OVERDUE_INSTALLMENT'
-  | 'SALES_DEBT_REMINDER'
-  | 'SALES_WEEKLY_REPORT';
+/** Shared notification contracts: one vocabulary for API, web and mobile. */
+import type {
+  Notification,
+  NotificationData,
+  NotificationType,
+  NotificationCategory,
+} from '@marketplat/contracts';
 
-/** Per-type deep-link payload — only relevant keys are present per type. */
-export interface NotificationData {
-  conversationId?: string;
-  adId?: string;
-  savedSearchId?: string;
-  promotionId?: string;
-  productId?: string;
-  storeId?: string;
-  listingId?: string;
-  broadcastId?: string;
-  quoteId?: string;
-  requestId?: string;
-  orderId?: string;
-  offerId?: string;
-  status?: string;
-  memberId?: string;
-  /** Event discriminator varies by notification family (orders, promotions, ads, etc.). */
-  event?: string;
-  reportId?: string;
-  targetType?: string;
-  targetId?: string;
-  saleId?: string;
-  installmentId?: string;
-  customerId?: string;
-  /** Set by dailyNotificationDigest job */
-  digest?: boolean;
-  counts?: Record<string, number>;
-}
-
-export interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  body: string;
-  data: NotificationData | null;
-  readAt: string | null;
-  createdAt: string;
-}
+export type { Notification, NotificationData, NotificationType, NotificationCategory };
 
 export interface NotificationsQuery {
   page?: number;
@@ -87,8 +14,8 @@ export interface NotificationsQuery {
   unreadOnly?: boolean;
   /** نوع إشعار واحد */
   type?: NotificationType;
-  /** فئة الواجهة: messages | favorites | stores | services | system */
-  category?: 'messages' | 'favorites' | 'stores' | 'services' | 'orders' | 'system' | 'sales';
+  /** فئة موحدة مشتركة بين الويب والموبايل. */
+  category?: NotificationCategory;
 }
 
 /** سجل جهاز واحد مسجَّل لاستلام الإشعارات الخارجية — GET /notifications/devices. */

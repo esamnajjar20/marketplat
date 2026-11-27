@@ -11,7 +11,6 @@ import {
   Megaphone,
   BarChart3,
   Search,
-  Flame,
   Package,
   Store,
   ClipboardList,
@@ -24,229 +23,71 @@ import {
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import type { Notification, NotificationType } from '@/types/notification.types';
+import { NOTIFICATION_CATEGORIES as SHARED_CATEGORIES, NOTIFICATION_TYPE_META, resolveNotificationTarget } from '@marketplat/contracts';
+import type { NotificationCategory } from '@marketplat/contracts';
 
-export const TYPE_ICON: Record<NotificationType, LucideIcon> = {
-  NEW_MESSAGE: MessageSquare,
-  FAV_AD_PRICE_CHANGED: Tag,
-  FAV_AD_SOLD: Tag,
-  PROMOTION: Megaphone,
-  WEEKLY_AD_VIEWS_REPORT: BarChart3,
-  WEEKLY_STORE_VIEWS_REPORT: BarChart3,
-  WEEKLY_SERVICE_VIEWS_REPORT: BarChart3,
-  SAVED_SEARCH_MATCH: Search,
-  PROMOTION_STATUS_CHANGE: Flame,
-  STORE_NEW_PRODUCT: Store,
-  NEW_REQUEST_OFFER: ClipboardList,
-  REQUEST_OFFER_ACCEPTED: ClipboardList,
-  STORE_PROMOTION_STARTED: Flame,
-  STORE_PRODUCT_RESTOCKED: Package,
-  STORE_MEMBER_INVITED: Users,
-  NEW_SERVICE_QUOTE: Wrench,
-  SERVICE_QUOTE_ACCEPTED: Wrench,
-  SERVICE_REQUEST_NEW: Wrench,
-  SERVICE_REQUEST_UPDATE: Wrench,
-  APPOINTMENT_UPDATE: CalendarClock,
-  MARKETPLACE_ORDER_NEW: ClipboardList,
-  MARKETPLACE_ORDER_UPDATE: ClipboardList,
-  AD_EXPIRING_SOON: CalendarClock,
-  AD_EXPIRED: CalendarClock,
-  MODERATION_REPORT_RECEIVED: ShieldAlert,
-  MODERATION_DECISION: ShieldAlert,
-  SALES_DAILY_REMINDER: WalletCards,
-  SALES_LOW_STOCK: Package,
-  SALES_OVERDUE_INSTALLMENT: WalletCards,
-  SALES_DEBT_REMINDER: WalletCards,
-  SALES_WEEKLY_REPORT: BarChart3,
+const ICON_BY_KEY: Record<(typeof NOTIFICATION_TYPE_META)[NotificationType]['icon'], LucideIcon> = {
+  message: MessageSquare,
+  user: Users,
+  following: Users,
+  tag: Tag,
+  megaphone: Megaphone,
+  chart: BarChart3,
+  search: Search,
+  store: Store,
+  package: Package,
+  clipboard: ClipboardList,
+  service: Wrench,
+  calendar: CalendarClock,
+  shield: ShieldAlert,
+  wallet: WalletCards,
 };
 
-export const TYPE_LABEL: Record<NotificationType, string> = {
-  NEW_MESSAGE: 'رسائل',
-  FAV_AD_PRICE_CHANGED: 'تغيير سعر',
-  FAV_AD_SOLD: 'تم البيع',
-  PROMOTION: 'ترويج',
-  WEEKLY_AD_VIEWS_REPORT: 'تقرير مشاهدات إعلان',
-  WEEKLY_STORE_VIEWS_REPORT: 'تقرير مشاهدات متجر',
-  WEEKLY_SERVICE_VIEWS_REPORT: 'تقرير مشاهدات خدمة',
-  SAVED_SEARCH_MATCH: 'بحث محفوظ',
-  PROMOTION_STATUS_CHANGE: 'عرضي',
-  STORE_NEW_PRODUCT: 'منتج جديد',
-  NEW_REQUEST_OFFER: 'عرض جديد على طلبك',
-  REQUEST_OFFER_ACCEPTED: 'تم قبول عرضك',
-  STORE_PROMOTION_STARTED: 'عرض متجر',
-  STORE_PRODUCT_RESTOCKED: 'عودة للمخزون',
-  STORE_MEMBER_INVITED: 'دعوة متجر',
-  NEW_SERVICE_QUOTE: 'عرض سعر خدمة',
-  SERVICE_QUOTE_ACCEPTED: 'قبول عرض خدمة',
-  SERVICE_REQUEST_NEW: 'طلب خدمة جديد',
-  SERVICE_REQUEST_UPDATE: 'تحديث طلب خدمة',
-  APPOINTMENT_UPDATE: 'موعد',
-  MARKETPLACE_ORDER_NEW: 'طلب شراء جديد',
-  MARKETPLACE_ORDER_UPDATE: 'تحديث طلب شراء',
-  AD_EXPIRING_SOON: 'إعلان يقترب من الانتهاء',
-  AD_EXPIRED: 'انتهاء إعلان',
-  MODERATION_REPORT_RECEIVED: 'بلاغ جديد',
-  MODERATION_DECISION: 'نتيجة المراجعة',
-  SALES_DAILY_REMINDER: 'تذكير المبيعات',
-  SALES_LOW_STOCK: 'مخزون منخفض',
-  SALES_OVERDUE_INSTALLMENT: 'قسط متأخر',
-  SALES_DEBT_REMINDER: 'دين متأخر',
-  SALES_WEEKLY_REPORT: 'تقرير المبيعات',
-};
+export const TYPE_ICON: Record<NotificationType, LucideIcon> = Object.fromEntries(
+  Object.entries(NOTIFICATION_TYPE_META).map(([type, meta]) => [type, ICON_BY_KEY[meta.icon]])
+) as Record<NotificationType, LucideIcon>;
 
-export type NotificationCategoryId =
-  | 'all'
-  | 'messages'
-  | 'favorites'
-  | 'stores'
-  | 'services'
-  | 'orders'
-  | 'system'
-  | 'sales';
+export const TYPE_LABEL: Record<NotificationType, string> = Object.fromEntries(
+  Object.entries(NOTIFICATION_TYPE_META).map(([type, meta]) => [type, meta.label])
+) as Record<NotificationType, string>;
 
-export const NOTIFICATION_CATEGORIES: {
-  id: NotificationCategoryId;
-  label: string;
-  types: NotificationType[] | null;
-}[] = [
-  { id: 'all', label: 'الكل', types: null },
-  { id: 'messages', label: 'رسائل', types: ['NEW_MESSAGE'] },
-  {
-    id: 'favorites',
-    label: 'مفضلة وبحث',
-    types: ['FAV_AD_PRICE_CHANGED', 'FAV_AD_SOLD', 'SAVED_SEARCH_MATCH'],
-  },
-  {
-    id: 'stores',
-    label: 'متاجر',
-    types: [
-      'STORE_NEW_PRODUCT',
-      'STORE_PROMOTION_STARTED',
-      'STORE_PRODUCT_RESTOCKED',
-      'PROMOTION_STATUS_CHANGE',
-      'STORE_MEMBER_INVITED',
-    ],
-  },
-  {
-    id: 'services',
-    label: 'خدمات',
-    types: [
-      'NEW_REQUEST_OFFER',
-      'REQUEST_OFFER_ACCEPTED',
-      'NEW_SERVICE_QUOTE',
-      'SERVICE_QUOTE_ACCEPTED',
-      'SERVICE_REQUEST_NEW',
-      'SERVICE_REQUEST_UPDATE',
-      'APPOINTMENT_UPDATE',
-    ],
-  },
-  {
-    id: 'orders',
-    label: 'طلبات المنتجات',
-    types: ['MARKETPLACE_ORDER_NEW', 'MARKETPLACE_ORDER_UPDATE'],
-  },
-  {
-    id: 'system',
-    label: 'النظام',
-    types: [
-      'PROMOTION',
-      'WEEKLY_AD_VIEWS_REPORT',
-      'WEEKLY_STORE_VIEWS_REPORT',
-      'WEEKLY_SERVICE_VIEWS_REPORT',
-      'AD_EXPIRING_SOON',
-      'AD_EXPIRED',
-      'MODERATION_REPORT_RECEIVED',
-      'MODERATION_DECISION',
-    ],
-  },
-];
+export type NotificationCategoryId = 'all' | NotificationCategory;
+export const NOTIFICATION_CATEGORIES = SHARED_CATEGORIES;
 
 /** Minimal shape so live SSE payloads (no id/readAt) can be resolved too. */
 export type HrefSource = Pick<Notification, 'type' | 'data'>;
 
 export function hrefFor(notification: HrefSource): string | null {
-  const d = notification.data;
-  if ((notification.type === 'AD_EXPIRING_SOON' || notification.type === 'AD_EXPIRED') && d?.adId) {
-    return ROUTES.adDetail(d.adId);
+  const target = resolveNotificationTarget(notification.type, notification.data);
+  switch (target.kind) {
+    case 'conversation': return target.id ? ROUTES.conversationDetail(target.id) : ROUTES.messages;
+    case 'profile': return target.id ? ROUTES.userProfile(target.id) : '/profile';
+    case 'following_feed': return ROUTES.following;
+    case 'ad': return target.id ? ROUTES.adDetail(target.id) : ROUTES.favorites;
+    case 'product': return target.id ? ROUTES.productDetail(target.id) : ROUTES.products;
+    case 'service': return target.id ? ROUTES.serviceDetail(target.id) : ROUTES.services;
+    case 'store': return target.id ? ROUTES.storeDetail(target.id) : ROUTES.stores;
+    case 'saved_searches': return ROUTES.savedSearches;
+    case 'store_members': return ROUTES.myStoreMembers;
+    case 'request': return target.id ? ROUTES.request(target.id) : ROUTES.requests;
+    case 'service_request': return target.id ? ROUTES.serviceRequestDetail(target.id) : ROUTES.notifications;
+    case 'appointments': return ROUTES.myServiceAppointments;
+    case 'order': return target.id ? ROUTES.marketplaceOrder(target.id) : ROUTES.orders;
+    case 'orders': return ROUTES.orders;
+    case 'sale': return target.id ? `/account/sales/${encodeURIComponent(target.id)}/receipt` : ROUTES.sales;
+    case 'installments': return ROUTES.salesInstallments;
+    case 'debts': return ROUTES.salesDebts;
+    case 'sales': return ROUTES.sales;
+    case 'store_promotions': return ROUTES.myStorePromotions;
+    case 'dashboard': return ROUTES.dashboard;
+    case 'store_analytics': return ROUTES.myStoreAnalytics;
+    case 'service_analytics': return ROUTES.myServiceProviderAnalytics;
+    case 'reports': return ROUTES.myReports;
+    case 'home': return ROUTES.home;
+    case 'favorites': return ROUTES.favorites;
+    case 'notifications': return ROUTES.notifications;
+    default: return null;
   }
-  if (notification.type === 'NEW_MESSAGE' && d?.conversationId) {
-    return ROUTES.conversationDetail(d.conversationId);
-  }
-  if (
-    (notification.type === 'FAV_AD_PRICE_CHANGED' || notification.type === 'FAV_AD_SOLD') &&
-    d?.adId
-  ) {
-    return ROUTES.adDetail(d.adId);
-  }
-  if (notification.type === 'SAVED_SEARCH_MATCH') {
-    if (d?.adId) return ROUTES.adDetail(d.adId);
-    if (d?.productId) return ROUTES.productDetail(d.productId);
-    if (d?.listingId) return ROUTES.serviceDetail(d.listingId);
-  }
-  if (notification.type === 'PROMOTION_STATUS_CHANGE') {
-    return ROUTES.myStorePromotions;
-  }
-  if (
-    notification.type === 'STORE_PROMOTION_STARTED' ||
-    notification.type === 'STORE_PRODUCT_RESTOCKED'
-  ) {
-    if (d?.productId) return ROUTES.productDetail(d.productId);
-    if (d?.storeId) return ROUTES.storeDetail(d.storeId);
-  }
-
-  if (notification.type === 'NEW_REQUEST_OFFER' || notification.type === 'REQUEST_OFFER_ACCEPTED') {
-    const rid = d?.requestId;
-    if (rid) return ROUTES.request(rid);
-    return ROUTES.requests;
-  }
-  if (notification.type === 'NEW_SERVICE_QUOTE' || notification.type === 'SERVICE_QUOTE_ACCEPTED') {
-    if (d?.listingId) return ROUTES.serviceDetail(d.listingId);
-    // T780: service broadcasts/quotes were removed (tables dropped, pages gone).
-    // A legacy notification that only carries `broadcastId` must NOT link to
-    // /service-requests/:id — a broadcast id is not a service-request id, so
-    // that page would 404. Fall back to the notifications page instead.
-    return ROUTES.notifications;
-  }
-  if (
-    notification.type === 'SERVICE_REQUEST_NEW' ||
-    notification.type === 'SERVICE_REQUEST_UPDATE' ||
-    notification.type === 'APPOINTMENT_UPDATE'
-  ) {
-    // Same detail page for both parties — the backend authorizes either.
-    if (d?.requestId) return ROUTES.serviceRequestDetail(d.requestId);
-    return ROUTES.notifications;
-  }
-  if (notification.type === 'STORE_NEW_PRODUCT') {
-    if (d?.productId) return ROUTES.productDetail(d.productId);
-    if (d?.storeId) return ROUTES.storeDetail(d.storeId);
-  }
-  if (notification.type === 'STORE_MEMBER_INVITED') {
-    return ROUTES.myStoreMembers;
-  }
-  if (
-    notification.type === 'WEEKLY_AD_VIEWS_REPORT' ||
-    notification.type === 'WEEKLY_STORE_VIEWS_REPORT' ||
-    notification.type === 'WEEKLY_SERVICE_VIEWS_REPORT'
-  ) {
-    // mirror the push `url` the backend cron scripts send
-    // (weeklyAdViewsReport → /dashboard, weeklyStoreViewsReport →
-    // /my-store?tab=analytics, weeklyServiceViewsReport →
-    // /my-services?tab=analytics) so in-app and push taps land the same place.
-    if (notification.type === 'WEEKLY_STORE_VIEWS_REPORT') return ROUTES.myStoreAnalytics;
-    if (notification.type === 'WEEKLY_SERVICE_VIEWS_REPORT') return ROUTES.myServiceProviderAnalytics;
-    return ROUTES.dashboard;
-  }
-  if (notification.type === 'PROMOTION') {
-    return ROUTES.home;
-  }
-  if (notification.type === 'MARKETPLACE_ORDER_NEW' || notification.type === 'MARKETPLACE_ORDER_UPDATE') {
-    return d?.orderId ? `/orders/${d.orderId}` : '/orders';
-  }
-  if (notification.type.startsWith('SALES_')) {
-    if (d?.saleId) return `/account/sales/${d.saleId}/receipt`;
-    if (d?.productId) return ROUTES.productDetail(d.productId);
-    return '/account/sales';
-  }
-  return null;
 }
 
 export function dayBucketLabel(iso: string, now = new Date()): string {

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../../../config/prisma';
 import { notificationsService } from '../../engagement/notifications/notifications.service';
-import { publishDurableNotifications } from '../../../shared/go-worker/publishDurableNotifications';
+import { notificationDispatcher } from '../../../shared/notifications/notificationDispatcher';
 import { Prisma, NotificationType, SalesAutomationEventType } from '@prisma/client';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -68,7 +68,7 @@ async function notifyOnce(userId: string, alert: Alert): Promise<boolean> {
     return { sent: true, notificationId: notification.id };
   });
   if (result.notificationId) {
-    await publishDurableNotifications(prisma, [result.notificationId], 'sales-automation');
+    await notificationDispatcher.publishDurable(prisma, [result.notificationId], 'sales-automation');
   }
   return result.sent;
 }

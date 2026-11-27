@@ -8,16 +8,10 @@ import {
 } from '@prisma/client';
 import { getPaginationParams } from '../../../shared/http/pagination';
 import { unreadNotificationsCache } from '../../../shared/cache/unreadNotificationsCache';
-import {
-  publishNotificationEvent,
-  publishNotificationEventsToMany,
-} from '../../../shared/realtime/notificationStream';
+import { notificationDispatcher } from '../../../shared/notifications/notificationDispatcher';
 import { pushSubscriptionsRepository } from '../../../shared/notifications/pushSubscriptionsRepository';
 // NEW — native (Capacitor/FCM) counterpart to pushSubscriptionsRepository above.
 import { fcmDeviceTokensRepository } from '../../../shared/notifications/fcmDeviceTokensRepository';
-import { maybeScheduleEmailFallback } from '../../../shared/email/emailFallbackScheduler';
-import { asPlainObject } from '../../../shared/utils/asPlainObject';
-import { logger } from '../../../shared/observability/logger';
 
 export interface CreateNotificationInput {
   userId: string;
@@ -55,32 +49,20 @@ const countInflight = new Map<string, Promise<number>>();
 export const notificationsRepository = {
   create: async (input: CreateNotificationInput): Promise<Notification> => {
     const notification = await prisma.notification.create({ data: input });
-    await unreadNotificationsCache.invalidate(input.userId);
-    maybeScheduleEmailFallback(input.userId, notification.type);
-    void publishNotificationEvent(input.userId, {
-      type: 'notification',
-      action: 'created',
-      notificationId: notification.id,
-      notificationType: notification.type,
-      title: notification.title,
-      body: notification.body,
-      data: asPlainObject(notification.data),
-    });
+    await notificationDispatcher.publishCreated([notification], 'notifications.repository.create');
     return notification;
   },
 
   /** Fan-out create for a broadcast (admin promotion) or a price-change
-   * alert reaching every favoriter of one ad — createMany is a single
-   * round trip instead of N sequential creates. Prisma's createMany
-   * doesn't return the created rows (fine here: nothing reads them back
-   * immediately after a broadcast). */
+   * alert reaching every favoriter of one ad. createManyAndReturn provides
+   * the persisted rows required by the shared post-commit lifecycle, while
+   * bounded chunks keep INSERT RETURNING and live-event fan-out predictable. */
   createMany: async (inputs: CreateNotificationInput[]): Promise<Prisma.BatchPayload> => {
     // Keep INSERT RETURNING, cache invalidation, and SSE publication bounded.
     // The service fan-out path already streams 500 recipients at a time; this
     // repository guard also protects admin/internal callers that pass a large
     // array directly.
     const BATCH_SIZE = 500;
-    const INVALIDATE_CONCURRENCY = 50;
     let totalCreated = 0;
 
     for (let offset = 0; offset < inputs.length; offset += BATCH_SIZE) {
@@ -100,45 +82,9 @@ export const notificationsRepository = {
       });
       totalCreated += created.length;
 
-      const recipientIds = Array.from(new Set(batch.map(input => input.userId)));
-      for (let i = 0; i < recipientIds.length; i += INVALIDATE_CONCURRENCY) {
-        const results = await Promise.allSettled(
-          recipientIds
-            .slice(i, i + INVALIDATE_CONCURRENCY)
-            .map(userId => unreadNotificationsCache.invalidate(userId))
-        );
-        const failures = results.filter(result => result.status === 'rejected').length;
-        if (failures > 0) {
-          // Notification rows are already durable. Cache invalidation is a
-          // best-effort hint and must not truncate the remaining fan-out.
-          logger.warn('Notification fan-out cache invalidation partially failed', {
-            batchSize: Math.min(INVALIDATE_CONCURRENCY, recipientIds.length - i),
-            failures,
-          });
-        }
-      }
-
-      // Publish one bounded page at a time; no whole-event notification
-      // result array is retained while the remaining inserts are performed.
-      await publishNotificationEventsToMany(
-        created.map(notification => ({
-          userId: notification.userId,
-          event: {
-            type: 'notification' as const,
-            action: 'created' as const,
-            notificationId: notification.id,
-            notificationType: notification.type,
-            title: notification.title,
-            body: notification.body,
-            data: asPlainObject(notification.data),
-          },
-        }))
-      ).catch(error => {
-        logger.warn('Notification fan-out SSE publication failed after durable insert', {
-          batchSize: created.length,
-          error,
-        });
-      });
+      // All post-commit effects (unread cache, SSE and email fallback) share
+      // the same lifecycle dispatcher used by Outbox and Go-created rows.
+      await notificationDispatcher.publishCreated(created, 'notifications.repository.createMany');
     }
 
     return { count: totalCreated };
@@ -220,7 +166,7 @@ export const notificationsRepository = {
     // but real race (count read stale-cached as unread between this
     // notification actually being read by another concurrent request
     // and this one landing) leaving a stale badge count uncorrected.
-    await unreadNotificationsCache.invalidate(userId);
+    await notificationDispatcher.publishStateChange({ userId, action: 'read', notificationId: id, changed: result.count > 0, label: 'notifications.repository.markRead' });
     return result;
   },
 
@@ -230,7 +176,7 @@ export const notificationsRepository = {
       where: { id, userId, readAt: { not: null } },
       data: { readAt: null },
     });
-    await unreadNotificationsCache.invalidate(userId);
+    await notificationDispatcher.publishStateChange({ userId, action: 'updated', notificationId: id, changed: result.count > 0, label: 'notifications.repository.markUnread' });
     return result;
   },
 
@@ -239,13 +185,13 @@ export const notificationsRepository = {
       where: { userId, readAt: null },
       data: { readAt: new Date() },
     });
-    await unreadNotificationsCache.invalidate(userId);
+    await notificationDispatcher.publishStateChange({ userId, action: 'read', changed: result.count > 0, label: 'notifications.repository.markAllRead' });
     return result;
   },
 
   deleteForUser: async (id: string, userId: string): Promise<Prisma.BatchPayload> => {
     const result = await prisma.notification.deleteMany({ where: { id, userId } });
-    if (result.count > 0) await unreadNotificationsCache.invalidate(userId);
+    if (result.count > 0) await notificationDispatcher.publishStateChange({ userId, action: 'deleted', notificationId: id, label: 'notifications.repository.deleteForUser' });
     return result;
   },
 
@@ -253,15 +199,52 @@ export const notificationsRepository = {
     const result = await prisma.notification.deleteMany({
       where: { userId, readAt: { not: null } },
     });
-    await unreadNotificationsCache.invalidate(userId);
+    await notificationDispatcher.publishStateChange({ userId, action: 'deleted', changed: result.count > 0, label: 'notifications.repository.deleteAllReadForUser' });
     return result;
   },
 
   deleteReadOlderThan: async (olderThan: Date): Promise<number> => {
-    const result = await prisma.notification.deleteMany({
-      where: { readAt: { not: null }, createdAt: { lt: olderThan } },
-    });
-    return result.count;
+    const BATCH_SIZE = 500;
+    let totalDeleted = 0;
+
+    for (;;) {
+      const candidates = await prisma.notification.findMany({
+        where: { readAt: { not: null }, createdAt: { lt: olderThan } },
+        select: { id: true, userId: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: BATCH_SIZE,
+      });
+      if (candidates.length === 0) break;
+
+      const result = await prisma.notification.deleteMany({
+        where: {
+          id: { in: candidates.map(notification => notification.id) },
+          readAt: { not: null },
+          createdAt: { lt: olderThan },
+        },
+      });
+      totalDeleted += result.count;
+
+      // Retention is a bulk delete, so publish one refetch signal per affected
+      // user rather than broadcasting every expired row to every device.
+      if (result.count > 0) {
+        const affectedUsers = Array.from(new Set(candidates.map(notification => notification.userId)));
+        await Promise.all(affectedUsers.map(userId =>
+          notificationDispatcher.publishStateChange({
+            userId,
+            action: 'deleted',
+            changed: true,
+            label: 'notifications.repository.deleteReadOlderThan',
+          })
+        ));
+      }
+
+      // A concurrent update can make some candidates no longer eligible.
+      // Stop on a no-op batch instead of re-reading the same rows forever.
+      if (result.count === 0) break;
+    }
+
+    return totalDeleted;
   },
 
   /**
@@ -311,19 +294,7 @@ export const notificationsRepository = {
           data: { ...prev, conversationId: input.conversationId, count: prevCount + 1 },
         },
       });
-      await unreadNotificationsCache.invalidate(input.userId);
-      // The earlier check may already have run (and found the user online or
-      // opted out); an idempotent re-schedule opens a fresh window.
-      maybeScheduleEmailFallback(input.userId, updated.type);
-      void publishNotificationEvent(input.userId, {
-        type: 'notification',
-        action: 'updated',
-        notificationId: updated.id,
-        notificationType: updated.type,
-        title: updated.title,
-        body: updated.body,
-        data: asPlainObject(updated.data),
-      });
+      await notificationDispatcher.publishStateChange({ userId: input.userId, action: 'updated', notificationId: updated.id, label: 'notifications.repository.refreshNewMessage' });
       return updated;
     }
     return notificationsRepository.create({
@@ -349,7 +320,7 @@ export const notificationsRepository = {
       data: { readAt: new Date() },
     });
     if (result.count > 0) {
-      await unreadNotificationsCache.invalidate(userId);
+      await notificationDispatcher.publishStateChange({ userId, action: 'read', changed: true, label: 'notifications.repository.markConversationMessagesRead' });
     }
     return result;
   },

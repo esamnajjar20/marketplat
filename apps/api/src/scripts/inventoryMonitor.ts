@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma';
 import { logger } from '../shared/observability/logger';
 import { executeTransactionalJobWithGoFallback } from '../shared/go-worker/transactionalJobFallback';
 import { runInventoryMonitorExpressFallback } from '../shared/go-worker/scheduledJobFallbacks';
-import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
+import { notificationDispatcher } from '../shared/notifications/notificationDispatcher';
 
 // Must match inventorymonitor.AdvisoryLockID in apps/go-worker.
 const LOCK_ID = 731904304n;
@@ -37,7 +37,7 @@ function isResult(value: unknown): value is Result {
 }
 
 async function publishCommittedNotifications(result: Result): Promise<void> {
-  await publishDurableNotifications(prisma, result.notificationIds, 'inventory-monitor');
+  await notificationDispatcher.publishDurable(prisma, result.notificationIds, 'inventory-monitor');
 }
 
 async function publishExpressFallbackNotifications(value: unknown): Promise<void> {

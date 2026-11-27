@@ -4,7 +4,7 @@ import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { useFocusEffect } from 'expo-router';
@@ -30,68 +30,57 @@ import { toAppHref } from '@/lib/typed-navigation';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { showToast } from '@/lib/toast';
 import { COPY } from '@/lib/copy';
+import { NOTIFICATION_CATEGORIES, NOTIFICATION_TYPE_META, resolveNotificationTarget } from '@marketplat/contracts';
+import type { NotificationCategory, NotificationData, NotificationIconKey, NotificationType } from '@marketplat/contracts';
+import { useNotificationLiveStream } from '@/features/notifications/useNotificationLiveStream';
 
 function destination(item: AppNotification): string | null {
-  const data = item.data && typeof item.data === 'object' ? item.data as Record<string, unknown> : {};
-  const id = (key: string): string | null => typeof data[key] === 'string' && (data[key] as string).trim() ? encodeURIComponent((data[key] as string).trim()) : null;
-  const conversationId = id('conversationId');
-  if (conversationId) return `/messages/${conversationId}`;
-  // Some notification rows contain only entity IDs; the push URL is not
-  // necessarily persisted in Notification.data, so route by the server type.
-  const adId = id('adId');
-  const productId = id('productId');
-  const serviceId = id('serviceId');
-  const storeId = id('storeId');
-  const requestId = id('requestId');
-  const followerId = id('followerId');
-  const savedSearchId = id('savedSearchId');
-  const promotionId = id('promotionId');
-  switch (item.type) {
-    case 'NEW_MESSAGE': return '/messages';
-    case 'NEW_FOLLOWER': return followerId ? `/profile/${followerId}` : '/profile';
-    case 'FOLLOWED_USER_ACTIVITY':
-    case 'FOLLOWED_STORE_ACTIVITY':
-    case 'FOLLOWED_CATEGORY_ACTIVITY': return '/following-feed';
-    case 'FAV_AD_PRICE_CHANGED':
-    case 'FAV_AD_SOLD':
-    case 'AD_EXPIRING_SOON':
-    case 'AD_EXPIRED': return adId ? `/ads/${adId}` : '/favorites';
-    case 'SAVED_SEARCH_MATCH': return adId ? `/ads/${adId}` : productId ? `/products/${productId}` : serviceId ? `/services/${serviceId}` : savedSearchId ? '/saved-searches' : '/search';
-    case 'STORE_NEW_PRODUCT': return storeId ? `/stores/${storeId}` : '/stores';
-    case 'STORE_PROMOTION_STARTED': return productId ? `/products/${productId}` : storeId ? `/stores/${storeId}` : '/stores';
-    case 'STORE_PRODUCT_RESTOCKED': return productId ? `/products/${productId}` : storeId ? `/stores/${storeId}` : '/stores';
-    case 'STORE_MEMBER_INVITED': return '/store-team';
-    case 'NEW_REQUEST_OFFER':
-    case 'REQUEST_OFFER_ACCEPTED': return requestId ? `/requests/${requestId}` : '/requests';
-    case 'SERVICE_REQUEST_NEW':
-    case 'SERVICE_REQUEST_UPDATE': return requestId ? `/service-requests/${requestId}` : '/service-requests';
-    case 'MARKETPLACE_ORDER_NEW':
-    case 'MARKETPLACE_ORDER_UPDATE': { const orderId = id('orderId'); return orderId ? `/orders/${orderId}` : '/orders'; }
-    case 'APPOINTMENT_UPDATE': return '/appointments';
-    case 'SALES_OVERDUE_INSTALLMENT':
-    case 'SALES_UPCOMING_INSTALLMENT': return '/installments';
-    case 'SALES_DEBT_REMINDER':
-    case 'SALES_OVERDUE_DEBT': return '/debts';
-    case 'SALES_LOW_STOCK':
-    case 'SALES_DAILY_REMINDER':
-    case 'SALES_WEEKLY_REPORT':
-    case 'SALES_INACTIVE_CUSTOMER':
-    case 'SALES_DAILY_SUMMARY':
-    case 'SALES_SMART_INSIGHT': return '/my-sales';
-    case 'PROMOTION':
-    case 'PROMOTION_STATUS_CHANGE': return '/store-promotions';
-    case 'MODERATION_REPORT_RECEIVED':
-    case 'MODERATION_DECISION': return '/my-reports';
-    case 'WEEKLY_AD_VIEWS_REPORT': return '/my-ads';
-    case 'WEEKLY_STORE_VIEWS_REPORT': return '/my-store-analytics';
-    case 'WEEKLY_SERVICE_VIEWS_REPORT': return '/service-provider-analytics';
-    default: {
-      // Accept only safe, app-local message links from older notification payloads.
-      const url = typeof data.url === 'string' ? data.url : null;
-      return url?.startsWith('/messages/') && !url.startsWith('//') ? url : null;
+  const data = item.data && typeof item.data === 'object' && !Array.isArray(item.data)
+    ? item.data as NotificationData
+    : null;
+  const target = resolveNotificationTarget(item.type, data);
+  const id = target.id ? encodeURIComponent(target.id) : null;
+  switch (target.kind) {
+    case 'conversation': return id ? `/messages/${id}` : '/messages';
+    case 'profile': return id ? `/profile/${id}` : '/profile';
+    case 'following_feed': return '/following-feed';
+    case 'ad': return id ? `/ads/${id}` : '/favorites';
+    case 'product': return id ? `/products/${id}` : '/products';
+    case 'service': return id ? `/services/${id}` : '/services';
+    case 'store': return id ? `/stores/${id}` : '/stores';
+    case 'saved_searches': return '/saved-searches';
+    case 'store_members': return '/store-team';
+    case 'request': return id ? `/requests/${id}` : '/requests';
+    case 'service_request': return id ? `/service-requests/${id}` : '/notifications';
+    case 'appointments': return '/appointments';
+    case 'order': return id ? `/orders/${id}` : '/orders';
+    case 'orders': return '/orders';
+    case 'sale': return id ? `/sales/${id}` : '/my-sales';
+    case 'installments': return '/installments';
+    case 'debts': return '/debts';
+    case 'sales': return '/my-sales';
+    case 'store_promotions': return '/store-promotions';
+    case 'dashboard': return '/my-ads';
+    case 'store_analytics': return '/my-store-analytics';
+    case 'service_analytics': return '/service-provider-analytics';
+    case 'reports': return '/my-reports';
+    case 'home': return '/';
+    case 'favorites': return '/favorites';
+    case 'notifications': {
+      const legacyUrl = data?.url;
+      return typeof legacyUrl === 'string' && legacyUrl.startsWith('/messages/') && !legacyUrl.startsWith('//')
+        ? legacyUrl
+        : '/notifications';
     }
+    default: return '/notifications';
   }
 }
+
+const NOTIFICATION_GLYPH: Record<NotificationIconKey, Parameters<typeof AppIcon>[0]['name']> = {
+  message: 'messages', user: 'user', following: 'following', tag: 'tag', megaphone: 'megaphone',
+  chart: 'chart', search: 'search', store: 'store', package: 'package', clipboard: 'clipboard',
+  service: 'service', calendar: 'calendar', shield: 'shield', wallet: 'wallet',
+};
 
 function notificationIsRead(item: AppNotification): boolean { return Boolean(item.readAt || item.isRead); }
 
@@ -114,7 +103,9 @@ const NotificationRow = memo(function NotificationRow({
     >
       <View style={[styles.iconWrap, !read && styles.iconUnread]}>
         <AppIcon
-          name={item.type === 'NEW_MESSAGE' ? 'messages' : item.type.includes('SERVICE') || item.type.includes('REQUEST') ? 'service' : 'notification'}
+          name={Object.prototype.hasOwnProperty.call(NOTIFICATION_TYPE_META, item.type)
+            ? NOTIFICATION_GLYPH[NOTIFICATION_TYPE_META[item.type as NotificationType].icon]
+            : 'notification'}
           size={20}
           color={colors.brand}
         />
@@ -146,14 +137,15 @@ export default function NotificationsScreen() {
   const { getAccessToken } = useAuthActions();
   const { counts, refresh: refreshUnreadCounts } = useUnreadCounts();
   const token = getAccessToken();
+  const [activeCategory, setActiveCategory] = useState<'all' | NotificationCategory>('all');
   const list = usePaginatedList<AppNotification>({
-    key: `notifications:${user?.id ?? 'guest'}`,
+    key: `notifications:${user?.id ?? 'guest'}:${activeCategory}`,
     pageSize: 50,
     enabled: Boolean(user && token && !isRestoring),
     fetchPage: async (page, signal) => {
       const currentToken = getAccessToken();
       if (!currentToken) throw new Error('سجّل الدخول لعرض إشعاراتك.');
-      const result = await fetchNotificationsPage(currentToken, page, 50, false, signal, user?.id);
+      const result = await fetchNotificationsPage(currentToken, page, 50, false, signal, user?.id, activeCategory);
       return { items: result.items, meta: { page: result.page, totalPages: result.totalPages, total: result.total } };
     },
     getItemKey: (item) => item.id,
@@ -164,6 +156,13 @@ export default function NotificationsScreen() {
   const refreshCountsRef = useRef(refreshUnreadCounts);
   refreshListRef.current = list.refresh;
   refreshCountsRef.current = refreshUnreadCounts;
+
+  useNotificationLiveStream({
+    userId: user?.id,
+    getToken: getAccessToken,
+    refreshList: () => refreshListRef.current(),
+    refreshUnreadCounts: () => refreshCountsRef.current(),
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -249,6 +248,23 @@ export default function NotificationsScreen() {
       ) : list.error && list.items.length === 0 ? (
         <ErrorState title="تعذر تحميل الإشعارات" description={list.error || undefined} onAction={() => void list.retry()} />
       ) : (
+        <View style={{ flex: 1 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm, gap: spacing.xs }}>
+          {NOTIFICATION_CATEGORIES.map(category => {
+            const selected = activeCategory === category.id;
+            return (
+              <Pressable
+                key={category.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => setActiveCategory(category.id)}
+                style={{ minHeight: 38, paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, borderColor: selected ? colors.brand : colors.border, backgroundColor: selected ? colors.brand : colors.surface, justifyContent: 'center' }}
+              >
+                <Text style={{ ...typography.captionStrong, color: selected ? colors.onBrand : colors.muted }}>{category.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
         <AppFlashList
           data={list.items}
           keyExtractor={keyExtractor}
@@ -275,6 +291,7 @@ export default function NotificationsScreen() {
           }
           ItemSeparatorComponent={NotificationSeparator}
         />
+        </View>
       )}
     </ScreenFrame>
   );

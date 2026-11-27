@@ -3,6 +3,7 @@ package salesjobs
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -15,10 +16,11 @@ const (
 )
 
 type Result struct {
-	Job                   string `json:"job"`
-	NotificationsCreated  int64  `json:"notificationsCreated"`
-	PushDispatchesCreated int64  `json:"pushDispatchesCreated"`
-	EvaluatedAt           string `json:"evaluatedAt"`
+	Job                   string   `json:"job"`
+	NotificationsCreated  int64    `json:"notificationsCreated"`
+	PushDispatchesCreated int64    `json:"pushDispatchesCreated"`
+	EvaluatedAt           string   `json:"evaluatedAt"`
+	NotificationIDs       []string `json:"notificationIds"`
 }
 
 const dailyReminderSQL = `
@@ -30,7 +32,7 @@ WITH candidates AS (
   FROM "users" u
   WHERE u."isActive" = TRUE
     AND EXISTS (SELECT 1 FROM "seller_profiles" sp WHERE sp."userId" = u."id")
-    AND COALESCE((u."notificationPreferences" ->> 'salesAlerts')::boolean, TRUE) = TRUE
+    AND COALESCE((u."notificationPreferences" ->> 'salesAlerts') <> 'false', TRUE) = TRUE
     AND NOT EXISTS (
       SELECT 1 FROM "sale_records" sr
       WHERE sr."sellerId" = u."id" AND sr."soldAt" >= date_trunc('day', $1::timestamptz)
@@ -57,7 +59,8 @@ WITH candidates AS (
   ON CONFLICT ("idempotencyKey") DO NOTHING
   RETURNING "id"
 )
-SELECT (SELECT COUNT(*) FROM inserted)::bigint, (SELECT COUNT(*) FROM dispatch)::bigint
+SELECT (SELECT COUNT(*) FROM inserted)::bigint, (SELECT COUNT(*) FROM dispatch)::bigint,
+  COALESCE((SELECT json_agg("id")::text FROM inserted), '[]')
 `
 
 const debtReminderSQL = `
@@ -72,7 +75,7 @@ WITH limited AS (
     'marketplat:sales-debt:' || to_char(($1::timestamptz - INTERVAL '7 days'), 'YYYY-MM-DD') || ':' || l."sellerId" AS "idempotencyKey"
   FROM limited l
   INNER JOIN "users" u ON u."id" = l."sellerId"
-  WHERE COALESCE((u."notificationPreferences" ->> 'debtAlerts')::boolean, TRUE) = TRUE
+  WHERE COALESCE((u."notificationPreferences" ->> 'debtAlerts') <> 'false', TRUE) = TRUE
     AND NOT EXISTS (
       SELECT 1 FROM "notifications" n WHERE n."userId" = l."sellerId"
         AND n."type" = 'SALES_DEBT_REMINDER' AND n."title" = 'دين متأخر'
@@ -100,7 +103,8 @@ WITH limited AS (
   ON CONFLICT ("idempotencyKey") DO NOTHING
   RETURNING "id"
 )
-SELECT (SELECT COUNT(*) FROM inserted)::bigint, (SELECT COUNT(*) FROM dispatch)::bigint
+SELECT (SELECT COUNT(*) FROM inserted)::bigint, (SELECT COUNT(*) FROM dispatch)::bigint,
+  COALESCE((SELECT json_agg("id")::text FROM inserted), '[]')
 `
 
 const overdueInstallmentsSQL = `
@@ -117,7 +121,7 @@ WITH limited AS (
     'marketplat:sales-overdue-installment:' || to_char(date_trunc('day', $1::timestamptz), 'YYYY-MM-DD') || ':' || l."sellerId" AS "idempotencyKey"
   FROM limited l
   INNER JOIN "users" u ON u."id" = l."sellerId"
-  WHERE COALESCE((u."notificationPreferences" ->> 'installmentAlerts')::boolean, TRUE) = TRUE
+  WHERE COALESCE((u."notificationPreferences" ->> 'installmentAlerts') <> 'false', TRUE) = TRUE
     AND NOT EXISTS (
       SELECT 1 FROM "notifications" n WHERE n."userId" = l."sellerId"
         AND n."type" = 'SALES_OVERDUE_INSTALLMENT' AND n."title" = 'قسط متأخر'
@@ -146,7 +150,8 @@ WITH limited AS (
   ON CONFLICT ("idempotencyKey") DO NOTHING
   RETURNING "id"
 )
-SELECT (SELECT COUNT(*) FROM inserted)::bigint, (SELECT COUNT(*) FROM dispatch)::bigint
+SELECT (SELECT COUNT(*) FROM inserted)::bigint, (SELECT COUNT(*) FROM dispatch)::bigint,
+  COALESCE((SELECT json_agg("id")::text FROM inserted), '[]')
 `
 
 const weeklySalesSQL = `
@@ -161,7 +166,7 @@ WITH totals AS (
     'marketplat:weekly-sales:' || to_char(date_trunc('day', $1::timestamptz), 'YYYY-MM-DD') || ':' || t."sellerId" AS "idempotencyKey"
   FROM totals t
   INNER JOIN "users" u ON u."id" = t."sellerId"
-  WHERE COALESCE((u."notificationPreferences" ->> 'weeklySalesReport')::boolean, TRUE) = TRUE
+  WHERE COALESCE((u."notificationPreferences" ->> 'weeklySalesReport') <> 'false', TRUE) = TRUE
     AND NOT EXISTS (
       SELECT 1 FROM "notifications" n WHERE n."userId" = t."sellerId"
         AND n."type" = 'SALES_WEEKLY_REPORT' AND n."title" = 'تقرير مبيعاتك الأسبوعي'
@@ -187,7 +192,8 @@ WITH totals AS (
   ON CONFLICT ("idempotencyKey") DO NOTHING
   RETURNING "id"
 )
-SELECT (SELECT COUNT(*) FROM inserted)::bigint, (SELECT COUNT(*) FROM dispatch)::bigint
+SELECT (SELECT COUNT(*) FROM inserted)::bigint, (SELECT COUNT(*) FROM dispatch)::bigint,
+  COALESCE((SELECT json_agg("id")::text FROM inserted), '[]')
 `
 
 func Run(ctx context.Context, conn *sql.Conn, job string, now time.Time) (Result, error) {
@@ -210,13 +216,27 @@ func Run(ctx context.Context, conn *sql.Conn, job string, now time.Time) (Result
 	}
 	defer tx.Rollback()
 	var notifications, dispatches int64
-	if err := tx.QueryRowContext(ctx, statement, now.UTC()).Scan(&notifications, &dispatches); err != nil {
+	var notificationIDsJSON string
+	if err := tx.QueryRowContext(ctx, statement, now.UTC()).Scan(&notifications, &dispatches, &notificationIDsJSON); err != nil {
 		return Result{}, fmt.Errorf("execute %s: %w", job, err)
+	}
+	var notificationIDs []string
+	if err := json.Unmarshal([]byte(notificationIDsJSON), &notificationIDs); err != nil {
+		return Result{}, fmt.Errorf("decode %s notification IDs: %w", job, err)
+	}
+	if int64(len(notificationIDs)) != notifications || int64(len(notificationIDs)) != dispatches {
+		return Result{}, fmt.Errorf("%s notification ID count mismatch: ids=%d notifications=%d dispatches=%d", job, len(notificationIDs), notifications, dispatches)
 	}
 	if err := tx.Commit(); err != nil {
 		return Result{}, fmt.Errorf("commit %s: %w", job, err)
 	}
-	return Result{Job: job, NotificationsCreated: notifications, PushDispatchesCreated: dispatches, EvaluatedAt: now.UTC().Format(time.RFC3339)}, nil
+	return Result{
+		Job:                   job,
+		NotificationsCreated:  notifications,
+		PushDispatchesCreated: dispatches,
+		EvaluatedAt:           now.UTC().Format(time.RFC3339),
+		NotificationIDs:       notificationIDs,
+	}, nil
 }
 
 func SQLForTest(job string) string {

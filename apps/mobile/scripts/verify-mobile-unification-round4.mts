@@ -17,6 +17,7 @@ const installmentsScreen = read('../app/installments.tsx');
 const saleCreateScreen = read('../app/sale-create.tsx');
 const createOutbox = read('../src/storage/entity-create-outbox.ts');
 const cachePolicy = read('../src/lib/offline-cache-policy.ts');
+const cacheContract = read('../../../shared/cache/cache-contract.json');
 const adsApi = read('../src/features/ads/ads.api.ts');
 const categoriesApi = read('../src/features/categories/categories.api.ts');
 const slash = String.fromCharCode(92);
@@ -27,7 +28,7 @@ const checks = [
   ['private cache keys keep the complete query string and require a stable owner ID',
     client.includes('return `api-private:${encodeURIComponent(ownerId)}:${path}`') && client.includes('if (!ownerId?.trim() || !path.startsWith')],
   ['customer and notification mutations invalidate owner-scoped namespaces',
-    /route: \/\^\\\/api\\\/v1\\\/(?:customers|notifications)/.test(client) && client.includes("'/api/v1/customers'") && client.includes("'/api/v1/notifications'") && client.includes('clearPrivateCacheForPrefix(prefix, ownerId)')],
+    client.includes('cacheContract.mobileMutationInvalidation.map') && client.includes('new RegExp(rule.route)') && cacheContract.includes('\"route\": \"^/api/v1/customers') && cacheContract.includes('\"route\": \"^/api/v1/notifications') && client.includes('clearPrivateCacheForPrefix(prefix, ownerId)')],
   ['prefix matching is route-boundary aware',
     cache.includes("substr(cache_key, ?, 1) IN ('/', '?')") && cache.includes('Enforce a route boundary')],
   ['private cache invalidation uses literal prefix matching, not SQL LIKE wildcards',
@@ -35,7 +36,7 @@ const checks = [
   ['debt and customer reads pass the current owner into the private cache layer',
     salesExtra.includes('cacheOwnerId: ownerId ?? undefined') && debtsScreen.includes('fetchDebts(page, accessToken, signal, user?.id)') && customersScreen.includes('fetchCustomers(token, debouncedQ, page, signal, user?.id)')],
   ['notifications read/cache mutations pass the current owner',
-    messaging.includes('cacheOwnerId: ownerId ?? undefined') && notificationScreen.includes('fetchNotificationsPage(currentToken, page, 50, false, signal, user?.id)') && notificationScreen.includes('markAllNotificationsRead(token, csrfToken, user?.id)')],
+    messaging.includes('cacheOwnerId: ownerId ?? undefined') && notificationScreen.includes('fetchNotificationsPage(currentToken, page, 50, false, signal, user?.id, activeCategory)') && notificationScreen.includes('markAllNotificationsRead(token, csrfToken, user?.id)')],
   ['sales mutations and installment reads carry the account owner and cancel stale requests',
     salesExtra.includes('cacheOwnerId: ownerId ?? undefined') && installmentsScreen.includes('fetchInstallments(kind, accessToken as string, user?.id as string, signal)') && installmentsScreen.includes('useAsyncResource<{ key: string; rows: InstallmentRow[] }>') && installmentsScreen.includes('key: listKey') && installmentsScreen.includes('resource.data?.key === listKey') && saleCreateScreen.includes('createSale(payload, accessToken, csrfToken, operationId, user?.id)')],
   ['outbox sale mutations preserve owner scope through the shared API client',

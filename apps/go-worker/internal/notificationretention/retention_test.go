@@ -75,8 +75,8 @@ func openScriptedDB(t *testing.T, responses [][]string) (*sql.DB, *scriptedDrive
 
 func TestRunDeletesOnlyBoundedReadNotificationBatches(t *testing.T) {
 	db, script := openScriptedDB(t, [][]string{
-		{"notification-1", "notification-2"},
-		{"notification-3"},
+		{"user-a", "user-b"},
+		{"user-a"},
 	})
 	now := time.Date(2026, time.October, 30, 8, 0, 0, 0, time.FixedZone("test", 2*60*60))
 
@@ -86,6 +86,9 @@ func TestRunDeletesOnlyBoundedReadNotificationBatches(t *testing.T) {
 	}
 	if result.Deleted != 3 || result.Batches != 2 {
 		t.Fatalf("unexpected totals: deleted=%d batches=%d", result.Deleted, result.Batches)
+	}
+	if len(result.AffectedUserIDs) != 2 || result.AffectedUserIDs[0] != "user-a" || result.AffectedUserIDs[1] != "user-b" {
+		t.Fatalf("unexpected affected user IDs: %#v", result.AffectedUserIDs)
 	}
 	if result.RetentionDays != 90 {
 		t.Fatalf("retentionDays = %d, want 90", result.RetentionDays)
@@ -129,7 +132,7 @@ func TestRunDeletesOnlyBoundedReadNotificationBatches(t *testing.T) {
 
 func TestRunStopsAfterEmptyBatchWhenPreviousBatchWasFull(t *testing.T) {
 	db, script := openScriptedDB(t, [][]string{
-		{"notification-1", "notification-2"},
+		{"user-a", "user-b"},
 		{},
 	})
 	result, err := Run(context.Background(), db, 90, 2, time.Now())

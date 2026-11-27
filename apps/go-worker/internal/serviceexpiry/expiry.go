@@ -120,13 +120,7 @@ WITH due AS (
     SELECT e.*
     FROM expired e
     INNER JOIN "users" u ON u."id" = e."customerId"
-    WHERE CASE jsonb_typeof(u."notificationPreferences" -> 'serviceQuotes')
-        WHEN 'boolean' THEN COALESCE((u."notificationPreferences" ->> 'serviceQuotes')::boolean, TRUE)
-        WHEN 'null' THEN FALSE
-        WHEN 'number' THEN COALESCE((u."notificationPreferences" ->> 'serviceQuotes')::numeric <> 0, FALSE)
-        WHEN 'string' THEN COALESCE((u."notificationPreferences" ->> 'serviceQuotes') <> '', FALSE)
-        ELSE TRUE
-    END
+    WHERE COALESCE((u."notificationPreferences" ->> 'serviceQuotes') <> 'false', TRUE) = TRUE
 ), inserted AS (
     INSERT INTO "notifications"
         ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")

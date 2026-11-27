@@ -46,14 +46,14 @@ const WEEKLY_QUERIES: Record<WeeklyKind, string> = {
       ARRAY_AGG(a."views"::bigint ORDER BY a."id") AS "viewSnapshots", NULL::text AS "entityId"
     FROM "ads" a INNER JOIN "users" u ON u."id" = a."userId"
     WHERE a."status" = 'ACTIVE' AND a."views" > a."viewsAtLastReport"
-      AND COALESCE((u."notificationPreferences" ->> 'adViews')::boolean, FALSE) = TRUE
+      AND COALESCE((u."notificationPreferences" ->> 'adViews') = 'true', FALSE) = TRUE
     GROUP BY a."userId" HAVING SUM(a."views" - a."viewsAtLastReport") > 0`,
   stores: `SELECT sp."userId" AS "userId", (s."views" - s."viewsAtLastReport")::bigint AS "totalDelta",
       1::bigint AS "itemCount", ARRAY[s."id"] AS "entityIds", ARRAY[s."views"::bigint] AS "viewSnapshots", s."id" AS "entityId"
     FROM "store_details" s INNER JOIN "seller_profiles" sp ON sp."id" = s."sellerProfileId"
     INNER JOIN "users" u ON u."id" = sp."userId"
     WHERE s."status" = 'ACTIVE' AND s."views" > s."viewsAtLastReport"
-      AND COALESCE((u."notificationPreferences" ->> 'adViews')::boolean, FALSE) = TRUE`,
+      AND COALESCE((u."notificationPreferences" ->> 'adViews') = 'true', FALSE) = TRUE`,
   services: `SELECT u."id" AS "userId", SUM(sl."views" - sl."viewsAtLastReport")::bigint AS "totalDelta",
       COUNT(*)::bigint AS "itemCount", ARRAY_AGG(sl."id" ORDER BY sl."id") AS "entityIds",
       ARRAY_AGG(sl."views"::bigint ORDER BY sl."id") AS "viewSnapshots", spd."id" AS "entityId"
@@ -61,7 +61,7 @@ const WEEKLY_QUERIES: Record<WeeklyKind, string> = {
     INNER JOIN "seller_profiles" sp ON sp."id" = spd."sellerProfileId"
     INNER JOIN "users" u ON u."id" = sp."userId"
     WHERE sl."status" = 'ACTIVE' AND sl."views" > sl."viewsAtLastReport"
-      AND COALESCE((u."notificationPreferences" ->> 'adViews')::boolean, FALSE) = TRUE
+      AND COALESCE((u."notificationPreferences" ->> 'adViews') = 'true', FALSE) = TRUE
     GROUP BY u."id", spd."id" HAVING SUM(sl."views" - sl."viewsAtLastReport") > 0`,
 };
 
@@ -77,7 +77,7 @@ async function createNotificationAndDispatch(
     url?: string;
     tag?: string;
   }
-): Promise<boolean> {
+): Promise<string | null> {
   const id = randomUUID();
   const inserted = await tx.$queryRaw<Array<{ id: string }>>`
     INSERT INTO "notifications" ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")
@@ -86,7 +86,7 @@ async function createNotificationAndDispatch(
     ON CONFLICT ("idempotencyKey") DO NOTHING
     RETURNING "id"
   `;
-  if (inserted.length === 0) return false;
+  if (inserted.length === 0) return null;
   const payload = {
     title: input.title,
     body: input.body,
@@ -99,19 +99,20 @@ async function createNotificationAndDispatch(
     VALUES (${randomUUID()}, ${id}, ${input.userId}, ${JSON.stringify(payload)}::jsonb, ${`push:${id}`})
     ON CONFLICT ("idempotencyKey") DO NOTHING
   `;
-  return true;
+  return id;
 }
 
 export async function runWeeklyViewsExpressFallback(
   tx: Prisma.TransactionClient,
   kind: WeeklyKind,
   now = new Date()
-): Promise<{ notificationsCreated: number; baselinesAdvanced: number }> {
+): Promise<{ notificationsCreated: number; baselinesAdvanced: number; notificationIds: string[] }> {
   const rows = await tx.$queryRawUnsafe<WeeklyDelta[]>(WEEKLY_QUERIES[kind]);
   const config = WEEKLY_CONFIG[kind];
   const runKey = now.toISOString().slice(0, 10);
   let notificationsCreated = 0;
   let baselinesAdvanced = 0;
+  const notificationIds: string[] = [];
 
   for (const row of rows) {
     const totalDelta = Number(row.totalDelta);
@@ -123,7 +124,7 @@ export async function runWeeklyViewsExpressFallback(
         : kind === 'stores'
           ? { totalDelta, storeId: row.entityId }
           : { totalDelta, providerId: row.entityId };
-    const created = await createNotificationAndDispatch(tx, {
+    const notificationId = await createNotificationAndDispatch(tx, {
       userId: row.userId,
       type: config.type,
       title: config.title,
@@ -133,7 +134,7 @@ export async function runWeeklyViewsExpressFallback(
       url: config.url,
       tag: config.tag,
     });
-    if (!created) continue;
+    if (!notificationId) continue;
 
     let updated = 0;
     if (kind === 'ads') {
@@ -156,9 +157,10 @@ export async function runWeeklyViewsExpressFallback(
       `;
     }
     notificationsCreated += 1;
+    notificationIds.push(notificationId);
     baselinesAdvanced += updated;
   }
-  return { notificationsCreated, baselinesAdvanced };
+  return { notificationsCreated, baselinesAdvanced, notificationIds };
 }
 
 export async function runSellerResponseMetricsExpressFallback(
@@ -201,7 +203,7 @@ export async function runSalesNotificationExpressFallback(
   tx: Prisma.TransactionClient,
   job: SalesJob,
   now = new Date()
-): Promise<{ notificationsCreated: number }> {
+): Promise<{ notificationsCreated: number; notificationIds: string[] }> {
   const dayStart = new Date(now);
   dayStart.setUTCHours(0, 0, 0, 0);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1_000);
@@ -216,7 +218,7 @@ export async function runSalesNotificationExpressFallback(
         ('marketplat:sales-daily:' || ${dayStart.toISOString().slice(0, 10)} || ':' || u."id") AS "idempotencyKey"
       FROM "users" u WHERE u."isActive" = TRUE
         AND EXISTS (SELECT 1 FROM "seller_profiles" sp WHERE sp."userId" = u."id")
-        AND COALESCE((u."notificationPreferences" ->> 'salesAlerts')::boolean, TRUE) = TRUE
+        AND COALESCE((u."notificationPreferences" ->> 'salesAlerts') <> 'false', TRUE) = TRUE
         AND NOT EXISTS (SELECT 1 FROM "sale_records" sr WHERE sr."sellerId" = u."id"
           AND sr."soldAt" >= ${dayStart} AND sr."soldAt" < ${dayEnd})
         AND NOT EXISTS (SELECT 1 FROM "notifications" n WHERE n."userId" = u."id"
@@ -233,7 +235,7 @@ export async function runSalesNotificationExpressFallback(
       ), chosen AS (
         SELECT DISTINCT ON (l."sellerId") l.* FROM limited l
         INNER JOIN "users" u ON u."id" = l."sellerId"
-        WHERE COALESCE((u."notificationPreferences" ->> 'debtAlerts')::boolean, TRUE) = TRUE
+        WHERE COALESCE((u."notificationPreferences" ->> 'debtAlerts') <> 'false', TRUE) = TRUE
           AND NOT EXISTS (SELECT 1 FROM "notifications" n WHERE n."userId" = l."sellerId"
             AND n."type" = 'SALES_DEBT_REMINDER' AND n."title" = 'دين متأخر' AND n."createdAt" >= ${weekStart})
         ORDER BY l."sellerId", l."dueDate" ASC, l."id" ASC
@@ -257,7 +259,7 @@ export async function runSalesNotificationExpressFallback(
       ), chosen AS (
         SELECT DISTINCT ON (l."sellerId") l.* FROM limited l
         INNER JOIN "users" u ON u."id" = l."sellerId"
-        WHERE COALESCE((u."notificationPreferences" ->> 'installmentAlerts')::boolean, TRUE) = TRUE
+        WHERE COALESCE((u."notificationPreferences" ->> 'installmentAlerts') <> 'false', TRUE) = TRUE
           AND NOT EXISTS (SELECT 1 FROM "notifications" n WHERE n."userId" = l."sellerId"
             AND n."type" = 'SALES_OVERDUE_INSTALLMENT' AND n."title" = 'قسط متأخر' AND n."createdAt" >= ${dayStart})
         ORDER BY l."sellerId", l."dueDate" ASC, l."installmentId" ASC
@@ -284,7 +286,7 @@ export async function runSalesNotificationExpressFallback(
         NULL::jsonb AS "data",
         ('marketplat:weekly-sales:' || ${dayStart.toISOString().slice(0, 10)} || ':' || t."sellerId") AS "idempotencyKey"
       FROM totals t INNER JOIN "users" u ON u."id" = t."sellerId"
-      WHERE COALESCE((u."notificationPreferences" ->> 'weeklySalesReport')::boolean, TRUE) = TRUE
+      WHERE COALESCE((u."notificationPreferences" ->> 'weeklySalesReport') <> 'false', TRUE) = TRUE
         AND NOT EXISTS (SELECT 1 FROM "notifications" n WHERE n."userId" = t."sellerId"
           AND n."type" = 'SALES_WEEKLY_REPORT' AND n."title" = 'تقرير مبيعاتك الأسبوعي' AND n."createdAt" >= ${dayStart})
     `)
@@ -292,8 +294,9 @@ export async function runSalesNotificationExpressFallback(
   }
 
   let notificationsCreated = 0;
+  const notificationIds: string[] = [];
   for (const row of rows) {
-    const created = await createNotificationAndDispatch(tx, {
+    const notificationId = await createNotificationAndDispatch(tx, {
       userId: String(row.userId),
       type:
         job === 'daily-reminder'
@@ -312,9 +315,12 @@ export async function runSalesNotificationExpressFallback(
       idempotencyKey: String(row.idempotencyKey),
       url: '/account/sales',
     });
-    if (created) notificationsCreated += 1;
+    if (notificationId) {
+      notificationsCreated += 1;
+      notificationIds.push(notificationId);
+    }
   }
-  return { notificationsCreated };
+  return { notificationsCreated, notificationIds };
 }
 
 export type InventoryMonitorBatchResult = {
@@ -358,8 +364,8 @@ export async function runInventoryMonitorExpressFallback(
         AND sp."suspended" = FALSE
         AND u."isActive" = TRUE
         AND CASE
-          WHEN LOWER(COALESCE(u."notificationPreferences" ->> 'lowStockAlerts', 'true')) = 'false' THEN FALSE
-          ELSE TRUE
+          WHEN COALESCE((u."notificationPreferences" ->> 'lowStockAlerts') <> 'false', TRUE) THEN TRUE
+          ELSE FALSE
         END
         AND NOT EXISTS (
           SELECT 1 FROM "sales_automation_events" e

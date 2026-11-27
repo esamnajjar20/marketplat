@@ -123,7 +123,9 @@ export async function executeWithGoFallback<TResult>(
               );
             }
           }
-          logger.info(`[${options.jobName}] Go worker completed`, result);
+          // Result payloads can contain recipient IDs required for post-commit
+          // invalidation. Never duplicate them into application logs.
+          logger.info(`[${options.jobName}] Go worker completed`, { resultKeys: Object.keys(result) });
           return 'go';
         }
 

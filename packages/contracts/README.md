@@ -45,3 +45,12 @@ After changing dependencies, run `pnpm install` at the repository root and `npm 
 
 The web and mobile apps may render their native components differently, but should not
 create parallel phase names, default labels or timing values.
+
+## Notifications
+
+The notification contract is exported from the package root and lives in
+`src/notifications.ts`. It provides Prisma-aligned notification types and
+categories, complete labels/icons, platform-neutral deep-link targets,
+notification preference defaults and validation, and the provider-neutral
+push payload schema. Keep changes here first, then run the root
+`audit:notification-contract` command to verify Prisma parity.

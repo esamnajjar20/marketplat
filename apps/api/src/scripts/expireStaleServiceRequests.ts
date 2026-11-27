@@ -13,7 +13,7 @@ import {
 } from '../shared/go-worker/executeWithFallback';
 import { closeRedisServiceClients } from '../config/redis';
 import { shutdownNotificationStream } from '../shared/realtime/notificationStream';
-import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
+import { notificationDispatcher } from '../shared/notifications/notificationDispatcher';
 
 const prisma = sharedPrisma;
 const BATCH_SIZE = 200;
@@ -55,7 +55,7 @@ function isServiceExpiryResult(value: unknown): value is ServiceExpiryResult {
 }
 
 async function publishCreatedNotifications(notificationIds: string[]): Promise<void> {
-  await publishDurableNotifications(prisma, notificationIds, '[expire-service-requests]');
+  await notificationDispatcher.publishDurable(prisma, notificationIds, '[expire-service-requests]');
 }
 
 async function runExpressFallback(): Promise<'completed' | 'busy'> {
@@ -95,13 +95,7 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
           SELECT e.*
           FROM expired e
           INNER JOIN "users" u ON u."id" = e."customerId"
-          WHERE CASE jsonb_typeof(u."notificationPreferences" -> 'serviceQuotes')
-            WHEN 'boolean' THEN COALESCE((u."notificationPreferences" ->> 'serviceQuotes')::boolean, TRUE)
-            WHEN 'null' THEN FALSE
-            WHEN 'number' THEN COALESCE((u."notificationPreferences" ->> 'serviceQuotes')::numeric <> 0, FALSE)
-            WHEN 'string' THEN COALESCE((u."notificationPreferences" ->> 'serviceQuotes') <> '', FALSE)
-            ELSE TRUE
-          END
+          WHERE COALESCE((u."notificationPreferences" ->> 'serviceQuotes') <> 'false', TRUE) = TRUE
         ), inserted AS (
           INSERT INTO "notifications"
             ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")

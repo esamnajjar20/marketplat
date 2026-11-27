@@ -1,13 +1,11 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../../../config/prisma';
 import { runProductionScheduledJob } from '../../../scripts/childJobRunner';
-import { unreadNotificationsCache } from '../../../shared/cache/unreadNotificationsCache';
-import { publishDurableNotifications } from '../../../shared/go-worker/publishDurableNotifications';
 import { fcmDeviceTokensRepository } from '../../../shared/notifications/fcmDeviceTokensRepository';
 import { fcmPushService } from '../../../shared/notifications/fcmPushService';
 import { pushService } from '../../../shared/notifications/pushService';
 import { logger } from '../../../shared/observability/logger';
-import { publishNotificationEventsToMany } from '../../../shared/realtime/notificationStream';
+import { notificationDispatcher } from '../../../shared/notifications/notificationDispatcher';
 import {
   parseDurableNotificationsRequest,
   parseOutboxNotificationsRequest,
@@ -75,41 +73,8 @@ export const internalGoWorkerController = {
     }
 
     const { eventId, notifications } = parsed.value;
-    const recipientIds = Array.from(new Set(notifications.map(item => item.userId)));
-    const invalidations = await Promise.allSettled(
-      recipientIds.map(userId => unreadNotificationsCache.invalidate(userId))
-    );
-    const invalidationFailures = invalidations.filter(
-      result => result.status === 'rejected'
-    ).length;
-    if (invalidationFailures > 0) {
-      logger.warn('Go outbox callback unread-cache invalidation partially failed', {
-        eventId,
-        recipients: recipientIds.length,
-        failures: invalidationFailures,
-      });
-    }
-
-    try {
-      await publishNotificationEventsToMany(
-        notifications.map(item => ({
-          userId: item.userId,
-          event: {
-            type: 'notification' as const,
-            action: 'created' as const,
-            notificationId: item.id,
-            notificationType: item.type,
-            title: item.title,
-            body: item.body,
-            data: item.data,
-          },
-        }))
-      );
-      res.status(200).json({ eventId, published: notifications.length });
-    } catch (error) {
-      logger.warn('Go outbox callback SSE publish failed after durable commit', { eventId, error });
-      res.status(202).json({ eventId, published: 0, durable: true });
-    }
+    await notificationDispatcher.publishCreated(notifications, `go-worker outbox:${eventId}`);
+    res.status(200).json({ eventId, published: notifications.length, durable: true });
   },
 
   /**
@@ -125,7 +90,7 @@ export const internalGoWorkerController = {
     }
 
     const { notificationIds } = parsed.value;
-    await publishDurableNotifications(prisma, notificationIds, 'inventory-monitor');
+    await notificationDispatcher.publishDurable(prisma, notificationIds, 'inventory-monitor');
     res.status(200).json({ accepted: notificationIds.length });
   },
 

@@ -6,6 +6,7 @@ package notificationdigest
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -17,9 +18,11 @@ const (
 
 // Result contains aggregate operational metadata only.
 type Result struct {
-	DigestsCreated int64 `json:"digestsCreated"`
-	RowsMarkedRead int64 `json:"rowsMarkedRead"`
-	Batches        int   `json:"batches"`
+	DigestsCreated  int64    `json:"digestsCreated"`
+	RowsMarkedRead  int64    `json:"rowsMarkedRead"`
+	Batches         int      `json:"batches"`
+	NotificationIDs []string `json:"notificationIds"`
+	AffectedUserIDs []string `json:"affectedUserIds"`
 }
 
 type queryer interface {
@@ -36,7 +39,8 @@ func Run(ctx context.Context, db queryer, batchSize int, now time.Time) (Result,
 	}
 
 	now = now.UTC()
-	result := Result{}
+	result := Result{NotificationIDs: make([]string, 0), AffectedUserIDs: make([]string, 0)}
+	seenAffectedUsers := make(map[string]struct{})
 	lastUserID := ""
 
 	for {
@@ -57,7 +61,9 @@ func Run(ctx context.Context, db queryer, batchSize int, now time.Time) (Result,
 		var nextUserID sql.NullString
 		var digestsCreated int64
 		var rowsMarkedRead int64
-		if err := rows.Scan(&nextUserID, &digestsCreated, &rowsMarkedRead); err != nil {
+		var notificationIDsJSON string
+		var affectedUserIDsJSON string
+		if err := rows.Scan(&nextUserID, &digestsCreated, &rowsMarkedRead, &notificationIDsJSON, &affectedUserIDsJSON); err != nil {
 			_ = rows.Close()
 			return result, fmt.Errorf("scan notification digest batch result: %w", err)
 		}
@@ -72,6 +78,30 @@ func Run(ctx context.Context, db queryer, batchSize int, now time.Time) (Result,
 
 		result.DigestsCreated += digestsCreated
 		result.RowsMarkedRead += rowsMarkedRead
+		var notificationIDs []string
+		if err := json.Unmarshal([]byte(notificationIDsJSON), &notificationIDs); err != nil {
+			return result, fmt.Errorf("decode notification digest IDs: %w", err)
+		}
+		if int64(len(notificationIDs)) != digestsCreated {
+			return result, fmt.Errorf("notification digest ID count mismatch: ids=%d digests=%d", len(notificationIDs), digestsCreated)
+		}
+		result.NotificationIDs = append(result.NotificationIDs, notificationIDs...)
+		var affectedUserIDs []string
+		if err := json.Unmarshal([]byte(affectedUserIDsJSON), &affectedUserIDs); err != nil {
+			return result, fmt.Errorf("decode notification digest affected user IDs: %w", err)
+		}
+		for _, userID := range affectedUserIDs {
+			if userID == "" {
+				return result, fmt.Errorf("notification digest returned an empty affected user ID")
+			}
+			if _, exists := seenAffectedUsers[userID]; !exists {
+				seenAffectedUsers[userID] = struct{}{}
+				result.AffectedUserIDs = append(result.AffectedUserIDs, userID)
+			}
+		}
+		if rowsMarkedRead > 0 && len(affectedUserIDs) == 0 {
+			return result, fmt.Errorf("notification digest read-state IDs missing for %d updated rows", rowsMarkedRead)
+		}
 		if !nextUserID.Valid || nextUserID.String == "" {
 			break
 		}
@@ -200,10 +230,12 @@ updated AS (
     FROM eligible AS e
     INNER JOIN created AS c ON c."userId" = e."userId"
     WHERE n."id" = e."id"
-    RETURNING n."id"
+    RETURNING n."userId"
 )
 SELECT
     (SELECT MAX("userId") FROM selected) AS "lastUserId",
     (SELECT COUNT(*) FROM created)::bigint AS "digestsCreated",
-    (SELECT COUNT(*) FROM updated)::bigint AS "rowsMarkedRead"
+    (SELECT COUNT(*) FROM updated)::bigint AS "rowsMarkedRead",
+    COALESCE((SELECT json_agg("id")::text FROM created), '[]') AS "notificationIdsJson",
+    COALESCE((SELECT json_agg("userId")::text FROM (SELECT DISTINCT "userId" FROM updated ORDER BY "userId") affected), '[]') AS "affectedUserIdsJson"
 `

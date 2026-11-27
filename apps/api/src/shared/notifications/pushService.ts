@@ -11,6 +11,7 @@ import { pushSubscriptionsRepository } from './pushSubscriptionsRepository';
 // versa — same isolation pushService.notifyUser already gives each
 // individual browser subscription.
 import { fcmPushService } from './fcmPushService';
+import type { NotificationPushPayload } from '@marketplat/contracts';
 import {
   evaluateQuietHours,
   resolveQuietTimeZone as resolveQuietTimeZoneImpl,
@@ -54,26 +55,7 @@ function ensureConfigured(): boolean {
   return true;
 }
 
-export interface PushPayload {
-  title: string;
-  body: string;
-  /** Path the SW should open/focus on notificationclick, e.g. '/messages/abc123'. */
-  url?: string;
-  /** Collapses repeat notifications of the same kind (see sw.js's `renotify`). */
-  tag?: string;
-  /** Optional absolute image URL for rich notifications (Chrome/Android). */
-  image?: string;
-  /**
-   * When true, delivery is allowed even during the user's quiet hours
-   * if they opted into "allow urgent during quiet hours" (default on).
-   * Used for new messages.
-   */
-  urgent?: boolean;
-  /** Notification kind (e.g. 'NEW_MESSAGE') — lets the SW pick type-specific actions. */
-  type?: string;
-  /** Skip quiet-hours suppression (explicit user-triggered test push only). */
-  bypassQuietHours?: boolean;
-}
+export type PushPayload = NotificationPushPayload;
 
 // web-push's send rejects with a statusCode on the error object for
 // HTTP-level failures from the push service itself (as opposed to a

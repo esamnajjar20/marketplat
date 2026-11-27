@@ -46,7 +46,7 @@ func (c *scriptedDigestConn) QueryContext(_ context.Context, query string, args 
 	return &scriptedDigestRows{values: values}, nil
 }
 func (r *scriptedDigestRows) Columns() []string {
-	return []string{"lastUserId", "digestsCreated", "rowsMarkedRead"}
+	return []string{"lastUserId", "digestsCreated", "rowsMarkedRead", "notificationIdsJson", "affectedUserIdsJson"}
 }
 func (r *scriptedDigestRows) Close() error { return nil }
 func (r *scriptedDigestRows) Next(dest []driver.Value) error {
@@ -73,9 +73,9 @@ func openScriptedDigestDB(t *testing.T, results [][]driver.Value) (*sql.DB, *scr
 
 func TestRunUsesKeysetBatchesAndAggregatesDatabaseSide(t *testing.T) {
 	db, script := openScriptedDigestDB(t, [][]driver.Value{
-		{"user-a", int64(100), int64(540)},
-		{"user-b", int64(20), int64(87)},
-		{nil, int64(0), int64(0)},
+		{"user-a", int64(2), int64(540), `["n1","n2"]`, `["user-a"]`},
+		{"user-b", int64(1), int64(87), `["n3"]`, `["user-b"]`},
+		{nil, int64(0), int64(0), `[]`, `[]`},
 	})
 	now := time.Date(2026, time.October, 30, 8, 0, 0, 0, time.FixedZone("test", 2*60*60))
 
@@ -83,8 +83,14 @@ func TestRunUsesKeysetBatchesAndAggregatesDatabaseSide(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-	if result.DigestsCreated != 120 || result.RowsMarkedRead != 627 || result.Batches != 2 {
+	if result.DigestsCreated != 3 || result.RowsMarkedRead != 627 || result.Batches != 2 {
 		t.Fatalf("unexpected result: %+v", result)
+	}
+	if len(result.NotificationIDs) != 3 || result.NotificationIDs[0] != "n1" || result.NotificationIDs[2] != "n3" {
+		t.Fatalf("unexpected notification IDs: %#v", result.NotificationIDs)
+	}
+	if len(result.AffectedUserIDs) != 2 || result.AffectedUserIDs[0] != "user-a" || result.AffectedUserIDs[1] != "user-b" {
+		t.Fatalf("unexpected affected user IDs: %#v", result.AffectedUserIDs)
 	}
 	if len(script.queries) != 3 {
 		t.Fatalf("query count = %d, want 3", len(script.queries))
@@ -97,6 +103,7 @@ func TestRunUsesKeysetBatchesAndAggregatesDatabaseSide(t *testing.T) {
 		`ORDER BY n."userId" ASC`,
 		`LIMIT $2`,
 		`INSERT INTO "notifications"`,
+		`json_agg("id")`,
 		`'ملخص إشعاراتك'`,
 		`'digest', TRUE`,
 		`'sourceIds'`,
@@ -104,6 +111,9 @@ func TestRunUsesKeysetBatchesAndAggregatesDatabaseSide(t *testing.T) {
 		`FILTER (WHERE e.source_rank <= 50)`,
 		`UPDATE "notifications" AS n`,
 		`SET "readAt" = $3`,
+		`RETURNING n."userId"`,
+		`affectedUserIdsJson`,
+		`SELECT DISTINCT "userId" FROM updated`,
 	} {
 		if !strings.Contains(script.queries[0], required) {
 			t.Fatalf("digest SQL missing %q", required)
@@ -137,8 +147,8 @@ func TestRunRejectsInvalidBatchSizeBeforeDatabaseAccess(t *testing.T) {
 
 func TestRunRejectsNonAdvancingCursor(t *testing.T) {
 	db, _ := openScriptedDigestDB(t, [][]driver.Value{
-		{"user-a", int64(1), int64(2)},
-		{"user-a", int64(1), int64(2)},
+		{"user-a", int64(1), int64(2), `["n1"]`, `["user-a"]`},
+		{"user-a", int64(1), int64(2), `["n2"]`, `["user-a"]`},
 	})
 	_, err := Run(context.Background(), db, 100, time.Now())
 	if err == nil || !strings.Contains(err.Error(), "cursor did not advance") {

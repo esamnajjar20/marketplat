@@ -12,7 +12,7 @@ import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
-import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
+import { notificationDispatcher } from '../shared/notifications/notificationDispatcher';
 import { shutdownNotificationStream } from '../shared/realtime/notificationStream';
 
 const prisma = sharedPrisma;
@@ -72,7 +72,7 @@ async function refreshAdsCaches(): Promise<void> {
 }
 
 async function publishNotifications(notificationIds: string[]): Promise<void> {
-  await publishDurableNotifications(prisma, notificationIds, '[expire-ads]');
+  await notificationDispatcher.publishDurable(prisma, notificationIds, '[expire-ads]');
 }
 
 async function runExpressFallback(): Promise<'completed' | 'busy'> {
