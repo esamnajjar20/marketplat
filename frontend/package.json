@@ -13,6 +13,7 @@
     "and_chr >= 92"
   ],
   "scripts": {
+    "preinstall": "pnpm --dir .. --filter @marketplat/contracts build",
     "dev": "next dev",
     "build": "node scripts/generate-build-id.mts && next build && node scripts/generate-warming-manifest.mts",
     "build:cf": "node scripts/generate-build-id.mts && next build && node scripts/generate-warming-manifest.mts && opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion",
@@ -128,12 +129,12 @@
     "perf:home-first-render-audit": "node scripts/home-first-render-performance-audit.mts",
     "e2e:ci": "playwright test e2e/tests/marketplace-smoke.spec.ts e2e/tests/auth-form-validation.spec.ts e2e/tests/missing-business-journeys-mocked.spec.ts",
     "type-check:tests": "tsc --noEmit -p tsconfig.tests.json",
-    "predev": "node ../tools/sync-cache-artifacts.mjs",
-    "prebuild": "node ../tools/sync-cache-artifacts.mjs",
-    "pretype-check": "node ../tools/sync-cache-artifacts.mjs",
-    "pretest": "node ../tools/sync-cache-artifacts.mjs",
+    "predev": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
+    "prebuild": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
+    "pretype-check": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
+    "pretest": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
     "cache:layer-audit": "node ../tools/audit-cache-policy.mjs",
-    "prebuild:cf": "node ../tools/sync-cache-artifacts.mjs"
+    "prebuild:cf": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
@@ -168,7 +169,8 @@
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.3.0",
     "zod": "^3.25.0",
-    "zustand": "^5.0.15"
+    "zustand": "^5.0.15",
+    "@marketplat/contracts": "file:../packages/contracts"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.0.0",

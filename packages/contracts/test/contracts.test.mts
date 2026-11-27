@@ -18,6 +18,7 @@ test('contract package exports the current API envelopes and pagination primitiv
   const pagination = await readFile(resolve(root, 'src/pagination.ts'), 'utf8');
   assert.match(index, /api-response/);
   assert.match(index, /pagination/);
+  assert.match(index, /validation/);
   assert.match(api, /success: z\.literal\(true\)/);
   assert.match(api, /success: z\.literal\(false\)/);
   assert.match(api, /statusCode: z\.number\(\)\.int\(\)\.min\(400\)/);

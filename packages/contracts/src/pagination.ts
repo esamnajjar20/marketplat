@@ -1,26 +1,22 @@
 import { z } from 'zod';
 
-/**
- * Shared pagination query contract.
- * Mirrors apps/api/src/shared/http/pagination.ts exactly:
- * page is bounded to 1..1000 and limit to 1..100.
- */
-const numericQuery = (max: number) => z
-  .string()
-  .regex(/^\d+$/)
-  .optional()
-  .transform((value) => (value === undefined ? undefined : Number(value)))
-  .pipe(z.number().int().min(1).max(max).optional());
+/** Strictly parse query-string integers and enforce the limits shared by all apps. */
+const numericQuery = (max: number) => z.preprocess(
+  value => {
+    if (value === undefined) return undefined;
+    if (typeof value === 'number' && Number.isSafeInteger(value)) return value;
+    if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
+    return Number.NaN;
+  },
+  z.number().int().min(1).max(max).optional(),
+);
 
 export const paginationQuerySchema = z.object({
   page: numericQuery(1000),
   limit: numericQuery(100),
 });
 
-/**
- * Offset pagination is emitted by buildPaginationMeta; cursor endpoints may
- * additionally emit nextCursor and omit offset-only totals.
- */
+/** Offset pagination and cursor metadata are both represented without inventing totals. */
 export const paginationMetaSchema = z.object({
   page: z.number().int().min(1).max(1000).optional(),
   limit: z.number().int().min(1).max(100).optional(),

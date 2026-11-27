@@ -1,12 +1,10 @@
 import { z } from 'zod';
+import { displayNameSchema, passwordSchema, phoneE164Schema } from '@marketplat/contracts';
 
 export const updateProfileSchema = z.object({
   body: z.object({
-    name: z.string().min(2).max(100).optional(),
-    phone: z
-      .string()
-      .regex(/^\+?[0-9]{9,15}$/, 'Invalid phone number')
-      .optional(),
+    name: displayNameSchema.optional(),
+    phone: phoneE164Schema.optional(),
     city: z.string().max(100).optional(),
     bio: z.string().max(500).optional(),
     // L-6 (audit fix): avatarUrl removed. It was never actually
@@ -68,8 +66,6 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>['body'];
 // this, a user could set "12345678" via POST /users/me/password even
 // though register/reset-password reject it, silently bypassing the
 // weak-password protection we added in the auth module.
-import { passwordSchema } from '../auth/auth.validation';
-
 export const changePasswordSchema = z.object({
   body: z.object({
     currentPassword: z.string().min(1, 'Current password is required'),

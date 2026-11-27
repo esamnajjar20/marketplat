@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { latitudeSchema, longitudeSchema, storePhoneSchema } from '@marketplat/contracts';
 import { StoreStatus, StorePlan } from '@prisma/client';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 
@@ -48,11 +49,11 @@ export const createStoreSchema = z.object({
     description: z.string().min(10, 'Description must be at least 10 characters').max(1000),
     city: z.string().min(1, 'City is required').max(100),
     address: z.string().max(200).optional(),
-    phone: z.string().min(7, 'Phone number is too short').max(20, 'Phone number is too long'),
+    phone: storePhoneSchema,
     logoUrl: z.string().url('logoUrl must be a valid URL').optional(),
     coverImageUrl: z.string().url('coverImageUrl must be a valid URL').optional(),
-    latitude: z.coerce.number().min(-90).max(90).optional(),
-    longitude: z.coerce.number().min(-180).max(180).optional(),
+    latitude: latitudeSchema.optional(),
+    longitude: longitudeSchema.optional(),
     workingHours: workingHoursSchema.optional(),
     storeTypeId: z.string().min(1).optional(),
     attributes: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
@@ -67,11 +68,11 @@ export const updateStoreSchema = z.object({
     description: z.string().min(10).max(1000).optional(),
     city: z.string().min(1).max(100).optional(),
     address: z.string().max(200).nullable().optional(),
-    phone: z.string().min(7).max(20).optional(),
+    phone: storePhoneSchema.optional(),
     logoUrl: z.string().url().nullable().optional(),
     coverImageUrl: z.string().url().nullable().optional(),
-    latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
-    longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
+    latitude: latitudeSchema.nullable().optional(),
+    longitude: longitudeSchema.nullable().optional(),
     workingHours: workingHoursSchema.optional(),
     storeTypeId: z.string().min(1).optional(),
     attributes: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),

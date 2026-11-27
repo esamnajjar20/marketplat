@@ -1,10 +1,8 @@
 import { z } from 'zod';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
+import { optionalQueryBooleanSchema } from '@marketplat/contracts';
 
-const optionalQueryBoolean = z.preprocess(
-  value => (value === undefined ? undefined : value === 'true' || value === true),
-  z.boolean().optional()
-);
+const optionalQueryBoolean = optionalQueryBooleanSchema;
 
 /** أنواع Prisma NotificationType — تُبقى متوافقة مع الـ enum في schema. */
 // this enum was out of sync with

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AdStatus } from '@prisma/client';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
+import { optionalQueryBooleanSchema } from '@marketplat/contracts';
 
 export const adminGetAdsSchema = z.object({
   query: z.object({
@@ -19,10 +20,7 @@ export const adminGetUsersSchema = z.object({
   query: z.object({
     page: optionalQueryNumber(z.number().int().min(1)),
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
-    isActive: z
-      .enum(['true', 'false'])
-      .optional()
-      .transform(v => (v === undefined ? undefined : v === 'true')),
+    isActive: optionalQueryBooleanSchema,
     // BUGFIX: same issue as adminGetAdsSchema's `q` above — silently
     // stripped, so AdminUsersTable's search box did nothing.
     q: z.string().trim().min(1).max(200).optional(),

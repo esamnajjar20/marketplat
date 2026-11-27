@@ -4,6 +4,7 @@ import { z } from 'zod';
 // 1.1's comment said as much); now both import the same helper instead
 // of keeping two hand-synced copies.
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
+import { optionalQueryBooleanSchema } from '@marketplat/contracts';
 // FIX: was a local copy identical to stores.validation.ts's — see
 // paymentMethodSchema.ts's comment for the dedup rationale.
 import { storePaymentMethodSchema } from '../../../shared/utils/paymentMethodSchema';
@@ -12,15 +13,9 @@ export const adminGetSellersSchema = z.object({
   query: z.object({
     page: optionalQueryNumber(z.number().int().min(1)),
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
-    verified: z
-      .enum(['true', 'false'])
-      .optional()
-      .transform(v => (v === undefined ? undefined : v === 'true')),
+    verified: optionalQueryBooleanSchema,
     verificationStatus: z.enum(['UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED']).optional(),
-    suspended: z
-      .enum(['true', 'false'])
-      .optional()
-      .transform(v => (v === undefined ? undefined : v === 'true')),
+    suspended: optionalQueryBooleanSchema,
     q: z.string().trim().min(1).max(200).optional(),
   }),
 });

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+export { paginationQuerySchema, type PaginationQuery } from '@marketplat/contracts';
 
 export interface PaginationMeta {
   total: number;
@@ -65,29 +65,4 @@ export const getPaginationParams = (
   };
 };
 
-// A-03: reusable Zod schema for pagination query params
-export const paginationQuerySchema = z.object({
-  // .transform(Number) previously ran unconditionally,
-  // even when the field was absent — Number(undefined) is NaN, and piping
-  // NaN into z.number() fails validation despite that inner schema being
-  // .optional() (NaN is a number, not undefined, so .optional() never
-  // applies). That meant ANY request with no page/limit query params at
-  // all (not just a malformed one) incorrectly failed validation with a
-  // 400 — e.g. GET /stores/me/followed with no query string. Passing
-  // undefined straight through (skipping Number()) is what actually lets
-  // the field be legitimately omitted.
-  page: z
-    .string()
-    .regex(/^\d+$/)
-    .optional()
-    .transform(v => (v === undefined ? undefined : Number(v)))
-    .pipe(z.number().min(1).max(1000).optional()),
-  limit: z
-    .string()
-    .regex(/^\d+$/)
-    .optional()
-    .transform(v => (v === undefined ? undefined : Number(v)))
-    .pipe(z.number().min(1).max(100).optional()),
-});
-
-export type PaginationQuery = z.infer<typeof paginationQuerySchema>;
+// Pagination parsing is implemented once in @marketplat/contracts.

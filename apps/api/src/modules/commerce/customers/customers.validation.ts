@@ -1,13 +1,11 @@
 import { z } from 'zod';
 import { paginationQuerySchema } from '../../../shared/http/pagination';
+import { optionalNullableEmailSchema, optionalQueryBooleanSchema } from '@marketplat/contracts';
 
 export const listCustomersSchema = z.object({
   query: paginationQuerySchema.extend({
     q: z.string().trim().max(100).optional(),
-    dueOnly: z
-      .enum(['true', 'false'])
-      .transform(v => v === 'true')
-      .optional(),
+    dueOnly: optionalQueryBooleanSchema,
   }),
 });
 
@@ -17,7 +15,7 @@ export const createCustomerSchema = z.object({
   body: z.object({
     name: z.string().trim().min(1).max(160),
     phone: z.string().trim().max(40).optional().nullable(),
-    email: z.string().email().max(320).optional().nullable(),
+    email: optionalNullableEmailSchema,
     address: z.string().trim().max(500).optional().nullable(),
     note: z.string().trim().max(1000).optional().nullable(),
     tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),

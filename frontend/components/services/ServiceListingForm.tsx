@@ -46,6 +46,7 @@ import type {
   ServiceListingFormValues,
   ServiceTypeField,
 } from '@/types/service.types';
+import { serviceListingComposerFieldsSchema } from '@marketplat/contracts';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -302,15 +303,24 @@ export function ServiceListingForm({ mode, listing }: Props) {
 
   function validate(): boolean {
     const e: Errors = {};
-    if (!values.serviceTypeId) e.serviceTypeId = 'اختر مجال الخدمة';
-    if (!values.categoryId) e.categoryId = 'اختر تخصص الخدمة';
-    if (values.title.trim().length < 3) e.title = 'العنوان قصير جداً (3 أحرف على الأقل)';
-    if (values.description.trim().length < 10) e.description = 'الوصف قصير جداً (10 أحرف على الأقل)';
+    const result = serviceListingComposerFieldsSchema.safeParse({
+      serviceTypeId: values.serviceTypeId,
+      categoryId: values.categoryId,
+      title: values.title,
+      description: values.description,
+      pricingType: values.pricingType,
+      price: values.price,
+    });
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        const field = issue.path[0];
+        if (field === 'serviceTypeId' || field === 'categoryId' || field === 'title' || field === 'description' || field === 'price') {
+          if (!e[field]) e[field] = issue.message;
+        }
+      }
+    }
     const dynamicErrors = getDynamicFieldErrors();
     if (Object.keys(dynamicErrors).length > 0) e.attributes = dynamicErrors;
-    if (priceRequired && (!values.price || parseFloat(values.price) <= 0)) {
-      e.price = 'أدخل سعراً صحيحاً';
-    }
     // Gap #3 fix: edit mode now has a real image-replace flow, so the
     // "at least one image" rule applies to the combined staged +
     // existing set, not just create-mode's staged uploads.

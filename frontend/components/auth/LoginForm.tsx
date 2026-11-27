@@ -14,6 +14,7 @@ import { AuthDivider } from '@/components/auth/AuthDivider';
 import { ROUTES } from '@/lib/constants';
 import { getSafeRedirectPath } from '@/lib/cookies';
 import { getErrorMessage } from '@/lib/i18n/ar';
+import { loginFormSchema } from '@marketplat/contracts';
 
 // Backend codes googleCallback can attach to the failure redirect that have a
 // message worth showing on the login page (see lib/i18n/ar/errors.ts).
@@ -70,14 +71,15 @@ export function LoginForm() {
   const registerHref = from ? `${ROUTES.register}?from=${encodeURIComponent(from)}` : ROUTES.register;
 
   function validate() {
+    const result = loginFormSchema.safeParse({ email, password });
     const e: typeof errors = {};
-    if (!email.trim())    e.email    = 'البريد الإلكتروني مطلوب';
-    else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'بريد إلكتروني غير صالح';
-    // FIX V-01: backend loginSchema only requires a non-empty password
-    // (it's an existing-account login, not a strength check) — a client
-    // min(6) here could reject a legitimate, older, shorter password
-    // with a confusing client-only error before it even reaches the server.
-    if (!password)        e.password = 'كلمة المرور مطلوبة';
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        const field = issue.path[0];
+        if (field === 'email' || field === 'password') e[field] ??= issue.message;
+      }
+    }
+    // Login deliberately checks only a non-empty password; historical passwords are not re-strengthened.
     setErrors(e);
     // Move focus to the first invalid field so keyboard and screen-reader
     // users immediately know where to correct the form.

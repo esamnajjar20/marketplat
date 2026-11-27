@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { positiveMoneySchema } from '@marketplat/contracts';
 import { DiscountType } from '@prisma/client';
 
 export const createPromotionSchema = z.object({
@@ -8,10 +9,7 @@ export const createPromotionSchema = z.object({
       title: z.string().min(2, 'Title must be at least 2 characters').max(200),
       description: z.string().max(500).optional(),
       discountType: z.nativeEnum(DiscountType),
-      discountValue: z.coerce
-        .number()
-        .positive('discountValue must be a positive number')
-        .multipleOf(0.01, 'discountValue cannot have more than 2 decimal places'),
+      discountValue: positiveMoneySchema,
       startsAt: z.coerce.date(),
       endsAt: z.coerce.date(),
       maxUses: z.coerce.number().int().positive().optional(),
@@ -40,7 +38,7 @@ export const updatePromotionSchema = z.object({
       title: z.string().min(2).max(200).optional(),
       description: z.string().max(500).nullable().optional(),
       discountType: z.nativeEnum(DiscountType).optional(),
-      discountValue: z.coerce.number().positive().multipleOf(0.01).optional(),
+      discountValue: positiveMoneySchema.optional(),
       startsAt: z.coerce.date().optional(),
       endsAt: z.coerce.date().optional(),
       maxUses: z.coerce.number().int().positive().nullable().optional(),

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
+import { optionalQueryBooleanSchema, optionalQueryNumber, queryBooleanSchema } from '@marketplat/contracts';
 
 // FEAT: PublicProfileHeader's "مراسلة" button starts a thread directly
 // with a user, with no ad in context — adId stays the primary path
@@ -37,16 +37,10 @@ export const getConversationsSchema = z.object({
     page: optionalQueryNumber(z.number().int().min(1).max(1000)),
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
     /** include archived threads (default: exclude them) */
-    includeArchived: z.preprocess(
-      v => (v === undefined ? undefined : v === 'true' || v === true),
-      z.boolean().optional()
-    ),
+    includeArchived: optionalQueryBooleanSchema,
     /** only archived */
     role: z.enum(['buying', 'selling']).optional(),
-    archivedOnly: z.preprocess(
-      v => (v === undefined ? undefined : v === 'true' || v === true),
-      z.boolean().optional()
-    ),
+    archivedOnly: optionalQueryBooleanSchema,
   }),
 });
 
@@ -76,7 +70,7 @@ export const getMessagesSchema = z.object({
     // Opaque base64url cursor produced by the messages endpoint.
     before: z.string().min(1).max(300).optional(),
     // Cursor clients need only nextCursor; skip the expensive full-thread COUNT.
-    cursor: z.preprocess(v => v === true || v === 'true' || v === '1', z.boolean()).optional(),
+    cursor: queryBooleanSchema.optional(),
   }),
 });
 

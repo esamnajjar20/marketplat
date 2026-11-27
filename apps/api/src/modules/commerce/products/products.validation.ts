@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalQueryBooleanSchema, positiveMoneySchema, nonNegativeMoneySchema } from '@marketplat/contracts';
 import { ProductAvailability, ProductStatus } from '@prisma/client';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
@@ -21,13 +22,10 @@ export const createProductSchema = z.object({
       categoryId: z.string().min(1, 'categoryId is required'),
       name: z.string().min(2, 'Product name must be at least 2 characters').max(200),
       description: z.string().min(10, 'Description must be at least 10 characters').max(2000),
-      price: z.coerce
-        .number()
-        .positive('Price must be a positive number')
-        .multipleOf(0.01, 'Price cannot have more than 2 decimal places'),
-      discountPrice: z.coerce.number().positive().multipleOf(0.01).optional(),
-      wholesalePrice: z.coerce.number().positive().multipleOf(0.01).optional(),
-      costPrice: z.coerce.number().nonnegative().multipleOf(0.01).optional(),
+      price: positiveMoneySchema,
+      discountPrice: positiveMoneySchema.optional(),
+      wholesalePrice: positiveMoneySchema.optional(),
+      costPrice: nonNegativeMoneySchema.optional(),
       wholesaleMinQty: z.coerce.number().int().positive().optional(),
       availability: z.nativeEnum(ProductAvailability).default('IN_STOCK'),
       stockQuantity: z.coerce.number().int().min(0).max(1000000).optional(),
@@ -57,10 +55,10 @@ export const updateProductSchema = z.object({
     categoryId: z.string().min(1).optional(),
     name: z.string().min(2).max(200).optional(),
     description: z.string().min(10).max(2000).optional(),
-    price: z.coerce.number().positive().multipleOf(0.01).optional(),
-    discountPrice: z.coerce.number().positive().multipleOf(0.01).nullable().optional(),
-    wholesalePrice: z.coerce.number().positive().multipleOf(0.01).nullable().optional(),
-    costPrice: z.coerce.number().nonnegative().multipleOf(0.01).nullable().optional(),
+    price: positiveMoneySchema.optional(),
+    discountPrice: positiveMoneySchema.nullable().optional(),
+    wholesalePrice: positiveMoneySchema.nullable().optional(),
+    costPrice: nonNegativeMoneySchema.nullable().optional(),
     wholesaleMinQty: z.coerce.number().int().positive().nullable().optional(),
     availability: z.nativeEnum(ProductAvailability).optional(),
     stockQuantity: z.coerce.number().int().min(0).max(1000000).nullable().optional(),
@@ -95,10 +93,7 @@ export const getProductsSchema = z.object({
       // filtering client-side. Query-string booleans arrive as the
       // string "true"/"false", same coercion products.controller.ts's
       // callers already rely on elsewhere in this schema.
-      hasPromotion: z.preprocess(
-        value => (value === undefined ? undefined : value === 'true'),
-        z.boolean().optional()
-      ),
+      hasPromotion: optionalQueryBooleanSchema,
     })
     // see ads.validation.ts's getAdsSchema refine for the
     // same rationale — same silent-empty-result bug here.

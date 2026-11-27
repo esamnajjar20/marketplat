@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { nonNegativeMoneySchema, positiveMoneySchema, requestFieldsSchema } from '@marketplat/contracts';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
 
@@ -9,12 +10,9 @@ const attachedImageUrlSchema = z.string().url().refine(
 );
 
 export const createRequestSchema = z.object({
-  body: z
-    .object({
+  body: requestFieldsSchema
+    .extend({
       type: requestTypeEnum,
-      categoryId: z.string().min(1, 'categoryId is required'),
-      title: z.string().min(5, 'Title must be at least 5 characters').max(150),
-      description: z.string().min(10, 'Description must be at least 10 characters').max(1000),
       city: z.string().min(1).max(100).optional(),
       attachedImages: z.array(attachedImageUrlSchema).max(5, 'At most 5 attached images').optional(),
       directImagePublicIds: directImagePublicIdsSchema.refine(
@@ -22,22 +20,22 @@ export const createRequestSchema = z.object({
         'At most 5 direct image uploads are allowed for a request'
       ),
       // Optional budgets — product decision: not required for every type.
-      budgetMin: z.coerce.number().nonnegative().multipleOf(0.01).optional(),
-      budgetMax: z.coerce.number().positive().multipleOf(0.01).optional(),
+      budgetMin: nonNegativeMoneySchema.optional(),
+      budgetMax: positiveMoneySchema.optional(),
       attributes: z.record(z.unknown()).optional(),
       /** Days until expiry; default applied in service if omitted (14). */
       expiresInDays: z.coerce.number().int().min(1).max(60).optional(),
       serviceTypeId: z.string().min(1).optional(),
     })
     .refine(
-      b => b.budgetMin === undefined || b.budgetMax === undefined || b.budgetMin <= b.budgetMax,
+      body => body.budgetMin === undefined || body.budgetMax === undefined || body.budgetMin <= body.budgetMax,
       { message: 'budgetMin must be <= budgetMax', path: ['budgetMin'] }
     )
-    .refine(b => b.serviceTypeId === undefined || b.type === 'SERVICE', {
+    .refine(body => body.serviceTypeId === undefined || body.type === 'SERVICE', {
       message: 'serviceTypeId requires type=SERVICE',
       path: ['serviceTypeId'],
     })
-    .refine(b => !(b.attachedImages?.length && b.directImagePublicIds?.length), {
+    .refine(body => !(body.attachedImages?.length && body.directImagePublicIds?.length), {
       message: 'Use attachedImages or directImagePublicIds, not both',
       path: ['directImagePublicIds'],
     }),
@@ -59,8 +57,8 @@ export const getOpenRequestsSchema = z.object({
       limit: optionalQueryNumber(z.number().int().min(1).max(100)),
       type: requestTypeEnum.optional(),
       categoryId: z.string().min(1).optional(),
-      serviceTypeId: z.string().min(1).optional(),
-      city: z.string().min(1).optional(),
+    serviceTypeId: z.string().min(1).optional(),
+    city: z.string().min(1).optional(),
       q: z.string().min(1).max(100).optional(),
       sort: openRequestSortEnum.optional(),
     })
@@ -98,7 +96,7 @@ export type GetMyOffersQuery = z.infer<typeof getMyOffersSchema>['query'];
 export const submitOfferSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Request ID is required') }),
   body: z.object({
-    price: z.coerce.number().positive().multipleOf(0.01),
+    price: positiveMoneySchema,
     message: z.string().max(1000).optional(),
     meta: z.record(z.unknown()).optional(),
   }),

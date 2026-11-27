@@ -18,10 +18,10 @@ describe('shared form validation schemas', () => {
     expect(emailSchema.safeParse('seller@').success).toBe(false);
   });
 
-  it('enforces the minimum password length without silently trimming it', () => {
+  it('enforces the shared password policy without trimming password input', () => {
     expect(passwordSchema.safeParse('1234567').success).toBe(false);
     expect(passwordSchema.safeParse('12345678').success).toBe(false);
-    expect(passwordSchema.safeParse(' 123456 ').success).toBe(false);
+    expect(passwordSchema.parse('  Correct-Horse-73!  ')).toBe('  Correct-Horse-73!  ');
     expect(passwordSchema.safeParse('Correct-Horse-73!').success).toBe(true);
     expect(passwordSchema.safeParse('ThisPasswordIsLongerThanOneHundredCharacters-'.repeat(3)).success).toBe(false);
   });
@@ -36,14 +36,15 @@ describe('shared form validation schemas', () => {
 
   it('accepts optional empty phone and city values during registration', () => {
     expect(registerSchema.safeParse({
-      name: ' Seller ', email: ' seller@example.com ', password: '12345678', phone: '', city: '',
+      name: ' Seller ', email: ' seller@example.com ', password: 'Correct-Horse-73!', phone: '', city: '',
     })).toMatchObject({ success: true, data: { name: 'Seller', email: 'seller@example.com' } });
   });
 
   it('rejects too-short names and names longer than the supported limit', () => {
-    const base = { email: 'a@b.com', password: '12345678' };
+    const base = { email: 'a@b.com', password: 'Correct-Horse-73!' };
     expect(registerSchema.safeParse({ ...base, name: 'A' }).success).toBe(false);
-    expect(registerSchema.safeParse({ ...base, name: 'N'.repeat(81) }).success).toBe(false);
+    expect(registerSchema.safeParse({ ...base, name: 'N'.repeat(81) }).success).toBe(true);
+    expect(registerSchema.safeParse({ ...base, name: 'N'.repeat(101) }).success).toBe(false);
   });
 
   it('allows a draft without a price but rejects negative and non-numeric prices', () => {

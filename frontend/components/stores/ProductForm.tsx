@@ -41,6 +41,7 @@ import { toast } from 'sonner';
 import { ProductFormPreview } from '@/components/stores/ProductFormPreview';
 import type { Product, ProductAvailability, UpdateProductPayload, ProductFormValues } from '@/types/product.types';
 import { getStoreTypeLabels, type StoreAttributes, type StoreTypeField } from '@/types/store.types';
+import { productComposerFieldsSchema } from '@marketplat/contracts';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -289,19 +290,23 @@ export function ProductForm({ mode, product }: Props) {
 
   function validate(): boolean {
     const e: Errors = {};
-    if (!values.categoryId) e.categoryId = 'اختر فئة المنتج';
-    if (values.name.trim().length < 2) e.name = 'اسم المنتج قصير جداً';
-    if (values.description.trim().length < 10) e.description = 'الوصف قصير جداً (10 أحرف على الأقل)';
-    if (!values.price || parseFloat(values.price) <= 0) e.price = 'أدخل سعراً صحيحاً';
-    if (
-      values.discountPrice &&
-      values.price &&
-      parseFloat(values.discountPrice) >= parseFloat(values.price)
-    ) {
-      e.discountPrice = 'يجب أن يكون سعر الخصم أقل من السعر الأصلي';
-    }
-    if ((values.wholesalePrice && !values.wholesaleMinQty) || (!values.wholesalePrice && values.wholesaleMinQty)) {
-      e.wholesalePrice = 'أدخل سعر الجملة والحد الأدنى للكمية معاً';
+    const result = productComposerFieldsSchema.safeParse({
+      categoryId: values.categoryId,
+      name: values.name,
+      description: values.description,
+      price: values.price,
+      discountPrice: values.discountPrice,
+      wholesalePrice: values.wholesalePrice,
+      wholesaleMinQty: values.wholesaleMinQty,
+    });
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        const field = issue.path[0];
+        if (field === 'categoryId' || field === 'name' || field === 'description'
+          || field === 'price' || field === 'discountPrice' || field === 'wholesalePrice') {
+          if (!e[field]) e[field] = issue.message;
+        }
+      }
     }
     for (const field of productFields) {
       if (!field.required) continue;

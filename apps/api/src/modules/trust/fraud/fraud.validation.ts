@@ -1,15 +1,6 @@
 import { z } from 'zod';
 import { FraudSignalType } from '@prisma/client';
-
-const optionalQueryNumber = (schema: z.ZodNumber) =>
-  z.string().regex(/^\d+$/).transform(Number).pipe(schema).optional();
-
-const optionalQueryBoolean = () =>
-  z
-    .enum(['true', 'false'])
-    .transform(v => v === 'true')
-    .optional();
-
+import { optionalQueryBooleanSchema, optionalQueryNumber } from '@marketplat/contracts';
 export const getFlaggedAdsSchema = z.object({
   query: z.object({
     page: optionalQueryNumber(z.number().int().min(1).max(1000)),
@@ -24,7 +15,7 @@ export const getFraudSignalsSchema = z.object({
     type: z.nativeEnum(FraudSignalType).optional(),
     userId: z.string().trim().min(1).optional(),
     adId: z.string().trim().min(1).optional(),
-    reviewed: optionalQueryBoolean(),
+    reviewed: optionalQueryBooleanSchema,
   }),
 });
 

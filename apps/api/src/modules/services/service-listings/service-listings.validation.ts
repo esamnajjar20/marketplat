@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { positiveMoneySchema } from '@marketplat/contracts';
 import { ServicePricingType, ServiceLocationType, ServiceListingStatus } from '@prisma/client';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
@@ -39,10 +40,7 @@ export const createServiceListingSchema = z.object({
       title: z.string().min(3, 'Title must be at least 3 characters').max(200),
       description: z.string().min(10, 'Description must be at least 10 characters').max(2000),
       pricingType: z.nativeEnum(ServicePricingType).default('NEGOTIABLE'),
-      price: z.coerce
-        .number()
-        .positive('Price must be a positive number')
-        .multipleOf(0.01, 'Price cannot have more than 2 decimal places')
+      price: positiveMoneySchema
         .optional(),
       durationEstimate: z.string().max(100).optional(),
       attributes: serviceAttributesSchema,
@@ -78,7 +76,7 @@ export const updateServiceListingSchema = z.object({
       title: z.string().min(3).max(200).optional(),
       description: z.string().min(10).max(2000).optional(),
       pricingType: z.nativeEnum(ServicePricingType).optional(),
-      price: z.coerce.number().positive().multipleOf(0.01).nullable().optional(),
+      price: positiveMoneySchema.nullable().optional(),
       durationEstimate: z.string().max(100).nullable().optional(),
       attributes: serviceAttributesSchema,
       serviceLocation: z.nativeEnum(ServiceLocationType).optional(),

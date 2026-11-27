@@ -73,9 +73,11 @@
     "audit:db-query-phase5": "node scripts/prisma-query-phase5-audit.mts",
     "audit:db-query-phase6": "node scripts/prisma-query-phase6-audit.mts",
     "profile:db-queries": "node scripts/profile-prisma-metrics.mts",
-    "prebuild": "node ../../tools/sync-cache-artifacts.mjs",
-    "pretype-check": "node ../../tools/sync-cache-artifacts.mjs",
-    "pretest": "node ../../tools/sync-cache-artifacts.mjs"
+    "prebuild": "pnpm --dir ../.. --filter @marketplat/contracts build && node ../../tools/sync-cache-artifacts.mjs",
+    "pretype-check": "pnpm --dir ../.. --filter @marketplat/contracts build && node ../../tools/sync-cache-artifacts.mjs",
+    "pretest": "pnpm --dir ../.. --filter @marketplat/contracts build && node ../../tools/sync-cache-artifacts.mjs",
+    "predev": "pnpm --dir ../.. --filter @marketplat/contracts build",
+    "prestart": "pnpm --dir ../.. --filter @marketplat/contracts build"
   },
   "lint-staged": {
     "src/**/*.ts": [
@@ -115,7 +117,8 @@
     "winston-daily-rotate-file": "^4.7.1",
     "winston-transport": "^4.7.0",
     "zod": "3.22.0",
-    "serverless-http": "^3.2.0"
+    "serverless-http": "^3.2.0",
+    "@marketplat/contracts": "workspace:*"
   },
   "optionalDependencies": {
     "bcrypt": "^5.1.1"

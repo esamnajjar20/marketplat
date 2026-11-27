@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { positiveMoneySchema, nonNegativeMoneySchema } from '@marketplat/contracts';
 import {
   SaleEntityType,
   SalePaymentStatus,
@@ -9,8 +10,8 @@ import {
 import { paginationQuerySchema } from '../../../shared/http/pagination';
 
 const MAX_MONEY = 99_999_999.99; // Prisma Decimal(10,2) storage limit
-const money = z.coerce.number().finite().nonnegative().max(MAX_MONEY).multipleOf(0.01);
-const positiveMoney = z.coerce.number().finite().positive().max(MAX_MONEY).multipleOf(0.01);
+const money = nonNegativeMoneySchema.max(MAX_MONEY);
+const positiveMoney = positiveMoneySchema.max(MAX_MONEY);
 
 export const createSaleSchema = z.object({
   body: z

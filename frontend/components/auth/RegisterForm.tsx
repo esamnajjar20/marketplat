@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 import { AuthDivider } from '@/components/auth/AuthDivider';
 import { ROUTES, CITIES } from '@/lib/constants';
-import { getPasswordPolicyError } from '../../../shared/password-policy';
+import { registerFormSchema } from '@marketplat/contracts';
 
 interface Errors {
   name?: string; email?: string; password?: string; confirmPassword?: string; phone?: string;
@@ -73,21 +73,21 @@ export function RegisterForm() {
   }
 
   function computeErrors(): Errors {
-    const e: Errors = {};
-    if (!name.trim())            e.name = 'الاسم الكامل مطلوب';
-    else if (name.trim().length < 2) e.name = 'الاسم يجب أن يكون حرفين على الأقل';
-    if (!email.trim())   e.email    = 'البريد الإلكتروني مطلوب';
-    else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'بريد إلكتروني غير صالح';
-    if (!password)       e.password = 'كلمة المرور مطلوبة';
-    else e.password = getPasswordPolicyError(password) ?? undefined;
-    if (!confirmPassword)              e.confirmPassword = 'تأكيد كلمة المرور مطلوب';
-    else if (confirmPassword !== password) e.confirmPassword = 'كلمتا المرور غير متطابقتين';
-    // UX-03 FIX: was /^[0-9+]{9,15}$/ — allowed '+' anywhere/multiple times
-    // (e.g. "12+34567890"), which the backend's /^\+?[0-9]{9,15}$/
-    // (auth.validation.ts) rejects. Aligned so a value that passes here
-    // always passes server-side too, instead of surfacing as a late 400.
-    if (phone && !/^\+?[0-9]{9,15}$/.test(phone)) e.phone = 'رقم هاتف غير صالح';
-    return e;
+    const result = registerFormSchema.safeParse({ name, email, password, phone, city, confirmPassword });
+    const errors: Errors = {};
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        const field = issue.path[0];
+        if (
+          field === 'name' || field === 'email' || field === 'password' ||
+          field === 'phone' || field === 'confirmPassword'
+        ) {
+          errors[field] ??= issue.message;
+        }
+      }
+    }
+    if (!confirmPassword) errors.confirmPassword = 'تأكيد كلمة المرور مطلوب';
+    return errors;
   }
 
   function handleBlur(field: keyof Errors) {
@@ -103,17 +103,12 @@ export function RegisterForm() {
     return Object.keys(e).length === 0;
   }
 
-  // UX-FIX: mirrors validate()'s required-field rules (name/email/
-  // password/confirmPassword) without its side effects, so the submit
-  // button only becomes tappable once the form could plausibly pass.
-  // phone stays excluded — it's optional per validate() itself.
+  // Keep the submit affordance aligned with the shared schema without
+  // mutating form state. Phone and city are optional; non-empty values
+  // still have to satisfy the same shared constraints as the API.
   const isFormIncomplete =
-    !name.trim() ||
-    !email.trim() ||
-    !password ||
-    Boolean(getPasswordPolicyError(password)) ||
-    !confirmPassword ||
-    confirmPassword !== password;
+    !registerFormSchema.safeParse({ name, email, password, phone, city, confirmPassword }).success ||
+    !confirmPassword;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

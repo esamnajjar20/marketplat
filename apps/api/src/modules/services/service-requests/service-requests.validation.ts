@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { positiveMoneySchema } from '@marketplat/contracts';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 
 export const createServiceRequestSchema = z.object({
@@ -19,8 +20,8 @@ export const respondToServiceRequestSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({
     action: z.enum(['ACCEPTED', 'REJECTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'DISPUTED']),
-    quotedPrice: z.coerce.number().positive().multipleOf(0.01).optional(),
-    agreedPrice: z.coerce.number().positive().multipleOf(0.01).optional(),
+    quotedPrice: positiveMoneySchema.optional(),
+    agreedPrice: positiveMoneySchema.optional(),
     disputeReason: z.string().trim().min(10).max(1000).optional(),
   }),
 });

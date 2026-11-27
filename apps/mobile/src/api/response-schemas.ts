@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { emailSchema, paginationMetaSchema } from '@marketplat/contracts';
 
 /** Success envelope schemas intentionally allow forward-compatible additional backend fields. */
 export const authUserResponseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  email: z.string().email(),
+  email: emailSchema,
   role: z.string().min(1),
 }).passthrough();
 
@@ -58,15 +59,7 @@ export const criticalOrderListEnvelopeResponseSchema = z.object({
 }).passthrough();
 
 const optionalNullableString = z.string().nullable().optional();
-const paginationResponseSchema = z.object({
-  page: z.number().finite().int().positive().optional(),
-  limit: z.number().finite().int().positive().optional(),
-  total: z.number().finite().nonnegative().optional(),
-  totalPages: z.number().finite().int().nonnegative().optional(),
-  hasNextPage: z.boolean().optional(),
-  hasPrevPage: z.boolean().optional(),
-  nextCursor: z.string().nullable().optional(),
-}).passthrough();
+const paginationResponseSchema = paginationMetaSchema;
 const mobileApiMetaSchema = z.object({ pagination: paginationResponseSchema.optional() }).passthrough();
 
 /** Minimal-but-runtime-checked contracts for high-volume messaging endpoints. */

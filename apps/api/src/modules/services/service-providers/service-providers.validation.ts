@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { contactPhoneSchema, latitudeNumberSchema, longitudeNumberSchema, latitudeSchema, longitudeSchema } from '@marketplat/contracts';
 
 // UNIFY-PAYMENTS: no local storePaymentMethodSchema here anymore — a
 // service provider's payment methods are now just its parent seller's
@@ -41,9 +42,9 @@ export const createServiceProviderSchema = z.object({
       .max(30, 'At most 30 service area cities')
       .transform(cities => Array.from(new Set(cities))),
     workingHours: workingHoursSchema,
-    contactPhone: z.string().min(6, 'contactPhone is required').max(30),
-    latitude: z.number().min(-90).max(90).optional(),
-    longitude: z.number().min(-180).max(180).optional(),
+    contactPhone: contactPhoneSchema,
+    latitude: latitudeNumberSchema.optional(),
+    longitude: longitudeNumberSchema.optional(),
   }),
 });
 
@@ -62,10 +63,10 @@ export const updateServiceProviderSchema = z.object({
       .transform(cities => Array.from(new Set(cities)))
       .optional(),
     workingHours: workingHoursSchema.optional(),
-    contactPhone: z.string().min(6).max(30).optional(),
+    contactPhone: contactPhoneSchema.optional(),
     availabilityStatus: z.enum(['AVAILABLE', 'BUSY', 'UNAVAILABLE']).optional(),
-    latitude: z.number().min(-90).max(90).nullable().optional(),
-    longitude: z.number().min(-180).max(180).nullable().optional(),
+    latitude: latitudeNumberSchema.nullable().optional(),
+    longitude: longitudeNumberSchema.nullable().optional(),
   }),
 });
 
@@ -98,8 +99,8 @@ export type GetServiceProvidersQuery = z.infer<typeof getServiceProvidersSchema>
 // full-table Haversine scans.
 export const nearbyServiceProvidersSchema = z.object({
   query: z.object({
-    lat: z.coerce.number().min(-90).max(90),
-    lng: z.coerce.number().min(-180).max(180),
+    lat: latitudeSchema,
+    lng: longitudeSchema,
     radius: z.coerce.number().min(0.5).max(100).default(10),
     page: z.coerce.number().int().min(1).max(1000).optional(),
     limit: z.coerce.number().int().min(1).max(100).optional(),

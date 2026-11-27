@@ -34,6 +34,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { reconcileImages } from '@/lib/reconcileImages';
 import type { Ad, AdFormValues, AdFormMode, UpdateAdPayload } from '@/types/ad.types';
+import { adComposerFieldsSchema } from '@marketplat/contracts';
 import { toast } from 'sonner';
 
 interface Props {
@@ -270,11 +271,19 @@ export function AdForm({ mode, ad }: Props) {
   // below now just calls this for every field at once on submit.
   function computeErrors(): Errors {
     const e: Errors = {};
-    if (!values.title.trim())        e.title       = 'عنوان الإعلان مطلوب';
-    else if (values.title.length < 5) e.title      = 'العنوان قصير جداً (5 أحرف على الأقل)';
-    if (!values.description.trim())  e.description = 'وصف الإعلان مطلوب';
-    else if (values.description.length < 20) e.description = 'الوصف قصير جداً (20 حرفاً على الأقل)';
-    if (!values.city)                e.city        = 'المدينة مطلوبة';
+    const result = adComposerFieldsSchema.safeParse({
+      title: values.title,
+      description: values.description,
+      city: values.city,
+    });
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        const field = issue.path[0];
+        if ((field === 'title' || field === 'description' || field === 'city') && !e[field]) {
+          e[field] = issue.message;
+        }
+      }
+    }
     // FIX BUG-IMG-REQ-01: re-enabled to match backend/ads.controller.ts's
     // createAd, which already requires at least one image unconditionally
     // (see TRACK-IMG-HOSTING / FIX PROD-AUDIT-01 there) — this had been

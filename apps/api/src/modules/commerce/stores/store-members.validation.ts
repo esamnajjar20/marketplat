@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { StoreMemberRole, StoreMemberStatus } from '@prisma/client';
+import { emailSchema } from '@marketplat/contracts';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 
 export const inviteStoreMemberSchema = z.object({
@@ -7,7 +8,7 @@ export const inviteStoreMemberSchema = z.object({
     id: z.string().min(1),
   }),
   body: z.object({
-    email: z.string().email().max(255),
+    email: emailSchema,
     role: z.nativeEnum(StoreMemberRole),
   }),
 });

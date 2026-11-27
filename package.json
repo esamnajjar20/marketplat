@@ -53,6 +53,7 @@
     "lint": "pnpm run lint:all",
     "type-check": "pnpm run type-check:all",
     "cache:sync": "node tools/sync-cache-artifacts.mjs",
-    "cache:layer-audit": "node tools/audit-cache-policy.mjs"
+    "cache:layer-audit": "node tools/audit-cache-policy.mjs",
+    "build:contracts": "pnpm --filter @marketplat/contracts build"
   }
 }

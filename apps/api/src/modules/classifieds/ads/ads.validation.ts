@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { latitudeSchema, longitudeSchema, parseFormBoolean, positiveMoneySchema } from '@marketplat/contracts';
 import { AdStatus, AdCondition } from '@prisma/client';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
@@ -14,34 +15,25 @@ import { directImagePublicIdsSchema } from '../../../shared/media/directImageVal
  * /ads/:id's plain-JSON body (updateAd doesn't use FormData, so it
  * never hit this bug, but shares the same schema regardless).
  */
-const preprocessFormBoolean = (value: unknown) => {
-  if (typeof value === 'string') {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-  }
-  return value;
-};
+
 
 export const createAdSchema = z.object({
   body: z.object({
     title: z.string().min(3, 'Title must be at least 3 characters').max(200),
     description: z.string().min(10, 'Description must be at least 10 characters').max(5000),
     // D-03: Prisma Decimal(10,2) — use string coercion to avoid IEEE 754 float precision loss
-    price: z.coerce
-      .number()
-      .positive('Price must be a positive number')
-      .multipleOf(0.01, 'Price cannot have more than 2 decimal places')
+    price: positiveMoneySchema
       .optional(),
     city: z.string().min(2).max(100),
     categoryId: z.string().optional(),
     condition: z.nativeEnum(AdCondition).optional(),
-    isNegotiable: z.preprocess(preprocessFormBoolean, z.boolean().default(false)),
+    isNegotiable: z.preprocess(parseFormBoolean, z.boolean().default(false)),
     // TRACK-NEARBY-SEARCH: optional precise pin, same bounds as
     // service-providers.validation.ts's own latitude/longitude —
     // multipart form data, so these arrive as strings; z.coerce
     // handles that the same way `price` above does.
-    latitude: z.coerce.number().min(-90).max(90).optional(),
-    longitude: z.coerce.number().min(-180).max(180).optional(),
+    latitude: latitudeSchema.optional(),
+    longitude: longitudeSchema.optional(),
     // Optional store publisher — empty string from FormData → undefined
     storeId: z.preprocess(
       v => (v === '' || v === null || v === undefined ? undefined : v),
@@ -63,14 +55,14 @@ export const updateAdSchema = z.object({
   body: z.object({
     title: z.string().min(3).max(200).optional(),
     description: z.string().min(10).max(5000).optional(),
-    price: z.coerce.number().positive().multipleOf(0.01).nullable().optional(),
+    price: positiveMoneySchema.nullable().optional(),
     city: z.string().min(2).max(100).optional(),
     categoryId: z.string().nullable().optional(),
     condition: z.nativeEnum(AdCondition).nullable().optional(),
-    isNegotiable: z.preprocess(preprocessFormBoolean, z.boolean()).optional(),
+    isNegotiable: z.preprocess(parseFormBoolean, z.boolean()).optional(),
     status: z.nativeEnum(AdStatus).optional(),
-    latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
-    longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
+    latitude: latitudeSchema.nullable().optional(),
+    longitude: longitudeSchema.nullable().optional(),
   }),
 });
 
@@ -98,7 +90,7 @@ const adsQueryBaseSchema = z.object({
   // over-fetching a page and filtering client-side (see FeaturedAds.tsx).
   // Query strings arrive as "true"/"false" strings, same shape as
   // isNegotiable above — reuses the same coercion helper.
-  isFeatured: z.preprocess(preprocessFormBoolean, z.boolean()).optional(),
+  isFeatured: z.preprocess(parseFormBoolean, z.boolean()).optional(),
 });
 
 // ads.repository.ts's findMany already branches on
