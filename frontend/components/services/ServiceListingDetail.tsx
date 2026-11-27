@@ -31,6 +31,7 @@ import {
   STICKY_BAR,
 } from '@/components/shared/detail/detailTokens';
 import type { ServiceListingWithProvider, ServiceLocationType } from '@/types/service.types';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 interface Props {
   listing: ServiceListingWithProvider;
@@ -38,11 +39,7 @@ interface Props {
   action?: ReactNode;
 }
 
-const LOCATION_LABELS: Record<ServiceLocationType, string> = {
-  AT_CUSTOMER: 'لدى العميل',
-  AT_PROVIDER: 'لدى مقدم الخدمة',
-  REMOTE: 'عن بُعد',
-};
+const LOCATION_LABELS: Record<ServiceLocationType, string> = DOMAIN_STATUS_LABELS.serviceLocation;
 
 export function ServiceListingDetail({ listing, action }: Props) {
   const stickyCta = useStickyCtaVisible();

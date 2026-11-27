@@ -1,3 +1,5 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
+import type { AdCondition, AdStatus } from '@marketplat/contracts';
 import { apiRequest } from '@/api/client';
 import { buildFilterParams } from '../../../../../shared/filters';
 import { uploadMobileImagesDirect } from '../media/direct-upload.api';
@@ -5,7 +7,7 @@ import { criticalAdEnvelopeResponseSchema } from '@/api/response-schemas';
 import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry } from '@/storage/public-cache';
 import type { AdListItem } from './ads.api';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
+type Envelope<T> = SharedApiEnvelope<T>;
 
 /** Keep both feature-level offline snapshots and transport-level public GET cache coherent. */
 async function invalidateAdCaches(adId?: string): Promise<void> {
@@ -19,7 +21,7 @@ async function invalidateAdCaches(adId?: string): Promise<void> {
   if (adId?.trim()) jobs.push(deletePublicCacheEntry(`ad-detail:${adId.trim()}`));
   await Promise.all(jobs);
 }
-export type ManagedAd = AdListItem & { description?: string | null; status?: string };
+export type ManagedAd = AdListItem & { description?: string | null; status?: AdStatus };
 
 /** Thrown by updateAd when the fields PATCH succeeded but the image upload failed. */
 export class PartialAdUpdateError extends Error {
@@ -38,7 +40,7 @@ export type AdDraft = {
   city: string;
   categoryId: string;
   isNegotiable: boolean;
-  condition?: 'NEW' | 'USED' | 'REFURBISHED' | '';
+  condition?: AdCondition | '';
   storeId?: string | null;
 };
 

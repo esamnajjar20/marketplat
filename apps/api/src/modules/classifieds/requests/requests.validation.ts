@@ -1,9 +1,8 @@
 import { z } from 'zod';
-import { nonNegativeMoneySchema, positiveMoneySchema, requestFieldsSchema } from '@marketplat/contracts';
+import { nonNegativeMoneySchema, positiveMoneySchema, requestFieldsSchema, requestTypeSchema, requestStatusSchema, requestOfferStatusSchema } from '@marketplat/contracts';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 import { directImagePublicIdsSchema } from '../../../shared/media/directImageValidation';
 
-const requestTypeEnum = z.enum(['SERVICE', 'PRODUCT', 'RENTAL']);
 const attachedImageUrlSchema = z.string().url().refine(
   url => !/\/classifieds\/(?:ads|products|service-listings|requests)\//i.test(url),
   'MarketPlat Cloudinary assets must be submitted as directImagePublicIds so their one-time intent can be consumed atomically'
@@ -12,7 +11,7 @@ const attachedImageUrlSchema = z.string().url().refine(
 export const createRequestSchema = z.object({
   body: requestFieldsSchema
     .extend({
-      type: requestTypeEnum,
+      type: requestTypeSchema,
       city: z.string().min(1).max(100).optional(),
       attachedImages: z.array(attachedImageUrlSchema).max(5, 'At most 5 attached images').optional(),
       directImagePublicIds: directImagePublicIdsSchema.refine(
@@ -55,7 +54,7 @@ export const getOpenRequestsSchema = z.object({
     .object({
       page: optionalQueryNumber(z.number().int().min(1).max(1000)),
       limit: optionalQueryNumber(z.number().int().min(1).max(100)),
-      type: requestTypeEnum.optional(),
+      type: requestTypeSchema.optional(),
       categoryId: z.string().min(1).optional(),
     serviceTypeId: z.string().min(1).optional(),
     city: z.string().min(1).optional(),
@@ -74,7 +73,7 @@ export const getMyRequestsSchema = z.object({
   query: z.object({
     page: optionalQueryNumber(z.number().int().min(1).max(1000)),
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
-    status: z.enum(['OPEN', 'ACCEPTED', 'CANCELLED', 'EXPIRED']).optional(),
+    status: requestStatusSchema.optional(),
   }),
 });
 
@@ -87,7 +86,7 @@ export const getMyOffersSchema = z.object({
   query: z.object({
     page: optionalQueryNumber(z.number().int().min(1).max(1000)),
     limit: optionalQueryNumber(z.number().int().min(1).max(100)),
-    status: z.enum(['PENDING', 'ACCEPTED', 'DECLINED', 'WITHDRAWN']).optional(),
+    status: requestOfferStatusSchema.optional(),
   }),
 });
 

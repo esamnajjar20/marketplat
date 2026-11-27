@@ -1,6 +1,7 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { apiRequest } from '@/api/client';
 import type { AuthUser, AuthSession } from '@/features/auth/auth.api';
-type Envelope<T> = { success: boolean; message?: string; data?: T };
+type Envelope<T> = SharedApiEnvelope<T>;
 function unwrap<T>(r: Envelope<T>, fallback: string): T { if (!r || r.success !== true || r.data === undefined) throw new Error(r?.message || fallback); return r.data; }
 export type AccountProfile = AuthUser & { phone?: string | null; city?: string | null; bio?: string | null; avatarUrl?: string | null; emailVerified?: boolean; notificationPreferences?: Record<string, boolean | string> };
 export async function registerAccount(input: { name: string; email: string; password: string; phone?: string; city?: string }): Promise<AuthSession> {

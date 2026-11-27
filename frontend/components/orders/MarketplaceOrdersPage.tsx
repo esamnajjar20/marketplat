@@ -6,15 +6,13 @@ import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import { useMarketplaceOrders } from '@/hooks/queries/useMarketplaceOrders';
-import { formatDateTimeMedium } from '@/lib/formatters';
+import { formatDateTimeMedium, formatMoney } from '@/lib/formatters';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import type { MarketplaceOrderStatus } from '@/api/marketplaceOrders.api';
 import { ClipboardList, RefreshCw, ShoppingBag, Store } from 'lucide-react';
 
-const statusLabels: Record<MarketplaceOrderStatus, string> = {
-  PENDING: 'بانتظار التأكيد', CONFIRMED: 'تم التأكيد', PROCESSING: 'قيد التجهيز',
-  SHIPPED: 'تم الشحن', DELIVERED: 'تم التسليم', CANCELLED: 'ملغي',
-};
-const money = (value: number | string, currency: string) => `${Number(value).toLocaleString('ar', { maximumFractionDigits: 2 })} ${currency}`;
+const statusLabels: Record<MarketplaceOrderStatus, string> = DOMAIN_STATUS_LABELS.order;
+const money = (value: number | string, currency: string) => formatMoney(value, currency);
 
 export function MarketplaceOrdersPage() {
   const [kind, setKind] = useState<'buyer' | 'seller'>('buyer');

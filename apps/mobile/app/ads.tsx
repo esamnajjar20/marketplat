@@ -16,8 +16,9 @@ import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { Field } from '@/components/ui/Field';
 import { PrimaryButton, SecondaryButton, Notice, EmptyState, ErrorState, SkeletonList } from '@/components/ui';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
+import type { AdCondition } from '@marketplat/contracts';
 
-type Condition = 'NEW' | 'USED' | 'REFURBISHED';
+type Condition = AdCondition;
 type AdSort = 'newest' | 'price_asc' | 'price_desc' | 'views';
 const CONDITIONS: { value: Condition | ''; label: string }[] = [
   { value: '', label: 'الكل' },

@@ -34,6 +34,29 @@ export const authRouter = Router();
 const mobileOAuthFlowKey = (flowId: string) => `auth:google:mobile-flow:${flowId}`;
 const MOBILE_PKCE_CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
 
+type MobileOAuthFlowData = {
+  challenge: string;
+  purpose?: 'delete';
+  userId?: string;
+  sessionId?: string;
+};
+
+function parseMobileOAuthFlow(raw: string | null): MobileOAuthFlowData | null {
+  if (!raw) return null;
+  if (MOBILE_PKCE_CHALLENGE.test(raw)) return { challenge: raw }; // legacy sign-in flow
+  try {
+    const value = JSON.parse(raw) as Partial<MobileOAuthFlowData>;
+    if (!value || typeof value.challenge !== 'string' || !MOBILE_PKCE_CHALLENGE.test(value.challenge)) return null;
+    if (value.purpose === 'delete') {
+      if (typeof value.userId !== 'string' || typeof value.sessionId !== 'string') return null;
+      return { challenge: value.challenge, purpose: 'delete', userId: value.userId, sessionId: value.sessionId };
+    }
+    return value.purpose === undefined ? { challenge: value.challenge } : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * guards both /auth/google endpoints when Google OAuth
  * credentials aren't configured (env.googleOAuth.isConfigured is
@@ -104,6 +127,8 @@ authRouter.post('/login', authRateLimit, authController.login);
 
 /** Native OAuth exchange: one-time ticket + PKCE verifier; no Google token is exposed to the app. */
 authRouter.post('/mobile/google/exchange', authRateLimit, authController.mobileGoogleExchange);
+authRouter.post('/mobile/google/delete/start', authRateLimit, authenticate, authController.mobileGoogleDeleteStart);
+authRouter.post('/mobile/google/delete/exchange', authRateLimit, authController.mobileGoogleDeleteExchange);
 
 /**
  * @swagger
@@ -238,35 +263,50 @@ authRouter.get(
       const isMobile = req.query.client === 'mobile';
       const purpose = req.query.purpose;
       if (isMobile) {
-        // Native sign-in only. Verify/reset/link are browser-only flows and
-        // must not be silently converted into a mobile sign-in.
+        // Native sign-in remains public and creates its own PKCE flow. The
+        // destructive delete purpose is accepted only through a flowId minted
+        // by the authenticated POST /mobile/google/delete/start endpoint.
         if (purpose !== undefined) {
           sendApiError(req, res, 400, ErrorCode.BAD_REQUEST, 'Unsupported native OAuth purpose');
           return;
         }
-        const challenge =
-          typeof req.query.code_challenge === 'string' ? req.query.code_challenge : '';
-        const challengeMethod =
-          typeof req.query.code_challenge_method === 'string'
-            ? req.query.code_challenge_method
-            : '';
-        if (challengeMethod !== 'S256' || !MOBILE_PKCE_CHALLENGE.test(challenge)) {
-          sendApiError(
-            req,
-            res,
-            400,
-            ErrorCode.BAD_REQUEST,
-            'A valid PKCE code challenge is required'
-          );
-          return;
+        const requestedFlowId = typeof req.query.flow_id === 'string' ? req.query.flow_id : '';
+        if (requestedFlowId) {
+          if (!/^[a-f0-9]{64}$/.test(requestedFlowId)) {
+            sendApiError(req, res, 400, ErrorCode.BAD_REQUEST, 'Invalid native OAuth flow');
+            return;
+          }
+          const flow = parseMobileOAuthFlow(await redis.get(mobileOAuthFlowKey(requestedFlowId)));
+          if (!flow || flow.purpose !== 'delete' || !flow.userId || !flow.sessionId) {
+            sendApiError(req, res, 400, ErrorCode.BAD_REQUEST, 'Native Google deletion flow is invalid or expired');
+            return;
+          }
+          setMobileOAuthFlowCookie(res, requestedFlowId);
+        } else {
+          const challenge =
+            typeof req.query.code_challenge === 'string' ? req.query.code_challenge : '';
+          const challengeMethod =
+            typeof req.query.code_challenge_method === 'string'
+              ? req.query.code_challenge_method
+              : '';
+          if (challengeMethod !== 'S256' || !MOBILE_PKCE_CHALLENGE.test(challenge)) {
+            sendApiError(
+              req,
+              res,
+              400,
+              ErrorCode.BAD_REQUEST,
+              'A valid PKCE code challenge is required'
+            );
+            return;
+          }
+          const flowId = crypto.randomBytes(32).toString('hex');
+          await redis.set(mobileOAuthFlowKey(flowId), challenge, 'EX', 600);
+          setMobileOAuthFlowCookie(res, flowId);
         }
-        const flowId = crypto.randomBytes(32).toString('hex');
-        await redis.set(mobileOAuthFlowKey(flowId), challenge, 'EX', 600);
-        setMobileOAuthFlowCookie(res, flowId);
         clearOAuthPurpose(res);
       } else {
         clearMobileOAuthFlowCookie(res);
-        if (purpose === 'verify' || purpose === 'reset' || purpose === 'link') {
+        if (purpose === 'verify' || purpose === 'reset' || purpose === 'link' || purpose === 'delete') {
           setOAuthPurpose(res, purpose);
         } else {
           // A stale purpose cookie from an abandoned browser flow must not
@@ -348,12 +388,12 @@ authRouter.get(
     const flowId = getMobileOAuthFlowId(req);
     if (flowId) {
       try {
-        const challenge = await redis.get(mobileOAuthFlowKey(flowId));
-        if (!challenge || !MOBILE_PKCE_CHALLENGE.test(challenge)) {
+        const flow = parseMobileOAuthFlow(await redis.get(mobileOAuthFlowKey(flowId)));
+        if (!flow) {
           res.redirect('/api/v1/auth/google/failure');
           return;
         }
-        res.locals.mobileOAuth = { flowId, challenge };
+        res.locals.mobileOAuth = { flowId, ...flow };
       } catch (error) {
         next(error);
         return;
@@ -394,6 +434,8 @@ authRouter.get(
  * error) land the user in the same place with the same UX.
  */
 authRouter.get('/google/failure', async (req, res) => {
+  const purpose = getOAuthPurpose(req);
+  clearOAuthPurpose(res);
   const flowId = getMobileOAuthFlowId(req);
   if (flowId) {
     try {
@@ -410,6 +452,22 @@ authRouter.get('/google/failure', async (req, res) => {
     res.redirect('marketplat://oauth/callback?error=google_auth_failed');
     return;
   }
-  const base = `${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}login`;
-  res.redirect(`${base}?error=google_auth_failed`);
+  const base = `${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}`;
+  if (purpose === 'verify') {
+    res.redirect(`${base}verify-email?error=google_auth_failed`);
+    return;
+  }
+  if (purpose === 'reset') {
+    res.redirect(`${base}forgot-password?error=google_auth_failed`);
+    return;
+  }
+  if (purpose === 'link') {
+    res.redirect(`${base}settings?tab=security&error=google_auth_failed`);
+    return;
+  }
+  if (purpose === 'delete') {
+    res.redirect(`${base}settings?tab=account&delete=failed&error=google_auth_failed`);
+    return;
+  }
+  res.redirect(`${base}login?error=google_auth_failed`);
 });

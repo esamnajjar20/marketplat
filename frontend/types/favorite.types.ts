@@ -15,12 +15,13 @@
  * /favorites/:adId routes already work — so FavoriteEntityKind
  * deliberately excludes 'AD'.
  */
+import type { FavoriteEntityType } from '@marketplat/contracts';
 import type { ProductWithStore } from './product.types';
 import type { StoreDirectoryItem } from './store.types';
 import type { ServiceListingWithProvider } from './service.types';
 
 /** The three entity kinds PR3 wires up on the frontend. */
-export type FavoriteEntityKind = 'PRODUCT' | 'STORE' | 'SERVICE_LISTING';
+export type FavoriteEntityKind = Exclude<FavoriteEntityType, 'AD'>;
 
 /**
  * URL path segment for POST /favorites/:segment/:entityId and

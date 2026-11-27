@@ -10,8 +10,8 @@
  * public price fields.
  */
 
-export type DiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT';
-export type PromotionStatus = 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
+import type { DiscountType, PromotionStatus } from '@marketplat/contracts';
+export type { DiscountType, PromotionStatus } from '@marketplat/contracts';
 
 export interface Promotion {
   id: string;

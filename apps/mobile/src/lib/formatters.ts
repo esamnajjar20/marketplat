@@ -1,41 +1,26 @@
-const NUMBER_LOCALE = 'ar-u-nu-latn';
+import {
+  formatCurrencyValue,
+  formatDateValue,
+  formatNumberValue,
+  type SharedDateFormatKind,
+} from '@marketplat/contracts';
 
-export type DateFormatKind = 'date' | 'time' | 'dateTime';
+export type DateFormatKind = SharedDateFormatKind;
 
-/** Format non-currency quantities with the same explicit Latin-digit policy. */
-export function formatNumber(value: unknown, maximumFractionDigits = 0): string {
-  const amount = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(amount)) return '—';
-  return new Intl.NumberFormat(NUMBER_LOCALE, { maximumFractionDigits: Math.max(0, Math.min(20, maximumFractionDigits)) }).format(amount);
+/** Same locale, precision and missing-value behavior as the web client. */
+export function formatNumber(value: unknown, maximumFractionDigits = 2): string {
+  return formatNumberValue(value, maximumFractionDigits, '--');
 }
 
-/** Format prices consistently across the mobile app using Latin digits. */
+/** Accounting amounts use two fractional digits; null is not interpreted as zero. */
 export function formatMoney(value: unknown, currency = 'ILS'): string {
-  if (value === null || value === undefined || value === '') return 'غير متاح';
-  const amount = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(amount)) return 'غير متاح';
-  const code = /^[A-Z]{3}$/.test(currency) ? currency : 'ILS';
-  try {
-    return new Intl.NumberFormat(NUMBER_LOCALE, {
-      style: 'currency',
-      currency: code,
-      currencyDisplay: 'symbol',
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    return `${new Intl.NumberFormat(NUMBER_LOCALE, { maximumFractionDigits: 2 }).format(amount)} ${code}`;
-  }
+  return formatCurrencyValue(value, currency, 'غير متاح');
 }
 
-/** Parse dates defensively and keep Latin digits stable in Arabic UI. */
-export function formatDate(value: Date | string | number | null | undefined, kind: DateFormatKind = 'dateTime'): string {
-  if (value === null || value === undefined || value === '') return 'غير متاح';
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return 'غير متاح';
-  const options: Intl.DateTimeFormatOptions = kind === 'date'
-    ? { dateStyle: 'medium', timeZone: 'Asia/Gaza' }
-    : kind === 'time'
-      ? { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Gaza' }
-      : { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Gaza' };
-  return new Intl.DateTimeFormat(NUMBER_LOCALE, options).format(date);
+/** Date-only, time-only and date-time modes are explicit and share Asia/Gaza. */
+export function formatDate(
+  value: Date | string | number | null | undefined,
+  kind: DateFormatKind = 'date',
+): string {
+  return formatDateValue(value, kind, '—');
 }

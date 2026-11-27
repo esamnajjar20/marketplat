@@ -115,7 +115,7 @@ describe('ReportButton', () => {
       const dialog = screen.getByRole('dialog');
 
       await user.click(within(dialog).getByLabelText('سبب الإبلاغ'));
-      await user.click(await screen.findByRole('option', { name: 'محتوى وهمي أو مضلل' }));
+      await user.click(await screen.findByRole('option', { name: 'محتوى وهمي أو مزيف' }));
       await user.click(within(dialog).getByRole('button', { name: 'إرسال البلاغ' }));
 
       expect(mockMutate).toHaveBeenCalledWith(

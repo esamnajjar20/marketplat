@@ -1,7 +1,6 @@
 import { z } from 'zod';
-
-export const storeFieldTypeSchema = z.enum(['TEXT', 'NUMBER', 'BOOLEAN', 'SELECT']);
-export const storeFieldScopeSchema = z.enum(['STORE', 'PRODUCT']);
+import { storeFieldTypeSchema, storeFieldScopeSchema } from '@marketplat/contracts';
+export { storeFieldTypeSchema, storeFieldScopeSchema } from '@marketplat/contracts';
 
 const optionsSchema = z
   .array(

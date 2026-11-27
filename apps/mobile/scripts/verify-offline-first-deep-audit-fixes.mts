@@ -22,5 +22,5 @@ const validation = read('../api/src/modules/commerce/sales/sales.validation.ts')
 assert.match(validation, /MAX_MONEY = 99_999_999\.99/);
 assert.match(validation, /!Number\.isFinite\(total\) \|\| total > MAX_MONEY/);
 const saleScreen = read('app/sale-create.tsx');
-assert.match(saleScreen, /!Number\.isFinite\(total\) \|\| total <= 0 \|\| total > 99_999_999\.99/);
+assert.match(saleScreen, /!Number\.isFinite\(lineTotal\) \|\| lineTotal <= 0 \|\| lineTotal > 99_999_999\.99/);
 console.log('Deep audit regression checks passed: bounded queue draining, expired lease recovery, and sale money bounds.');

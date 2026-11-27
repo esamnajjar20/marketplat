@@ -12,6 +12,8 @@
 import type { User }  from './user.types';
 import type { Ad }    from './ad.types';
 import type { PaginationParams } from './api.types';
+import type { UserRole, AssignableUserRole, ReportReason, ReportStatus, ReportTargetType, StoreStatus, StorePlan, AuditEventType, FraudSignalType } from '@marketplat/contracts';
+export type { ReportReason, ReportStatus, ReportTargetType, AuditEventType, FraudSignalType } from '@marketplat/contracts';
 
 /**
  * FIX T-10: AdminUser matches the select in adminService.getAllUsers.
@@ -24,7 +26,7 @@ export interface AdminUser {
   email:     string;
   phone:     string | null;
   // Gap #20 (admin permission tiers): MODERATOR/SUPER_ADMIN added.
-  role:      'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN';
+  role:      UserRole;
   city:      string | null;
   isActive:  boolean;
   createdAt: string;
@@ -64,7 +66,7 @@ export interface ToggleActivePayload { isActive:   boolean; }
 // assignableRoleSchema (admin.validation.ts) — SUPER_ADMIN is
 // deliberately excluded, it can only ever be granted directly in the
 // database, never through this endpoint.
-export type AssignableRole = 'USER' | 'MODERATOR' | 'ADMIN';
+export type AssignableRole = AssignableUserRole;
 export interface ChangeRolePayload { role: AssignableRole; }
 
 // ── Report types ──────────────────────────────────────────────────
@@ -73,24 +75,6 @@ export interface ChangeRolePayload { role: AssignableRole; }
  * FIX T-03: Must match backend Prisma enum exactly.
  * Backend schema: enum ReportReason { SCAM  FAKE  OFFENSIVE  SPAM }
  */
-export type ReportReason =
-  | 'SCAM'
-  | 'FAKE'
-  | 'OFFENSIVE'
-  | 'SPAM';
-
-/**
- * FIX T-03: Backend uses RESOLVED (not REVIEWED).
- * Backend schema: enum ReportStatus { PENDING  RESOLVED  DISMISSED }
- */
-export type ReportStatus = 'PENDING' | 'RESOLVED' | 'DISMISSED';
-
-/**
- * FEAT-REPORT-USER-STORE: what a Report points at. Backend schema:
- * enum ReportTargetType { AD  USER  STORE  PRODUCT  SERVICE_LISTING }
- */
-export type ReportTargetType = 'AD' | 'USER' | 'STORE' | 'PRODUCT' | 'SERVICE_LISTING';
-
 export interface Report {
   id:         string;
   reason:     ReportReason;
@@ -168,12 +152,12 @@ export interface SetSellerSuspendedPayload { suspended: boolean; reason?: string
 // findManyForAdmin's `storeWithSeller` include shape — same sellerProfile
 // shape AdminSeller.user narrows, plus the store's own fields.
 
-export type AdminStoreStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED';
+export type AdminStoreStatus = StoreStatus;
 
 // FIX BUG-02: was `string` — tightened now that a real endpoint
 // (PATCH /admin/stores/:id/plan) writes this field, matching the
 // Prisma StorePlan enum.
-export type AdminStorePlan = 'FREE' | 'FEATURED';
+export type AdminStorePlan = StorePlan;
 
 export interface AdminStoreType {
   id: string;
@@ -276,37 +260,6 @@ export interface BroadcastNotificationResult {
 // separate "admin vs target user" column, so the filter surface only
 // exposes `userId` — see audit-logs.validation.ts's schema comment.
 
-export type AuditEventType =
-  | 'REGISTER'
-  | 'LOGIN_SUCCESS'
-  | 'LOGIN_FAILED'
-  | 'LOGOUT'
-  | 'LOGOUT_ALL'
-  | 'TOKEN_REFRESHED'
-  | 'TOKEN_REUSE_DETECTED'
-  | 'SESSION_REVOKED'
-  | 'ACCOUNT_LOCKED'
-  | 'PASSWORD_CHANGED'
-  | 'ROLE_CHANGED'
-  | 'ACCOUNT_DISABLED'
-  | 'ADMIN_AD_FEATURED'
-  | 'ADMIN_AD_PINNED'
-  | 'ADMIN_AD_DELETED'
-  | 'ADMIN_USER_STATUS_CHANGED'
-  | 'ADMIN_SELLER_VERIFIED'
-  | 'ADMIN_SELLER_SUSPENDED'
-  | 'ADMIN_STORE_STATUS_CHANGED'
-  | 'OAUTH_LOGIN'
-  | 'OAUTH_ACCOUNT_LINKED'
-  | 'OAUTH_SIGNUP'
-  // FRAUD-UI: was missing here even though the backend has emitted
-  // these since the fraud module shipped (schema.prisma's
-  // AuditEventType enum, fraud.service.ts's reviewSignal/manualFlag) —
-  // any row with one of these events fell through AdminAuditLogsTable's
-  // event-label lookup with no matching type-checked filter option.
-  | 'ADMIN_FRAUD_SIGNAL_REVIEWED'
-  | 'ADMIN_FRAUD_MANUAL_FLAG';
-
 export interface AuditLog {
   id: string;
   event: AuditEventType;
@@ -337,16 +290,6 @@ export interface AdminGetAuditLogsParams extends PaginationParams {
 // on every new ad with no reachable screen to see or act on them.
 // Types below mirror fraud.repository.ts's FlaggedAdRow/
 // FraudSignalWithSubjects select shapes exactly.
-
-/** Backend Prisma enum FraudSignalType (schema.prisma). */
-export type FraudSignalType =
-  | 'RAPID_POSTING'
-  | 'SUSPICIOUS_PRICE'
-  | 'SUSPICIOUS_CONTACT_PATTERN'
-  | 'SUSPICIOUS_KEYWORDS'
-  | 'DUPLICATE_LISTING'
-  | 'NEW_ACCOUNT_HIGH_ACTIVITY'
-  | 'MANUAL_ADMIN_FLAG';
 
 /** GET /admin/fraud/ads row — matches fraud.repository.ts's flaggedAdWithUser include. */
 export interface FlaggedAd {

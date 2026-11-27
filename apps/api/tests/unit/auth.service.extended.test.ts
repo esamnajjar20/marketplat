@@ -46,6 +46,7 @@ describe('AuthService — extended', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (tokenStore.deleteRefreshToken as jest.Mock).mockResolvedValue(undefined);
+    (tokenStore.isSessionActive as jest.Mock).mockResolvedValue(true);
     (tokenStore.deleteAllRefreshTokens as jest.Mock).mockResolvedValue(undefined);
     (tokenStore.blacklistAccessToken as jest.Mock).mockResolvedValue(undefined);
     (tokenStore.getSessionMetadata as jest.Mock).mockResolvedValue({ createdAt: Date.now() });
@@ -76,6 +77,15 @@ describe('AuthService — extended', () => {
 
       const result = await authService.refresh('valid-refresh-token');
       expect(result.accessToken).toBe('new-access');
+    });
+
+    it('rejects refresh when the live session metadata has been revoked', async () => {
+      (tokenStore.isSessionActive as jest.Mock).mockResolvedValue(false);
+
+      await expect(authService.refresh('valid-refresh-token')).rejects.toMatchObject({
+        code: 'SESSION_EXPIRED',
+      });
+      expect(atomicRefreshRotate).not.toHaveBeenCalled();
     });
 
     it('throws 503 on REDIS_ERROR', async () => {

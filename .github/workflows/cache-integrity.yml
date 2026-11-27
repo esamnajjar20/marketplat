@@ -87,7 +87,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
+          node-version: '22.18.0'
           cache: npm
           cache-dependency-path: workers/cf-api-proxy/package-lock.json
       - name: Install Worker dependencies
@@ -128,7 +128,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
+          node-version: '22.18.0'
           cache: npm
           cache-dependency-path: apps/api/package-lock.json
       - name: Install API dependencies
@@ -152,7 +152,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
+          node-version: '22.18.0'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install frontend dependencies
@@ -171,7 +171,7 @@ jobs:
           version: 10.18.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
+          node-version: '22.18.0'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - name: Install Mobile workspace dependencies

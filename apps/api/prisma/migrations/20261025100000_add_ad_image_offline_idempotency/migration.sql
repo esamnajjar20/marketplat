@@ -1,4 +1,5 @@
 -- Durable replay protection for offline ad image uploads.
+-- Intentionally no Ad/User FKs: replay keys remain reserved after linked data deletion.
 CREATE TABLE IF NOT EXISTS "AdImageOfflineOperation" (
   "id" TEXT NOT NULL,
   "operationId" TEXT NOT NULL,

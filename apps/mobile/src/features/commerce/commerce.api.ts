@@ -1,10 +1,12 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
+import type { ProductAvailability, ProductStatus, StoreStatus, StorePlan, StoreFieldScope, StoreFieldType } from '@marketplat/contracts';
 import { buildFilterParams } from '../../../../../shared/filters';
 import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
 import { ApiError, apiRequest } from '@/api/client';
 import { uploadMobileImagesDirect } from '../media/direct-upload.api';
 import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry } from '@/storage/public-cache';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
+type Envelope<T> = SharedApiEnvelope<T>;
 
 /** Invalidate anonymous product reads and the compact homepage snapshot after a mutation. */
 async function invalidateProductCaches(productId?: string): Promise<void> {
@@ -23,7 +25,7 @@ function dataOf<T>(response: Envelope<T>, fallback: string): T {
 }
 export type StoreSummary = {
   id: string; name: string; slug?: string | null; description?: string | null; city?: string | null; address?: string | null;
-  logoUrl?: string | null; coverImageUrl?: string | null; status?: string; plan?: string;
+  logoUrl?: string | null; coverImageUrl?: string | null; status?: StoreStatus; plan?: StorePlan;
   phone?: string | null; latitude?: number | string | null; longitude?: number | string | null; storeTypeId?: string | null; storeType?: { id?: string; fields?: StoreTypeFieldSummary[] | null } | null; _count?: { products?: number; followers?: number };
   owner?: { name?: string | null; displayName?: string | null } | null;
   sellerProfile?: { userId?: string; averageRating?: number | string | null; totalRatings?: number; verified?: boolean; paymentMethods?: unknown; user?: { name?: string | null } } | null;
@@ -34,17 +36,17 @@ export type StoreSummary = {
 export type ProductSummary = {
   id: string; name: string; description?: string | null; price: number | string;
   discountPrice?: number | string | null; effectivePrice?: { price?: number | string; amount?: number | string; originalPrice?: number | string; discountPrice?: number | string | null; discountPercentage?: number | null; hasActivePromotion?: boolean; activePromotionId?: string | null } | null;
-  images?: string[]; availability?: string; status?: string; stockQuantity?: number | null; wholesalePrice?: number | string | null; wholesaleMinQty?: number | null; costPrice?: number | string | null;
+  images?: string[]; availability?: ProductAvailability; status?: ProductStatus; stockQuantity?: number | null; wholesalePrice?: number | string | null; wholesaleMinQty?: number | null; costPrice?: number | string | null;
   category?: { id?: string; name?: string; nameAr?: string | null } | null;
   createdAt?: string; views?: number; attributes?: Record<string, unknown> | null;
   store?: {
     id?: string; name?: string; logoUrl?: string | null; city?: string | null; phone?: string | null; storeTypeId?: string | null;
     sellerProfile?: { userId?: string; paymentMethods?: unknown; averageRating?: number | string | null; totalRatings?: number; verified?: boolean; user?: { name?: string | null } } | null;
-    storeType?: { fields?: { id?: string; key: string; label?: string | null; labelAr?: string | null; pageLabelAr?: string | null; type?: string; scope?: string; isActive?: boolean; options?: { value?: unknown; label?: string; labelAr?: string }[] | null }[] | null } | null;
+    storeType?: { fields?: { id?: string; key: string; label?: string | null; labelAr?: string | null; pageLabelAr?: string | null; type?: StoreFieldType; scope?: StoreFieldScope; isActive?: boolean; options?: { value?: unknown; label?: string; labelAr?: string }[] | null }[] | null } | null;
   } | null;
 };
 export type ProductCategory = { id: string; name: string; nameAr?: string | null; slug?: string; parentId?: string | null; isActive?: boolean; children?: ProductCategory[] };
-export type StoreTypeFieldSummary = { id?: string; key: string; label?: string | null; labelAr?: string | null; cardLabelAr?: string | null; pageLabelAr?: string | null; scope?: 'PRODUCT' | 'STORE' | string; type: 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'SELECT' | string; required?: boolean; isActive?: boolean; options?: Array<{ value: string; label?: string; labelAr?: string }> | null };
+export type StoreTypeFieldSummary = { id?: string; key: string; label?: string | null; labelAr?: string | null; cardLabelAr?: string | null; pageLabelAr?: string | null; scope?: StoreFieldScope; type: StoreFieldType; required?: boolean; isActive?: boolean; options?: Array<{ value: string; label?: string; labelAr?: string }> | null };
 export type PageResult<T> = { items: T[]; page: number; totalPages: number; total: number };
 function pageFrom<T>(response: Envelope<T[]>, fallback: string, page: number): PageResult<T> {
   const items = dataOf(response, fallback);
@@ -73,7 +75,7 @@ export async function fetchStore(id: string) {
   }
 }
 export async function toggleStoreFollow(id: string, token: string, csrfToken?: string | null) { return dataOf(await apiRequest<Envelope<{ action: 'followed' | 'unfollowed' }>>(`/api/v1/stores/${encodeURIComponent(id)}/follow`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر تحديث متابعة المتجر.'); }
-export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; city?: string; minPrice?: number; maxPrice?: number; availability?: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; hasPromotion?: boolean; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal } = {}) {
+export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; city?: string; minPrice?: number; maxPrice?: number; availability?: ProductAvailability; hasPromotion?: boolean; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal } = {}) {
   const page = options.page ?? 1; const sortBy = options.sortBy ?? 'createdAt'; const sortOrder = options.sortOrder ?? (sortBy === 'price' ? 'asc' : 'desc');
   const params = buildFilterParams({ page, limit: options.limit ?? 20, sortBy, sortOrder, search: options.search, storeId: options.storeId, categoryId: options.categoryId, city: options.city, minPrice: options.minPrice, maxPrice: options.maxPrice, availability: options.availability, hasPromotion: options.hasPromotion ? 'true' : undefined }, { profile: 'productsBrowse' });
   const response = await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products?${params}`, { signal: options.signal });
@@ -135,7 +137,7 @@ export async function fetchStoreTypeFields(storeTypeId: string): Promise<StoreTy
 
 export type ProductWriteInput = {
   categoryId: string; name: string; description: string; price: number;
-  availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity?: number;
+  availability: ProductAvailability; stockQuantity?: number;
   discountPrice?: number; wholesalePrice?: number; wholesaleMinQty?: number; costPrice?: number;
   attributes?: Record<string, string | number | boolean>;
 };
@@ -223,14 +225,14 @@ export async function updateProduct(
     name: string;
     description: string;
     price: number;
-    availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
+    availability: ProductAvailability;
     stockQuantity: number | null;
     discountPrice: number | null;
     wholesalePrice: number | null;
     wholesaleMinQty: number | null;
     costPrice: number | null;
     attributes: Record<string, string | number | boolean>;
-    status: string;
+    status: ProductStatus;
   }>,
   token: string,
   csrfToken?: string | null

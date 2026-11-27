@@ -12,9 +12,16 @@
  * no standalone "service provider role".
  */
 import type { SellerProfile } from './seller.types';
-
-export type ServiceTypeFieldType = 'TEXT' | 'TEXTAREA' | 'NUMBER' | 'BOOLEAN' | 'SELECT' | 'MULTI_SELECT';
-export type ServiceTypeFieldScope = 'LISTING' | 'PROVIDER';
+import type {
+  ServiceRequestStatus, AppointmentStatus, ServiceBusinessType, ServiceAvailability,
+  ServicePricingType, ServiceListingStatus, ServiceLocationType, RequestOfferStatus,
+  ServiceTypeFieldType, ServiceTypeFieldScope,
+} from '@marketplat/contracts';
+export type {
+  ServiceRequestStatus, AppointmentStatus, ServiceBusinessType, ServiceAvailability,
+  ServicePricingType, ServiceListingStatus, ServiceLocationType, RequestOfferStatus,
+  ServiceTypeFieldType, ServiceTypeFieldScope,
+} from '@marketplat/contracts';
 
 export interface ServiceTypeFieldOption {
   value: string;
@@ -76,18 +83,12 @@ export interface ServiceProviderServiceTypeProfile {
   serviceType: ServiceType;
 }
 
-export type ServiceBusinessType = 'INDIVIDUAL' | 'SMALL_BUSINESS';
-export type ServiceAvailability = 'AVAILABLE' | 'BUSY' | 'UNAVAILABLE';
-export type ServicePricingType = 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE';
-export type ServiceListingStatus = 'ACTIVE' | 'PAUSED' | 'DELETED';
-export type ServiceLocationType = 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE';
-export type ServiceRequestStatus =
-  | 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED' | 'DISPUTED';
+
 /** Action values accepted by PATCH /service-requests/:id/respond. PENDING is
  * never a valid target — only ever the creation default. */
 export type ServiceRequestAction =
   | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
-export type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+
 
 export type WorkingHours = Record<
   'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat',
@@ -489,8 +490,8 @@ export interface AvailabilityResponse {
   freeRanges: AvailabilitySlot[];
 }
 
-/** Mirrors backend/prisma/schema.prisma's ServiceQuoteStatus enum. */
-export type ServiceQuoteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
+/** Service quotes use the same lifecycle states as request offers. */
+export type ServiceQuoteStatus = RequestOfferStatus;
 
 // ── Service listing create/edit form values ─────────────────────
 // DESKTOP-AUDIT-05: moved here from ServiceListingForm.tsx (colocated

@@ -10,17 +10,12 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useMyReports } from '@/hooks/queries/useMyReports';
 import { REPORT_STATUS_LABELS, ROUTES } from '@/lib/constants';
 import type { Report, ReportTargetType } from '@/types/admin.types';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 // FEAT-REPORT-USER-STORE: same three target kinds AdminReportsTable
 // renders, but from the reporter's own point of view — what did I
 // report, and what happened to it.
-const TARGET_TYPE_LABELS: Record<ReportTargetType, string> = {
-  AD: 'إعلان',
-  USER: 'مستخدم',
-  STORE: 'متجر',
-  PRODUCT: 'منتج',
-  SERVICE_LISTING: 'خدمة',
-};
+const TARGET_TYPE_LABELS: Record<ReportTargetType, string> = DOMAIN_STATUS_LABELS.reportTargetType;
 
 function targetHref(targetType: ReportTargetType, targetId: string): string {
   if (targetType === 'USER') return ROUTES.userProfile(targetId);

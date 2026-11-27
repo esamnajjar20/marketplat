@@ -1,4 +1,5 @@
 'use client';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 /**
  * DESKTOP-AUDIT-05: live preview of how the product will appear as a
@@ -22,11 +23,7 @@ interface Props {
   className?: string;
 }
 
-const AVAILABILITY_LABEL: Record<ProductFormValues['availability'], string> = {
-  IN_STOCK: 'متوفر',
-  LIMITED: 'كمية محدودة',
-  OUT_OF_STOCK: 'غير متوفر',
-};
+const AVAILABILITY_LABEL: Record<ProductFormValues['availability'], string> = DOMAIN_STATUS_LABELS.productAvailability;
 
 export function ProductFormPreview({ values, className }: Props) {
   // FIX OBJECT-URL-LEAK-PRODUCT: mirrors the identical fix already

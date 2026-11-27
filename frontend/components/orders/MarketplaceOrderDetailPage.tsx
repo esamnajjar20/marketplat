@@ -10,17 +10,15 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useMarketplaceOrder } from '@/hooks/queries/useMarketplaceOrders';
 import { marketplaceOrdersApi, type MarketplaceOrderStatus } from '@/api/marketplaceOrders.api';
 import { useAuthStore } from '@/store/auth.store';
-import { formatDateTimeMedium } from '@/lib/formatters';
+import { formatDateTimeMedium, formatMoney } from '@/lib/formatters';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 
-const statusLabels: Record<MarketplaceOrderStatus, string> = {
-  PENDING: 'بانتظار التأكيد', CONFIRMED: 'تم التأكيد', PROCESSING: 'قيد التجهيز',
-  SHIPPED: 'تم الشحن', DELIVERED: 'تم التسليم', CANCELLED: 'ملغي',
-};
+const statusLabels: Record<MarketplaceOrderStatus, string> = DOMAIN_STATUS_LABELS.order;
 const transitions: Partial<Record<MarketplaceOrderStatus, MarketplaceOrderStatus>> = {
   PENDING: 'CONFIRMED', CONFIRMED: 'PROCESSING', PROCESSING: 'SHIPPED', SHIPPED: 'DELIVERED',
 };
-const money = (value: number | string, currency: string) => `${Number(value).toLocaleString('ar', { maximumFractionDigits: 2 })} ${currency}`;
+const money = (value: number | string, currency: string) => formatMoney(value, currency);
 
 export function MarketplaceOrderDetailPage() {
   const params = useParams<{ id: string }>();

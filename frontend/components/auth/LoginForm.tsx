@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import { Mail, Lock } from 'lucide-react';
+import { toast } from 'sonner';
 import { useLogin } from '@/hooks/mutations/useAuthMutations';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
@@ -27,6 +28,18 @@ const GOOGLE_FAILURE_CODES: ReadonlySet<string> = new Set([
 export function LoginForm() {
   const searchParams = useSearchParams();
   const { mutate: login, isPending } = useLogin();
+
+  // Account deletion is a terminal OAuth callback and returns to the login
+  // page (the profile settings component is no longer mounted there). Consume
+  // the one-shot query flag here so the owner receives confirmation exactly
+  // once and the message is not repeated on refresh.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('account') !== 'deleted') return;
+    toast.success('تم حذف الحساب وتسجيل الخروج من جميع الأجهزة.');
+    url.searchParams.delete('account');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');

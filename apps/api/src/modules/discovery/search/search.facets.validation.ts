@@ -8,6 +8,7 @@
 
 import { z } from 'zod';
 import { SEARCH_TYPES } from './search.types';
+import { adConditionSchema } from '@marketplat/contracts';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 
 export const searchFacetsQuerySchema = z.object({
@@ -19,7 +20,7 @@ export const searchFacetsQuerySchema = z.object({
       categoryId: z.string().optional(),
       minPrice: optionalQueryNumber(z.number().min(0)).optional(),
       maxPrice: optionalQueryNumber(z.number().min(0)).optional(),
-      condition: z.enum(['NEW', 'USED', 'REFURBISHED']).optional(),
+      condition: adConditionSchema.optional(),
       lat: z.coerce.number().min(-90).max(90).optional(),
       lng: z.coerce.number().min(-180).max(180).optional(),
       radius: z.coerce.number().min(0.5).max(100).default(10),

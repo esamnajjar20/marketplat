@@ -9,26 +9,9 @@ import { submitReport, type ReportReason } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing, radius } from '@/theme/tokens';
 import { Field } from '@/components/ui/Field';
-const reasons: {
-  value: ReportReason;
-  label: string;
-}[] = [
-  {
-    value: 'SCAM', label: 'احتيال أو محاولة نصب'
-  },
-  {
-    value: 'FAKE', label: 'معلومات أو محتوى مزيف'
-  },
-  {
-    value: 'OFFENSIVE', label: 'محتوى مسيء'
-  },
-  {
-    value: 'SPAM', label: 'رسائل أو محتوى مزعج'
-  }
-];
-const targetLabels: Record<string, string> = {
-  ads: 'الإعلان', users: 'المستخدم', stores: 'المتجر', products: 'المنتج', services: 'الخدمة'
-};
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
+const reasons: ReportReason[] = ['SCAM', 'FAKE', 'OFFENSIVE', 'SPAM'];
+const targetLabels = DOMAIN_STATUS_LABELS.reportTarget;
 export default function ReportTargetScreen() {
   const { colors } = useAppTheme();
   const p = useLocalSearchParams<{
@@ -78,11 +61,11 @@ export default function ReportTargetScreen() {
   };
   return <PageShell title="الإبلاغ عن محتوى">{!accessToken ? <><Notice>يلزم تسجيل الدخول لإرسال بلاغ.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></> : !validTarget ? <Notice>الرابط لا يحتوي على نوع ومرجع صالحين للبلاغ.</Notice> : success ? <SectionCard><Text tone="ink" strong size={18}>تم إرسال البلاغ</Text><Text style={{
     textAlign: 'right', color: colors.muted, lineHeight: 22
-  }}>شكرًا لمساعدتك في الحفاظ على سلامة المنصة. سيراجع الفريق البلاغ وفق إجراءات المنصة.</Text><PrimaryButton label="العودة" onPress={() => goBack()}/></SectionCard> : <><SectionCard><Text tone="ink" strong>الإبلاغ عن {targetLabels[targetType || ''] || 'المحتوى'}</Text><Text style={{
+  }}>شكرًا لمساعدتك في الحفاظ على سلامة المنصة. سيراجع الفريق البلاغ وفق إجراءات المنصة.</Text><PrimaryButton label="العودة" onPress={() => goBack()}/></SectionCard> : <><SectionCard><Text tone="ink" strong>الإبلاغ عن {targetLabels[targetType as keyof typeof targetLabels] || 'المحتوى'}</Text><Text style={{
     textAlign: 'right', color: colors.muted, lineHeight: 21
-  }}>اختر السبب الأقرب للمشكلة. لا ترسل معلومات شخصية لا حاجة لها.</Text>{reasons.map(item => <Pressable key={item.value} accessibilityRole="radio" accessibilityState={{ selected: reason === item.value }} accessibilityLabel={item.label} onPress={() => setReason(item.value)} style={{
+  }}>اختر السبب الأقرب للمشكلة. لا ترسل معلومات شخصية لا حاجة لها.</Text>{reasons.map(value => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: reason === value }} accessibilityLabel={DOMAIN_STATUS_LABELS.reportReason[value]} onPress={() => setReason(value)} style={{
     paddingVertical: spacing.lg, paddingHorizontal: spacing.lg, marginTop: spacing.md, borderWidth: 1, borderColor: reason === item.value ? colors.brand : colors.border, borderRadius: radius.button, backgroundColor: reason === item.value ? colors.surface : 'transparent'
   }}><Text style={{
     textAlign: 'right', color: colors.ink, fontWeight: reason === item.value ? '700' : '400'
-  }}>{reason === item.value ? '● ' : '○ '}{item.label}</Text></Pressable>)}<Field label="تفاصيل إضافية (اختياري)" value={notes} onChangeText={setNotes} multiline maxLength={500} showCharacterCount placeholder="اشرح المشكلة بإيجاز (500 حرف كحد أقصى)" inputStyle={{ minHeight: 124, borderWidth: 1, borderColor: colors.border, borderRadius: radius.button, padding: spacing.lg, textAlign: 'right', color: colors.ink }} /><PrimaryButton label="إرسال البلاغ" onPress={() => void send()} busy={busy}/></SectionCard></>}{error ? <Notice>{error}</Notice> : null}</PageShell>;
+  }}>{reason === value ? '● ' : '○ '}{DOMAIN_STATUS_LABELS.reportReason[value]}</Text></Pressable>)}<Field label="تفاصيل إضافية (اختياري)" value={notes} onChangeText={setNotes} multiline maxLength={500} showCharacterCount placeholder="اشرح المشكلة بإيجاز (500 حرف كحد أقصى)" inputStyle={{ minHeight: 124, borderWidth: 1, borderColor: colors.border, borderRadius: radius.button, padding: spacing.lg, textAlign: 'right', color: colors.ink }} /><PrimaryButton label="إرسال البلاغ" onPress={() => void send()} busy={busy}/></SectionCard></>}{error ? <Notice>{error}</Notice> : null}</PageShell>;
 }

@@ -4,6 +4,7 @@ import { hashPassword } from '../../src/shared/auth/hash';
 import { tokenStore } from '../../src/shared/auth/tokenStore';
 import { userCache } from '../../src/shared/cache/userCache';
 import { prisma } from '../../src/config/prisma';
+import { signTokenPair } from '../../src/shared/auth/jwt';
 
 jest.mock('../../src/modules/identity/auth/auth.repository');
 jest.mock('../../src/shared/auth/tokenStore');
@@ -27,6 +28,7 @@ describe('AuthService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (tokenStore.saveRefreshToken as jest.Mock).mockResolvedValue(undefined);
+    (tokenStore.isSessionActive as jest.Mock).mockResolvedValue(true);
     (tokenStore.isAccountLocked as jest.Mock).mockResolvedValue(false);
     (tokenStore.getIpStats as jest.Mock).mockResolvedValue({ attempts: 0, distinctEmails: 0 });
     (tokenStore.clearFailedLogins as jest.Mock).mockResolvedValue(undefined);
@@ -46,6 +48,23 @@ describe('AuthService', () => {
       expect(result.user.email).toBe('test@example.com');
       expect(result.tokens.accessToken).toBeDefined();
       expect(result.tokens.refreshToken).toBeDefined();
+    });
+
+    it('revokes a partially-created session when session setup fails', async () => {
+      (authRepository.findByEmail as jest.Mock).mockResolvedValue(null);
+      (authRepository.findByPhone as jest.Mock).mockResolvedValue(null);
+      (authRepository.create as jest.Mock).mockResolvedValue(mockUser);
+      (userCache.set as jest.Mock).mockRejectedValueOnce(new Error('cache unavailable'));
+
+      await expect(
+        authService.register({ name: 'Test', email: 'test@example.com', password: 'password123' })
+      ).rejects.toMatchObject({ statusCode: 503 });
+
+      expect(tokenStore.deleteRefreshToken).toHaveBeenCalledWith(
+        mockUser.id,
+        expect.any(String)
+      );
+      expect(authRepository.deleteById).toHaveBeenCalledWith(mockUser.id);
     });
 
     it('should throw if email exists', async () => {
@@ -143,9 +162,108 @@ describe('AuthService', () => {
     });
   });
 
+  describe('verifyGoogleReauthForSession', () => {
+    it('rejects a refresh token whose Redis session metadata has been revoked', async () => {
+      const pair = signTokenPair(mockUser.id);
+      (tokenStore.isSessionActive as jest.Mock).mockResolvedValue(false);
+
+      await expect(authService.verifyGoogleReauthForSession(pair.refreshToken, {
+        googleId: 'google-subject-1', email: mockUser.email, name: 'Test User',
+      })).rejects.toMatchObject({ code: 'SESSION_EXPIRED' });
+      expect(tokenStore.validateRefreshToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('verifyGoogleReauthForSessionIdentity', () => {
+    it('accepts the linked Google subject only while the initiating session is active', async () => {
+      (tokenStore.isSessionActive as jest.Mock).mockResolvedValue(true);
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        id: mockUser.id, email: mockUser.email, googleId: 'google-subject-1', isActive: true,
+      } as any);
+
+      await expect(authService.verifyGoogleReauthForSessionIdentity(
+        mockUser.id,
+        'session-native-delete',
+        { googleId: 'google-subject-1', email: 'TEST@example.com', name: 'Test User' }
+      )).resolves.toBe(mockUser.id);
+      expect(tokenStore.isSessionActive).toHaveBeenCalledWith(mockUser.id, 'session-native-delete');
+    });
+
+    it('rejects a revoked initiating session before looking up the Google identity', async () => {
+      (tokenStore.isSessionActive as jest.Mock).mockResolvedValue(false);
+      const findUser = jest.spyOn(prisma.user, 'findUnique');
+
+      await expect(authService.verifyGoogleReauthForSessionIdentity(
+        mockUser.id,
+        'revoked-session',
+        { googleId: 'google-subject-1', email: mockUser.email, name: 'Test User' }
+      )).rejects.toMatchObject({ code: 'SESSION_EXPIRED' });
+      expect(findUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('assertGoogleDeletionAvailable', () => {
+    it('requires an active linked Google identity and an active session', async () => {
+      (tokenStore.isSessionActive as jest.Mock).mockResolvedValue(true);
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ googleId: 'google-subject-1', isActive: true } as any);
+      await expect(authService.assertGoogleDeletionAvailable(mockUser.id, 'session-1')).resolves.toBeUndefined();
+    });
+
+    it('rejects accounts without a linked Google identity', async () => {
+      (tokenStore.isSessionActive as jest.Mock).mockResolvedValue(true);
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ googleId: null, isActive: true } as any);
+      await expect(authService.assertGoogleDeletionAvailable(mockUser.id, 'session-1'))
+        .rejects.toMatchObject({ code: 'GOOGLE_REAUTH_UNAVAILABLE' });
+    });
+  });
+
+  describe('verifyGoogleReauthForSession', () => {
+    it('accepts only the linked Google identity on a live session', async () => {
+      const pair = signTokenPair(mockUser.id);
+      (tokenStore.validateRefreshToken as jest.Mock).mockResolvedValue(true);
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        id: mockUser.id,
+        email: mockUser.email,
+        googleId: 'google-subject-1',
+        isActive: true,
+      } as any);
+
+      await expect(authService.verifyGoogleReauthForSession(pair.refreshToken, {
+        googleId: 'google-subject-1',
+        email: 'TEST@example.com',
+        name: 'Test User',
+      })).resolves.toBe(mockUser.id);
+      expect(tokenStore.validateRefreshToken).toHaveBeenCalledWith(
+        mockUser.id, pair.sessionId, pair.refreshToken
+      );
+    });
+
+    it('rejects a valid Google account that is not linked to this user', async () => {
+      const pair = signTokenPair(mockUser.id);
+      (tokenStore.validateRefreshToken as jest.Mock).mockResolvedValue(true);
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        id: mockUser.id, email: mockUser.email, googleId: 'different-subject', isActive: true,
+      } as any);
+
+      await expect(authService.verifyGoogleReauthForSession(pair.refreshToken, {
+        googleId: 'attacker-subject', email: mockUser.email, name: 'Other User',
+      })).rejects.toMatchObject({ code: 'GOOGLE_REAUTH_MISMATCH' });
+    });
+
+    it('rejects a refresh token that is no longer active', async () => {
+      const pair = signTokenPair(mockUser.id);
+      (tokenStore.validateRefreshToken as jest.Mock).mockResolvedValue(false);
+
+      await expect(authService.verifyGoogleReauthForSession(pair.refreshToken, {
+        googleId: 'google-subject-1', email: mockUser.email, name: 'Test User',
+      })).rejects.toMatchObject({ code: 'SESSION_EXPIRED' });
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
   describe('forgotPassword', () => {
     it('creates a reset token for an existing, active user', async () => {
-      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest.spyOn(authRepository, 'findByEmail').mockResolvedValue(mockUser as any);
       const createSpy = jest.spyOn(prisma.passwordResetToken, 'create').mockResolvedValue({} as any);
 
       await authService.forgotPassword('test@example.com');
@@ -153,12 +271,12 @@ describe('AuthService', () => {
       expect(createSpy).toHaveBeenCalledTimes(1);
       const callArg = createSpy.mock.calls[0][0] as any;
       expect(callArg.data.userId).toBe(mockUser.id);
-      expect(typeof callArg.data.token).toBe('string');
-      expect(callArg.data.token.length).toBeGreaterThan(0);
+      expect(callArg.data.token).toBeNull();
+      expect(callArg.data.tokenHash).toMatch(/^[a-f0-9]{64}$/);
     });
 
     it('sets an expiry roughly 1 hour in the future', async () => {
-      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue(mockUser as any);
+      jest.spyOn(authRepository, 'findByEmail').mockResolvedValue(mockUser as any);
       const createSpy = jest.spyOn(prisma.passwordResetToken, 'create').mockResolvedValue({} as any);
 
       const before = Date.now();
@@ -172,7 +290,7 @@ describe('AuthService', () => {
     });
 
     it('silently does nothing for a non-existent email (no enumeration)', async () => {
-      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
+      jest.spyOn(authRepository, 'findByEmail').mockResolvedValue(null);
       const createSpy = jest.spyOn(prisma.passwordResetToken, 'create');
 
       await expect(authService.forgotPassword('nobody@example.com')).resolves.toBeUndefined();
@@ -180,7 +298,7 @@ describe('AuthService', () => {
     });
 
     it('silently does nothing for a deactivated account (no enumeration)', async () => {
-      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({ ...mockUser, isActive: false } as any);
+      jest.spyOn(authRepository, 'findByEmail').mockResolvedValue({ ...mockUser, isActive: false } as any);
       const createSpy = jest.spyOn(prisma.passwordResetToken, 'create');
 
       await expect(authService.forgotPassword('test@example.com')).resolves.toBeUndefined();
@@ -194,7 +312,7 @@ describe('AuthService', () => {
 
     it('updates the password and revokes all sessions on a valid token', async () => {
       jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue({
-        token: 'valid-token', userId: mockUser.id, expiresAt: futureDate(), used: false,
+        id: 'reset-token-1', token: 'valid-token', tokenHash: null, userId: mockUser.id, expiresAt: futureDate(), used: false,
         user: mockUser,
       } as any);
       jest.spyOn(prisma.passwordResetToken, 'updateMany').mockResolvedValue({ count: 1 } as any);
@@ -206,11 +324,11 @@ describe('AuthService', () => {
 
       expect(prisma.passwordResetToken.updateMany).toHaveBeenCalledWith({
         where: expect.objectContaining({
-          token: 'valid-token',
+          id: 'reset-token-1',
           used: false,
           expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
         }),
-        data: { used: true },
+        data: { used: true, token: null, tokenHash: expect.any(String) },
       });
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: mockUser.id },
@@ -223,7 +341,7 @@ describe('AuthService', () => {
     // FIX AUTH-RESET-UNLOCK-01
     it('lifts the login lockout (normalized email) after a successful reset', async () => {
       jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue({
-        token: 'valid-token', userId: mockUser.id, expiresAt: futureDate(), used: false,
+        id: 'reset-token-1', token: 'valid-token', tokenHash: null, userId: mockUser.id, expiresAt: futureDate(), used: false,
         user: { ...mockUser, email: '  Test@Example.com ' },
       } as any);
       jest.spyOn(prisma.passwordResetToken, 'updateMany').mockResolvedValue({ count: 1 } as any);
@@ -239,7 +357,7 @@ describe('AuthService', () => {
 
     it('still succeeds when lifting the lockout fails (best-effort side effect)', async () => {
       jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue({
-        token: 'valid-token', userId: mockUser.id, expiresAt: futureDate(), used: false,
+        id: 'reset-token-1', token: 'valid-token', tokenHash: null, userId: mockUser.id, expiresAt: futureDate(), used: false,
         user: mockUser,
       } as any);
       jest.spyOn(prisma.passwordResetToken, 'updateMany').mockResolvedValue({ count: 1 } as any);
@@ -261,7 +379,7 @@ describe('AuthService', () => {
 
     it('does not update the password when the token expires before the atomic claim', async () => {
       jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue({
-        token: 'racing-token', userId: mockUser.id, expiresAt: futureDate(), used: false,
+        id: 'reset-token-race', token: 'racing-token', tokenHash: null, userId: mockUser.id, expiresAt: futureDate(), used: false,
         user: mockUser,
       } as any);
       jest.spyOn(prisma.passwordResetToken, 'updateMany').mockResolvedValue({ count: 0 } as any);
@@ -283,7 +401,7 @@ describe('AuthService', () => {
 
     it('rejects an expired token', async () => {
       jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue({
-        token: 'expired-token', userId: mockUser.id, expiresAt: pastDate(), used: false,
+        id: 'reset-token-expired', token: 'expired-token', tokenHash: null, userId: mockUser.id, expiresAt: pastDate(), used: false,
         user: mockUser,
       } as any);
 
@@ -293,7 +411,7 @@ describe('AuthService', () => {
 
     it('rejects an already-used token (prevents replay)', async () => {
       jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue({
-        token: 'used-token', userId: mockUser.id, expiresAt: futureDate(), used: true,
+        id: 'reset-token-used', token: 'used-token', tokenHash: null, userId: mockUser.id, expiresAt: futureDate(), used: true,
         user: mockUser,
       } as any);
 

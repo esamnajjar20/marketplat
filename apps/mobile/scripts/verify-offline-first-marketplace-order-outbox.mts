@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(process.cwd());
-const read = (p: string) => fs.readFileSync(path.join(root, p), 'utf8');
+const mobileRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (p: string) => fs.readFileSync(path.join(mobileRoot, p), 'utf8');
 const outbox = read('src/storage/order-outbox.ts');
 const lifecycle = read('src/storage/outbox-sync-lifecycle.ts');
 const checkout = read('app/order-checkout.tsx');

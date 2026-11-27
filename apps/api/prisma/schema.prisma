@@ -1838,7 +1838,8 @@ model ScheduledJobRun {
 
 model PasswordResetToken {
   id        String   @id @default(cuid())
-  token     String   @unique
+  token     String?  @unique
+  tokenHash String?  @unique @map("token_hash")
   userId    String
   expiresAt DateTime
   used      Boolean  @default(false)
@@ -1857,7 +1858,8 @@ model PasswordResetToken {
 // at the service layer, not the DB. Cascade delete on user.
 model EmailVerificationToken {
   id        String   @id @default(cuid())
-  token     String   @unique
+  token     String?  @unique
+  tokenHash String?  @unique @map("token_hash")
   userId    String
   expiresAt DateTime
   used      Boolean  @default(false)
@@ -2698,7 +2700,9 @@ model OutboxEventIdempotency {
 
 // Durable idempotency journal for offline image uploads. The journal row and
 // the ad's image-array append commit in one transaction, so a lost HTTP ACK
-// cannot attach the same upload twice on replay.
+// cannot attach the same upload twice on replay. Deliberately no Ad/User FKs:
+// this ledger must retain operation IDs even when the linked ad or account is
+// deleted, preventing a replay from resurrecting historical uploads.
 model AdImageOfflineOperation {
   id             String   @id @default(cuid())
   operationId    String   @unique

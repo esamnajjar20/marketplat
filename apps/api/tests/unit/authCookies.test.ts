@@ -305,4 +305,18 @@ describe('authCookies', () => {
       expect(getSessionHintCookieName()).toBe('app_has_session');
     });
   });
+
+  describe('OAuth purpose', () => {
+    it('accepts the single-use Google deletion re-auth purpose', async () => {
+      const { getOAuthPurpose } = await import('../../src/shared/auth/authCookies');
+      const req = { cookies: { oauth_purpose: 'delete' } } as unknown as Request;
+      expect(getOAuthPurpose(req)).toBe('delete');
+    });
+
+    it('rejects unknown OAuth purposes', async () => {
+      const { getOAuthPurpose } = await import('../../src/shared/auth/authCookies');
+      const req = { cookies: { oauth_purpose: 'admin' } } as unknown as Request;
+      expect(getOAuthPurpose(req)).toBeUndefined();
+    });
+  });
 });

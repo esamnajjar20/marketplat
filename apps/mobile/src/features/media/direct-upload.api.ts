@@ -1,7 +1,8 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { apiRequest } from '@/api/client';
 import * as FileSystem from 'expo-file-system/legacy';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T };
+type Envelope<T> = SharedApiEnvelope<T>;
 export type DirectImagePurpose = 'ads' | 'products' | 'service-listings' | 'requests';
 export type MobileImageAsset = {
   uri: string;

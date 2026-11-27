@@ -165,6 +165,69 @@ describe('Auth Security', () => {
         .set('Authorization', `Bearer ${accessToken}`);
       expect(afterLogout.status).toBe(401);
     });
+
+    it('logout-all immediately invalidates access tokens issued to other sessions', async () => {
+      const email = `logout-all-${Date.now()}@test.com`;
+      const first = await request(app)
+        .post('/api/v1/auth/register')
+        .send({ name: 'Multi Device User', email, password: 'TestPassword123!', city: 'غزة' });
+      expect(first.status).toBe(201);
+
+      const second = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email, password: 'TestPassword123!' });
+      expect(second.status).toBe(200);
+
+      const firstAccessToken = first.body.data.tokens.accessToken as string;
+      const secondAccessToken = second.body.data.tokens.accessToken as string;
+      await request(app)
+        .post('/api/v1/auth/logout-all')
+        .set('Authorization', `Bearer ${firstAccessToken}`)
+        .expect(200);
+
+      const secondDeviceAfterLogout = await request(app)
+        .get('/api/v1/users/me')
+        .set('Authorization', `Bearer ${secondAccessToken}`);
+      expect(secondDeviceAfterLogout.status).toBe(401);
+    });
+
+    it('revoking one session immediately invalidates only that session access token', async () => {
+      const email = `revoke-session-${Date.now()}@test.com`;
+      const first = await request(app)
+        .post('/api/v1/auth/register')
+        .send({ name: 'Session User', email, password: 'TestPassword123!', city: 'غزة' });
+      expect(first.status).toBe(201);
+
+      const second = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email, password: 'TestPassword123!' });
+      expect(second.status).toBe(200);
+
+      const firstAccessToken = first.body.data.tokens.accessToken as string;
+      const secondAccessToken = second.body.data.tokens.accessToken as string;
+      const sessions = await request(app)
+        .get('/api/v1/auth/sessions')
+        .set('Authorization', `Bearer ${firstAccessToken}`)
+        .expect(200);
+      const secondSession = (sessions.body.data as Array<{ sessionId: string; isCurrent: boolean }>)
+        .find(session => !session.isCurrent);
+      expect(secondSession).toBeDefined();
+
+      await request(app)
+        .delete(`/api/v1/auth/sessions/${secondSession!.sessionId}`)
+        .set('Authorization', `Bearer ${firstAccessToken}`)
+        .expect(200);
+
+      const revokedDevice = await request(app)
+        .get('/api/v1/users/me')
+        .set('Authorization', `Bearer ${secondAccessToken}`);
+      expect(revokedDevice.status).toBe(401);
+
+      const currentDevice = await request(app)
+        .get('/api/v1/users/me')
+        .set('Authorization', `Bearer ${firstAccessToken}`);
+      expect(currentDevice.status).toBe(200);
+    });
   });
 });
 

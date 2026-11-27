@@ -1,3 +1,4 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { buildFilterParams } from '../../../../../shared/filters';
 import type { NotificationCategory } from '@marketplat/contracts';
 import { apiRequest, UPLOAD_TIMEOUT_MS } from '@/api/client';
@@ -13,7 +14,7 @@ import {
 } from '@/api/response-schemas';
 import type { ZodType } from 'zod';
 
-export type ApiEnvelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number; nextCursor?: string | null } } };
+export type ApiEnvelope<T> = SharedApiEnvelope<T>;
 export type ChatUser = { id: string; name?: string | null; avatarUrl?: string | null };
 export type ChatMessage = { id: string; conversationId?: string; senderId: string; body?: string | null; imageUrl?: string | null; audioUrl?: string | null; fileUrl?: string | null; fileName?: string | null; fileMimeType?: string | null; fileSize?: number | null; createdAt: string; deletedAt?: string | null; isPinned?: boolean; isStarredByMe?: boolean; readAt?: string | null; outboxAttempts?: number; outboxStatus?: string; outboxLastError?: string | null };
 export type ConversationItem = { id: string; buyerId: string; sellerId: string; buyer: ChatUser; seller: ChatUser; ad?: { id: string; title: string; images?: string[] } | null; serviceRequest?: { id: string; details?: string; listing?: { title?: string; images?: string[] } | null } | null; lastMessage?: ChatMessage | null; unreadCount?: number; updatedAt?: string; mySettings?: { pinnedAt?: string | null; archivedAt?: string | null; mutedUntil?: string | null } | null };

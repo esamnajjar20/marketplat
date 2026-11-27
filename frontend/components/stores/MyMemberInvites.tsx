@@ -13,12 +13,9 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useMyMemberInvites } from '@/hooks/queries/useStoreMembers';
 import { useAcceptStoreMemberInvite, useRejectStoreMemberInvite } from '@/hooks/mutations/useStoreMemberMutations';
 import type { StoreMember, StoreMemberRole } from '@/types/store-member.types';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
-const ROLE_LABELS: Record<StoreMemberRole, string> = {
-  MANAGER: 'مدير',
-  STAFF: 'موظف',
-  EDITOR: 'محرر منتجات',
-};
+const ROLE_LABELS: Record<StoreMemberRole, string> = DOMAIN_STATUS_LABELS.storeMemberRole;
 
 function InviteCard({ invite }: { invite: StoreMember }) {
   const accept = useAcceptStoreMemberInvite();

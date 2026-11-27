@@ -1,3 +1,5 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
+import type { ServicePricingType, ServiceLocationType, ServiceListingStatus, ServiceAvailability, ServiceRequestStatus, AppointmentStatus, ServiceTypeFieldType, ServiceTypeFieldScope } from '@marketplat/contracts';
 import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
 import { ApiError, apiRequest } from '@/api/client';
 import { uploadMobileImagesDirect } from '../media/direct-upload.api';
@@ -5,22 +7,22 @@ import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry, readPublicCac
 import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
 import { buildFilterParams } from '../../../../../shared/filters';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
-export type ServiceTypeListingField = { id: string; key: string; scope: string; type: string; labelAr?: string; pageLabelAr?: string | null; showOnPage?: boolean; isActive?: boolean; options?: Array<{ value: string; labelAr?: string; label?: string }> | null };
+type Envelope<T> = SharedApiEnvelope<T>;
+export type ServiceTypeListingField = { id: string; key: string; scope: ServiceTypeFieldScope; type: ServiceTypeFieldType; labelAr?: string; pageLabelAr?: string | null; showOnPage?: boolean; isActive?: boolean; options?: Array<{ value: string; labelAr?: string; label?: string }> | null };
 export type ServiceListing = {
   id: string; title: string; description?: string | null; images?: string[];
-  pricingType?: 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE' | string; price?: number | string | null;
-  durationEstimate?: string | null; serviceLocation?: 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE' | string;
+  pricingType?: ServicePricingType; price?: number | string | null;
+  durationEstimate?: string | null; serviceLocation?: ServiceLocationType;
   serviceTypeId?: string; attributes?: Record<string, unknown> | null;
   serviceType?: { id: string; slug?: string; nameAr?: string | null; fields?: ServiceTypeListingField[] } | null;
-  status?: string; createdAt?: string;
-  provider?: { id?: string; businessName?: string | null; logoUrl?: string | null; availabilityStatus?: string; sellerProfile?: { id?: string; userId?: string; displayName?: string | null; verified?: boolean; averageRating?: number | null; totalRatings?: number } | null };
+  status?: ServiceListingStatus; createdAt?: string;
+  provider?: { id?: string; businessName?: string | null; logoUrl?: string | null; availabilityStatus?: ServiceAvailability; sellerProfile?: { id?: string; userId?: string; displayName?: string | null; verified?: boolean; averageRating?: number | null; totalRatings?: number } | null };
   category?: { id?: string; name?: string; nameAr?: string | null } | null;
 };
 export type ServiceRequest = {
-  id: string; listingId?: string; customerId?: string; details?: string; attachedImages?: string[]; status?: string; quotedPrice?: number | string | null; agreedPrice?: number | string | null; createdAt?: string; updatedAt?: string; respondedAt?: string | null; disputeReason?: string | null;
-  appointment?: { id?: string; scheduledStart?: string; scheduledEnd?: string; status?: string; notes?: string | null } | null;
-  listing?: { id?: string; title?: string; description?: string | null; images?: string[]; price?: number | string | null; pricingType?: string; durationEstimate?: string | null; serviceType?: { capabilities?: Record<string, unknown> | null } | null; provider?: { id?: string; businessName?: string | null; sellerProfile?: { id?: string; userId?: string; displayName?: string | null } | null } | null } | null; customer?: { id?: string; name?: string; displayName?: string; avatarUrl?: string | null } | null;
+  id: string; listingId?: string; customerId?: string; details?: string; attachedImages?: string[]; status?: ServiceRequestStatus; quotedPrice?: number | string | null; agreedPrice?: number | string | null; createdAt?: string; updatedAt?: string; respondedAt?: string | null; disputeReason?: string | null;
+  appointment?: { id?: string; scheduledStart?: string; scheduledEnd?: string; status?: AppointmentStatus; notes?: string | null } | null;
+  listing?: { id?: string; title?: string; description?: string | null; images?: string[]; price?: number | string | null; pricingType?: ServicePricingType; durationEstimate?: string | null; serviceType?: { capabilities?: Record<string, unknown> | null } | null; provider?: { id?: string; businessName?: string | null; sellerProfile?: { id?: string; userId?: string; displayName?: string | null } | null } | null } | null; customer?: { id?: string; name?: string; displayName?: string; avatarUrl?: string | null } | null;
   provider?: { businessName?: string; sellerProfile?: { id?: string; userId?: string; displayName?: string | null } } | null;
 };
 
@@ -40,7 +42,7 @@ function readData<T>(response: Envelope<T>, fallback: string): T {
   if (!response || response.success !== true || response.data === undefined) throw new Error(response?.message || fallback);
   return response.data;
 }
-export type ServiceBrowseFilters = { serviceTypeId?: string; categoryId?: string; serviceLocation?: 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE'; city?: string; minPrice?: number; maxPrice?: number; attributeFilters?: Record<string, unknown>; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc' };
+export type ServiceBrowseFilters = { serviceTypeId?: string; categoryId?: string; serviceLocation?: ServiceLocationType; city?: string; minPrice?: number; maxPrice?: number; attributeFilters?: Record<string, unknown>; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc' };
 export type ServiceListingsOptions = { page?: number; limit?: number; search?: string; signal?: AbortSignal } & ServiceBrowseFilters;
 
 export function serviceListingsCacheKey(options: ServiceListingsOptions = {}): string {

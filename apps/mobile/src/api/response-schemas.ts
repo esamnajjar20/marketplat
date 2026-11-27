@@ -1,12 +1,18 @@
 import { z } from 'zod';
-import { emailSchema, paginationMetaSchema } from '@marketplat/contracts';
+import {
+  apiSuccessResponseSchema,
+  emailSchema,
+  marketplaceOrderStatusSchema,
+  paginationMetaSchema,
+  userRoleSchema,
+} from '@marketplat/contracts';
 
 /** Success envelope schemas intentionally allow forward-compatible additional backend fields. */
 export const authUserResponseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   email: emailSchema,
-  role: z.string().min(1),
+  role: userRoleSchema,
 }).passthrough();
 
 const authDataSchema = z.object({
@@ -18,45 +24,28 @@ const authDataSchema = z.object({
   csrfToken: z.string().optional(),
 }).passthrough();
 
-export const authEnvelopeResponseSchema = z.object({
-  success: z.literal(true),
-  message: z.string().optional(),
+export const authEnvelopeResponseSchema = apiSuccessResponseSchema.extend({
   data: authDataSchema.extend({ user: authUserResponseSchema, tokens: z.object({ accessToken: z.string().min(1), expiresIn: z.number().finite().positive().optional() }).passthrough() }),
-}).passthrough();
+});
 
-export const refreshEnvelopeResponseSchema = z.object({
-  success: z.literal(true),
-  message: z.string().optional(),
+export const refreshEnvelopeResponseSchema = apiSuccessResponseSchema.extend({
   data: z.object({
     tokens: z.object({ accessToken: z.string().min(1), expiresIn: z.number().finite().positive().optional() }).passthrough(),
     csrfToken: z.string().optional(),
   }).passthrough(),
-}).passthrough();
+});
 
 const criticalAdDataSchema = z.object({ id: z.string().min(1), title: z.string().min(1) }).passthrough();
-export const criticalAdEnvelopeResponseSchema = z.object({
-  success: z.literal(true),
-  data: criticalAdDataSchema,
-  message: z.string().optional(),
-}).passthrough();
+export const criticalAdEnvelopeResponseSchema = apiSuccessResponseSchema.extend({ data: criticalAdDataSchema });
 
 const criticalOrderDataSchema = z.object({
   id: z.string().min(1),
-  status: z.enum(['PENDING', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']),
+  status: marketplaceOrderStatusSchema,
   items: z.array(z.object({ id: z.string().min(1), quantity: z.number().finite().positive() }).passthrough()),
 }).passthrough();
-export const criticalOrderEnvelopeResponseSchema = z.object({
-  success: z.literal(true),
-  data: criticalOrderDataSchema,
-  message: z.string().optional(),
-}).passthrough();
+export const criticalOrderEnvelopeResponseSchema = apiSuccessResponseSchema.extend({ data: criticalOrderDataSchema });
 
-export const criticalOrderListEnvelopeResponseSchema = z.object({
-  success: z.literal(true),
-  data: z.array(criticalOrderDataSchema),
-  message: z.string().optional(),
-  meta: z.unknown().optional(),
-}).passthrough();
+export const criticalOrderListEnvelopeResponseSchema = apiSuccessResponseSchema.extend({ data: z.array(criticalOrderDataSchema) });
 
 const optionalNullableString = z.string().nullable().optional();
 const paginationResponseSchema = paginationMetaSchema;
@@ -133,12 +122,7 @@ const notificationResponseSchema = z.object({
 }).passthrough();
 
 function successEnvelopeResponseSchema(data: z.ZodTypeAny) {
-  return z.object({
-    success: z.literal(true),
-    message: z.string().optional(),
-    data,
-    meta: mobileApiMetaSchema.optional(),
-  }).passthrough();
+  return apiSuccessResponseSchema.extend({ data, meta: mobileApiMetaSchema.optional() });
 }
 
 export const conversationListEnvelopeResponseSchema = successEnvelopeResponseSchema(z.array(conversationResponseSchema));

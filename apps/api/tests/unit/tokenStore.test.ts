@@ -5,6 +5,7 @@ import {
   peekBlacklistL1,
   rememberBlacklistL1,
   getBlacklistKey,
+  getSessionMetadataKey,
 } from '../../src/shared/auth/tokenStore';
 import { redis } from '../../src/config/redis';
 
@@ -72,6 +73,30 @@ describe('tokenStore utilities', () => {
       expect(sessions.map(s => s.sessionId)).toEqual(['session-b']);
       await expect(tokenStore.validateRefreshToken(userId, 'session-a', 'token-a'))
         .resolves.toBe(false);
+    });
+
+    it('updates lastSeen for live sessions and never recreates revoked metadata', async () => {
+      await tokenStore.saveRefreshToken(userId, 'session-last-seen-live', 'refresh-live', metadata);
+      await tokenStore.updateSessionLastSeen(userId, 'session-last-seen-live');
+      const liveMetadata = await tokenStore.getSessionMetadata(userId, 'session-last-seen-live');
+      expect(liveMetadata?.lastSeen).not.toBe(metadata.lastSeen);
+
+      await tokenStore.saveRefreshToken(userId, 'session-last-seen-revoked', 'refresh-revoked', metadata);
+      await tokenStore.deleteRefreshToken(userId, 'session-last-seen-revoked');
+      await tokenStore.updateSessionLastSeen(userId, 'session-last-seen-revoked');
+
+      expect(await tokenStore.isSessionActive(userId, 'session-last-seen-revoked')).toBe(false);
+      expect(await redis.exists(getSessionMetadataKey(userId, 'session-last-seen-revoked'))).toBe(0);
+    });
+
+    it('makes access-session validity false immediately after revocation', async () => {
+      await tokenStore.saveRefreshToken(userId, 'session-access', 'refresh-access', metadata);
+      expect(await tokenStore.isSessionActive(userId, 'session-access')).toBe(true);
+      expect(await redis.exists(getSessionMetadataKey(userId, 'session-access'))).toBe(1);
+
+      await tokenStore.deleteRefreshToken(userId, 'session-access');
+
+      expect(await tokenStore.isSessionActive(userId, 'session-access')).toBe(false);
     });
   });
 

@@ -1,8 +1,8 @@
 import { apiClient } from './client';
 import type { ApiResponse } from '@/types/api.types';
 import type { ApiRequestConfig } from './requestConfig';
-
-export type StoryVisibility = 'PUBLIC' | 'FOLLOWERS';
+import type { StoryVisibility } from '@marketplat/contracts';
+export type { StoryVisibility } from '@marketplat/contracts';
 export interface StoryUser { id: string; name: string; avatarUrl: string | null; }
 export interface StoryItem {
   id: string;

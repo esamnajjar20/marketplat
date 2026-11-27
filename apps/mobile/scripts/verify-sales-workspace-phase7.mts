@@ -20,7 +20,7 @@ const checks = [
   ['report dates are validated as real calendar dates and ordered correctly', screen.includes('parsed.toISOString().slice(0, 10) === value') && screen.includes('from > to')],
   ['backend exposes CSV report endpoint', routes.includes("'/reports.csv'")],
   ['mobile shares CSV content through the native share sheet with a bounded export cap', screen.includes('Share.share') && screen.includes('\\uFEFF') && screen.includes('allRows.length >= 1000')],
-  ['mobile reports paginate through API page and limit parameters', api.includes('page: String(Math.max(1, Math.trunc(filters.page ?? 1)))') && screen.includes('reportPage') && screen.includes('الصفحة التالية')],
+  ['mobile reports paginate through API page and limit parameters', api.includes('page: Math.max(1, Math.trunc(filters.page ?? 1))') && api.includes('buildFilterParams') && screen.includes('reportPage') && screen.includes('الصفحة التالية')],
 ];
 let failed = 0;
 for (const [label, ok] of checks) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failed++; }

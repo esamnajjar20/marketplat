@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { SEARCH_TYPES, SEARCH_SORT_OPTIONS } from './search.types';
+import { adConditionSchema } from '@marketplat/contracts';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 
 // Same "absent vs empty string" distinction as ads.validation.ts's
@@ -24,7 +25,7 @@ const baseSearchQuerySchema = z.object({
   categoryId: z.string().optional(),
   minPrice: optionalQueryNumber(z.number().min(0)).optional(),
   maxPrice: optionalQueryNumber(z.number().min(0)).optional(),
-  condition: z.enum(['NEW', 'USED', 'REFURBISHED']).optional(),
+  condition: adConditionSchema.optional(),
   sort: z.enum(SEARCH_SORT_OPTIONS).default('relevance'),
   page: optionalQueryNumber(z.number().int().min(1).max(1000)),
   // Capped lower than ads.validation.ts's own limit (100) — each row

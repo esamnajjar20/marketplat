@@ -1,20 +1,18 @@
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'نشط', PENDING: 'قيد الانتظار', OPEN: 'مفتوح', CLOSED: 'مغلق', EXPIRED: 'منتهي',
-  COMPLETED: 'مكتمل', CANCELLED: 'ملغي', APPROVED: 'مقبول', REJECTED: 'مرفوض',
-  IN_PROGRESS: 'قيد التنفيذ', ACCEPTED: 'مقبول', DISPUTED: 'قيد المراجعة', BLOCKED: 'محظور',
-  PAUSED: 'متوقف مؤقتًا', DELETED: 'محذوف', REPORTED: 'تم الإبلاغ عنه', AVAILABLE: 'متاح',
-  BUSY: 'مشغول', UNAVAILABLE: 'غير متاح', REMOVED: 'تمت الإزالة', SUSPENDED: 'موقوف',
-  DRAFT: 'مسودة', PUBLISHED: 'منشور', ARCHIVED: 'مؤرشف', REQUIRES_ACTION: 'يتطلب إجراءً',
-  MANAGER: 'مدير', STAFF: 'موظف', EDITOR: 'محرر', OWNER: 'مالك', CUSTOMER: 'عميل', PROVIDER: 'مقدم خدمة',
-  CONFIRMED: 'مؤكد', RESCHEDULED: 'أعيدت جدولته', NO_SHOW: 'لم يحضر',
-};
+import { DOMAIN_STATUS_LABELS, GENERIC_STATUS_LABELS, domainStatusLabel, type StatusLabelDomain } from '@marketplat/contracts';
+
+const STATUS_LABELS: Readonly<Record<string, string>> = GENERIC_STATUS_LABELS;
 export function statusLabel(value?: string | null): string {
   if (!value) return 'غير محدد';
-  return STATUS_LABELS[value.toUpperCase()] ?? value.replace(/_/g, ' ');
+  const key = value.toUpperCase();
+  const domainMaps = Object.values(DOMAIN_STATUS_LABELS) as Array<Record<string, string>>;
+  const domainFallback = domainMaps
+    .map((labels) => labels[key])
+    .find((label) => typeof label === 'string');
+  return STATUS_LABELS[key] ?? domainFallback ?? value.replace(/_/g, ' ');
 }
 export function roleLabel(value?: string | null): string {
   if (!value) return 'عضو';
-  return STATUS_LABELS[value.toUpperCase()] ?? value;
+  return domainStatusLabel('role', value.toUpperCase(), value);
 }
 
 /**
@@ -23,46 +21,9 @@ export function roleLabel(value?: string | null): string {
  * means "offer accepted" on a request but "accepted" on a service request, so
  * each domain owns its wording here instead of re-declaring maps inside screens.
  */
-export type LabelDomain =
-  | 'ad' | 'adCondition' | 'product' | 'order' | 'serviceRequest' | 'appointment'
-  | 'request' | 'offer' | 'installment' | 'paymentMethod' | 'report'
-  | 'reportTarget' | 'reportReason' | 'storeMember' | 'saleEntity' | 'salePayment';
+export type LabelDomain = StatusLabelDomain;
 
-const DOMAIN_LABELS: Record<LabelDomain, Record<string, string>> = {
-  ad: { ACTIVE: 'نشط', PENDING: 'قيد المراجعة', SOLD: 'مباع', EXPIRED: 'منتهي', REJECTED: 'مرفوض', SUSPENDED: 'موقوف', DELETED: 'محذوف' },
-  adCondition: { NEW: 'جديد', USED: 'مستعمل', REFURBISHED: 'مجدّد' },
-  product: {
-    ACTIVE: 'نشط', DRAFT: 'مسودة', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', SUSPENDED: 'موقوف',
-    IN_STOCK: 'متوفر', LIMITED: 'كمية محدودة', OUT_OF_STOCK: 'نفد المخزون',
-  },
-  order: {
-    PENDING: 'بانتظار تأكيد المتجر', CONFIRMED: 'تم تأكيد الطلب', PROCESSING: 'قيد التجهيز',
-    SHIPPED: 'تم الشحن', DELIVERED: 'تم التسليم', CANCELLED: 'ملغي',
-  },
-  serviceRequest: {
-    PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', IN_PROGRESS: 'قيد التنفيذ',
-    COMPLETED: 'مكتمل', CANCELLED: 'ملغي', EXPIRED: 'منتهي', DISPUTED: 'قيد المراجعة',
-  },
-  appointment: { SCHEDULED: 'مجدول', COMPLETED: 'مكتمل', CANCELLED: 'ملغى', NO_SHOW: 'لم يحضر' },
-  request: { OPEN: 'مفتوح', ACCEPTED: 'تم قبول عرض', CANCELLED: 'ملغى', COMPLETED: 'مكتمل', EXPIRED: 'منتهي' },
-  offer: { PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', WITHDRAWN: 'مسحوب' },
-  installment: { PENDING: 'بانتظار الدفع', PAID: 'مدفوع', PARTIAL: 'مدفوع جزئيًا', OVERDUE: 'متأخر', CANCELLED: 'ملغى' },
-  paymentMethod: {
-    CASH: 'نقدًا', CASH_ON_DELIVERY: 'نقدًا عند الاستلام', CARD: 'بطاقة',
-    BANK_TRANSFER: 'تحويل بنكي', WALLET: 'محفظة إلكترونية', OTHER: 'أخرى',
-  },
-  report: { PENDING: 'قيد المراجعة', RESOLVED: 'تم الحل', DISMISSED: 'تم الرفض' },
-  // Both the API enum (AD…) and the route segment (ads…) are accepted so the
-  // report form and "my reports" list can never drift apart.
-  reportTarget: {
-    AD: 'إعلان', USER: 'مستخدم', STORE: 'متجر', PRODUCT: 'منتج', SERVICE_LISTING: 'خدمة',
-    ads: 'الإعلان', users: 'المستخدم', stores: 'المتجر', products: 'المنتج', services: 'الخدمة',
-  },
-  reportReason: { SCAM: 'احتيال', FAKE: 'محتوى مزيف', OFFENSIVE: 'محتوى مسيء', SPAM: 'محتوى مزعج' },
-  storeMember: { ACTIVE: 'نشط', PENDING: 'بانتظار القبول', REMOVED: 'مزال' },
-  saleEntity: { PRODUCT: 'منتج', AD: 'إعلان', SERVICE: 'خدمة', FREE: 'عنصر مجاني' },
-  salePayment: { PAID: 'مدفوع بالكامل', PARTIAL: 'مدفوع جزئيًا', UNPAID: 'غير مدفوع', OVERDUE: 'متأخر' },
-};
+const DOMAIN_LABELS: Record<LabelDomain, Record<string, string>> = DOMAIN_STATUS_LABELS;
 
 /**
  * Label for `value` inside `domain`. Unknown / empty values return `fallback`
@@ -70,5 +31,5 @@ const DOMAIN_LABELS: Record<LabelDomain, Record<string, string>> = {
  */
 export function domainLabel(domain: LabelDomain, value: string | null | undefined, fallback = 'غير محدد'): string {
   if (!value) return fallback;
-  return DOMAIN_LABELS[domain][value] ?? fallback;
+  return DOMAIN_LABELS[domain][value] ?? domainStatusLabel(domain, value, fallback);
 }

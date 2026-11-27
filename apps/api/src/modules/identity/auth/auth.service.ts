@@ -27,6 +27,7 @@ import { RegisterInput, LoginInput } from './auth.validation';
 import { logger } from '../../../shared/observability/logger';
 import { GoogleProfileData } from './google.strategy';
 import { sleep } from '../../../shared/utils/sleep';
+import type { UserRole } from '@marketplat/contracts';
 
 const MAX_EMAIL_ATTEMPTS = 5;
 // 500 attempts/hour avoids false lockouts on carrier-grade NAT while
@@ -40,6 +41,41 @@ const LOCKOUT_DURATION = 30 * 60;
 /** Keep forgot-password responses from revealing account existence by timing. */
 const FORGOT_PASSWORD_MIN_MS = 700;
 
+/** Opaque auth tokens are persisted only as SHA-256 digests. Legacy plaintext
+ * rows remain readable during their existing TTL and are converted to a digest
+ * atomically when redeemed. */
+function hashOpaqueToken(token: string): string {
+  return crypto.createHash('sha256').update(token, 'utf8').digest('hex');
+}
+
+async function findPasswordResetRecord(token: string) {
+  const tokenHash = hashOpaqueToken(token);
+  const hashed = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
+  if (hashed) return hashed;
+  // Backward compatibility for links issued before the tokenHash migration.
+  return prisma.passwordResetToken.findUnique({
+    where: { token },
+    include: { user: true },
+  });
+}
+
+async function findEmailVerificationRecord(token: string) {
+  const tokenHash = hashOpaqueToken(token);
+  const hashed = await prisma.emailVerificationToken.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
+  if (hashed) return hashed;
+  // Backward compatibility for links issued before the tokenHash migration.
+  return prisma.emailVerificationToken.findUnique({
+    where: { token },
+    include: { user: true },
+  });
+}
+
 export interface AuthResult {
   tokens: Omit<TokenPair, 'sessionId'>;
   // FEAT-GOOGLE-COMPLETE-PROFILE: optional, present (and meaningful)
@@ -51,7 +87,7 @@ export interface AuthResult {
     id: string;
     name: string;
     email: string;
-    role: string;
+    role: UserRole;
     needsProfileCompletion?: boolean;
     // FIX FEAT-EMAIL-VERIFY: present on every response. Frontend uses
     // this to render a "verify your email" banner. Google-signup
@@ -74,7 +110,7 @@ async function issueSession(
     id: string;
     name: string;
     email: string;
-    role: string;
+    role: UserRole;
     needsProfileCompletion?: boolean;
     emailVerified?: boolean;
   },
@@ -83,20 +119,33 @@ async function issueSession(
 ): Promise<{ result: AuthResult; sessionId: string }> {
   const tokens = signTokenPair(user.id);
 
-  await tokenStore.saveRefreshToken(user.id, tokens.sessionId, tokens.refreshToken, {
-    userAgent,
-    rawIp: ip,
-    ip,
-    createdAt: new Date().toISOString(),
-    lastSeen: new Date().toISOString(),
-  });
+  try {
+    await tokenStore.saveRefreshToken(user.id, tokens.sessionId, tokens.refreshToken, {
+      userAgent,
+      rawIp: ip,
+      ip,
+      createdAt: new Date().toISOString(),
+      lastSeen: new Date().toISOString(),
+    });
 
-  await userCache.set({
-    id: user.id,
-    role: user.role,
-    isActive: true,
-    emailVerified: user.emailVerified,
-  });
+    await userCache.set({
+      id: user.id,
+      role: user.role,
+      isActive: true,
+      emailVerified: user.emailVerified,
+      needsProfileCompletion: Boolean(user.needsProfileCompletion),
+    });
+  } catch (error) {
+    // Session persistence and cache warming span Redis commands. If either
+    // fails, remove the unique session id even when the Redis write timed out
+    // after committing; this avoids leaving a refresh credential that the
+    // caller never received. This is deliberately scoped to this new session.
+    await Promise.allSettled([
+      tokenStore.deleteRefreshToken(user.id, tokens.sessionId),
+      userCache.invalidate(user.id),
+    ]);
+    throw error;
+  }
 
   return {
     sessionId: tokens.sessionId,
@@ -191,7 +240,7 @@ export const authService = {
           where: { userId: user.id, used: false },
         });
         await prisma.emailVerificationToken.create({
-          data: { token, userId: user.id, expiresAt: expiry },
+          data: { token: null, tokenHash: hashOpaqueToken(token), userId: user.id, expiresAt: expiry },
         });
 
         await emailService.sendVerificationEmail(user.email, token);
@@ -445,6 +494,112 @@ export const authService = {
    * attempt to create/link — see oauthLock.ts's own comment.
    */
   /**
+   * Step-up proof for an irreversible account deletion. The Google subject
+   * must already be linked to this exact marketplace account; matching only
+   * an email address is deliberately insufficient. The refresh cookie must
+   * also belong to a currently-live session for the same user.
+   */
+  /**
+   * Validate a native Google step-up against the exact session that initiated
+   * the flow. The session is checked again after the external browser round-trip
+   * so logout/revocation during consent invalidates the pending deletion.
+   */
+  verifyGoogleReauthForSessionIdentity: async (
+    userId: string,
+    sessionId: string,
+    profile: GoogleProfileData
+  ): Promise<string> => {
+    if (!(await tokenStore.isSessionActive(userId, sessionId))) {
+      throw new UnauthorizedError('Session expired. Please login again', 'SESSION_EXPIRED');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, googleId: true, isActive: true },
+    });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
+    }
+    if (
+      !user.googleId ||
+      user.googleId !== profile.googleId ||
+      user.email.trim().toLowerCase() !== profile.email.trim().toLowerCase()
+    ) {
+      throw new UnauthorizedError(
+        'The Google identity is not linked to this account',
+        'GOOGLE_REAUTH_MISMATCH'
+      );
+    }
+    return user.id;
+  },
+
+  /** Refuse to start native deletion re-auth unless this exact user has a linked Google identity. */
+  assertGoogleDeletionAvailable: async (userId: string, sessionId: string): Promise<void> => {
+    if (!(await tokenStore.isSessionActive(userId, sessionId))) {
+      throw new UnauthorizedError('Session expired. Please login again', 'SESSION_EXPIRED');
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { googleId: true, isActive: true },
+    });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
+    }
+    if (!user.googleId) {
+      throw new BadRequestError(
+        'No linked Google account is available for re-authentication',
+        'GOOGLE_REAUTH_UNAVAILABLE'
+      );
+    }
+  },
+
+  verifyGoogleReauthForSession: async (
+    refreshToken: string,
+    profile: GoogleProfileData
+  ): Promise<string> => {
+    const genericError = new UnauthorizedError(
+      'Session expired. Please login again',
+      'SESSION_EXPIRED'
+    );
+    let payload;
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch {
+      throw genericError;
+    }
+
+    if (!(await tokenStore.isSessionActive(payload.userId, payload.sessionId))) {
+      throw genericError;
+    }
+    const valid = await tokenStore.validateRefreshToken(
+      payload.userId,
+      payload.sessionId,
+      refreshToken
+    );
+    if (!valid) throw genericError;
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, email: true, googleId: true, isActive: true },
+    });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
+    }
+    if (
+      !user.googleId ||
+      user.googleId !== profile.googleId ||
+      user.email.trim().toLowerCase() !== profile.email.trim().toLowerCase()
+    ) {
+      throw new UnauthorizedError(
+        'The Google identity is not linked to this account',
+        'GOOGLE_REAUTH_MISMATCH'
+      );
+    }
+
+    return user.id;
+  },
+
+  /**
    * Link a verified Google identity to the currently authenticated
    * session represented by the refresh-token cookie. This is used only
    * by the explicit Settings -> Security flow; it never creates a
@@ -465,6 +620,9 @@ export const authService = {
       throw genericError;
     }
 
+    if (!(await tokenStore.isSessionActive(payload.userId, payload.sessionId))) {
+      throw genericError;
+    }
     const valid = await tokenStore.validateRefreshToken(
       payload.userId,
       payload.sessionId,
@@ -703,6 +861,13 @@ export const authService = {
      * userCache.invalidate() explicitly, so a real deactivation is
      * reflected immediately rather than waiting out the TTL.
      */
+    // Refuse legacy/orphan refresh credentials without their authoritative
+    // session metadata; otherwise refresh could succeed only to issue an Access
+    // Token that the next authenticated API request immediately rejects.
+    if (!(await tokenStore.isSessionActive(payload.userId, payload.sessionId))) {
+      throw genericError;
+    }
+
     const cachedUser = await userCache.getOrFetch(payload.userId);
     if (!cachedUser || !cachedUser.isActive) {
       throw genericError;
@@ -906,12 +1071,8 @@ export const authService = {
    * change state by proving Google ownership alone.
    */
   verifyEmailViaGoogle: async (email: string): Promise<{ alreadyVerified: boolean }> => {
-    // FIX EMAIL-NORMALIZE-03: same normalization as forgotPassword —
-    // direct prisma call, no repository boundary, and a mixed-case
-    // registration would otherwise silently miss.
-    const user = await prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
-    });
+    // Resolve through the shared case-insensitive repository boundary.
+    const user = await authRepository.findByEmail(email);
 
     if (!user) {
       throw new UnauthorizedError(
@@ -986,12 +1147,8 @@ export const authService = {
    * enumeration protection forgotPassword's timing floor provides.
    */
   issueResetTokenViaGoogle: async (email: string): Promise<string | null> => {
-    // FIX EMAIL-NORMALIZE-04: same reasoning as verifyEmailViaGoogle
-    // above — direct prisma call, mixed-case registration would
-    // otherwise be unreachable via the Google reset flow.
-    const user = await prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
-    });
+    // Resolve through the shared case-insensitive repository boundary.
+    const user = await authRepository.findByEmail(email);
 
     if (!user || !user.isActive) {
       return null;
@@ -1006,7 +1163,7 @@ export const authService = {
     });
 
     await prisma.passwordResetToken.create({
-      data: { token, userId: user.id, expiresAt: expiry },
+      data: { token: null, tokenHash: hashOpaqueToken(token), userId: user.id, expiresAt: expiry },
     });
 
     auditLog({
@@ -1028,16 +1185,10 @@ export const authService = {
     // already spent. See FORGOT_PASSWORD_MIN_MS's own comment.
     const startedAt = Date.now();
 
-    // FIX EMAIL-NORMALIZE-02: this is a direct prisma call, so it does
-    // not pass through authRepository's normalizeEmail(). Without
-    // this, a user who registered as "User@Example.com" (or whose
-    // phone auto-capitalized the first letter) would never receive a
-    // reset email — the lookup would miss even though
-    // authRepository.findByEmail was already normalized. Kept inline
-    // rather than routed through the repository so the timing-floor
-    // measurement stays on the same code path as before.
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    // The repository owns email normalization and case-insensitive lookup.
+    // Keep the timing floor around this shared lookup so existing and
+    // non-existing addresses remain indistinguishable by response timing.
+    const user = await authRepository.findByEmail(email);
     if (!user || !user.isActive) {
       // Silent — do not reveal existence. Enforce the timing floor
       // before returning so this branch is indistinguishable from the
@@ -1071,7 +1222,7 @@ export const authService = {
     });
 
     await prisma.passwordResetToken.create({
-      data: { token, userId: user.id, expiresAt: expiry },
+      data: { token: null, tokenHash: hashOpaqueToken(token), userId: user.id, expiresAt: expiry },
     });
 
     // FIX EMAIL-01: previously only logged — users had no way to
@@ -1120,12 +1271,9 @@ export const authService = {
   },
 
   resetPassword: async (token: string, newPassword: string): Promise<void> => {
-    const record = await prisma.passwordResetToken.findUnique({
-      where: { token },
-      include: { user: true },
-    });
+    const record = await findPasswordResetRecord(token);
 
-    if (!record || record.expiresAt < new Date() || record.used) {
+    if (!record || !record.user.isActive || record.expiresAt < new Date() || record.used) {
       throw new BadRequestError(
         'Password reset link is invalid or has expired',
         'INVALID_RESET_TOKEN'
@@ -1133,6 +1281,11 @@ export const authService = {
     }
 
     const passwordHash = await hashPassword(newPassword);
+
+    // Revoke sessions before committing the password change. If Redis is not
+    // available, fail before consuming the reset token or changing credentials;
+    // this prevents old Access Tokens from surviving a post-commit Redis error.
+    await tokenStore.deleteAllRefreshTokens(record.userId);
 
     // SEC-FIX: the initial `!record.used` check above reads the token's
     // state, but the password/token updates below don't happen until
@@ -1155,8 +1308,8 @@ export const authService = {
     // password (or changing the password while leaving the token reusable).
     await prisma.$transaction(async tx => {
       const claim = await tx.passwordResetToken.updateMany({
-        where: { token, used: false, expiresAt: { gt: new Date() } },
-        data: { used: true },
+        where: { id: record.id, used: false, expiresAt: { gt: new Date() } },
+        data: { used: true, token: null, tokenHash: hashOpaqueToken(token) },
       });
 
       if (claim.count === 0) {
@@ -1169,10 +1322,9 @@ export const authService = {
       await tx.user.update({ where: { id: record.userId }, data: { passwordHash } });
     });
 
-    // BUGFIX P0-02: tokenStore.deleteAllSessions did not exist (would throw
-    // a TypeError at runtime on every successful password reset).
-    // The correct exported method is deleteAllRefreshTokens.
-    await tokenStore.deleteAllRefreshTokens(record.userId);
+    // Sessions were revoked before the credential transaction above. Clear
+    // the cached account projection only after the new password is committed.
+    await userCache.invalidate(record.userId);
 
     // FIX AUTH-RESET-UNLOCK-01: the reset proves control of the mailbox, so
     // a lockout caused by earlier wrong-password attempts must not keep the
@@ -1198,42 +1350,49 @@ export const authService = {
    * marked used=true (kept as an audit trail, same as password reset).
    */
   verifyEmail: async (token: string): Promise<void> => {
-    const record = await prisma.emailVerificationToken.findUnique({
-      where: { token },
-      include: { user: true },
-    });
-
-    if (!record || record.expiresAt < new Date() || record.used) {
+    const record = await findEmailVerificationRecord(token);
+    if (!record) {
       throw new BadRequestError(
         'Verification link is invalid or has expired',
         'INVALID_VERIFICATION_TOKEN'
       );
     }
 
-    // Idempotency: an already-verified user who re-clicks the link
-    // should see success, not a confusing error. Consume the token
-    // either way so it can't be reused.
-    await prisma.$transaction([
-      prisma.emailVerificationToken.update({
-        where: { id: record.id },
-        data: { used: true },
-      }),
-      prisma.user.update({
-        where: { id: record.userId },
-        data: {
-          emailVerified: true,
-          emailVerifiedAt: record.user.emailVerified ? record.user.emailVerifiedAt : new Date(),
-        },
-      }),
-    ]);
+    // Clicking a successfully consumed link again is idempotent. Expired or
+    // consumed links do not grant verification unless the account is already
+    // verified (for example, a second browser/device opened the same link).
+    if (record.user.emailVerified) return;
+    if (record.expiresAt < new Date() || record.used || !record.user.isActive) {
+      throw new BadRequestError(
+        'Verification link is invalid or has expired',
+        'INVALID_VERIFICATION_TOKEN'
+      );
+    }
 
-    // The verified flag is part of GET /users/me. Await invalidation so
-    // the next authenticated read cannot observe the pre-verification profile.
+    await prisma.$transaction(async tx => {
+      const claim = await tx.emailVerificationToken.updateMany({
+        where: { id: record.id, used: false, expiresAt: { gt: new Date() } },
+        data: { used: true, token: null, tokenHash: hashOpaqueToken(token) },
+      });
+      if (claim.count === 0) {
+        const latest = await tx.user.findUnique({
+          where: { id: record.userId },
+          select: { emailVerified: true },
+        });
+        if (latest?.emailVerified) return;
+        throw new BadRequestError(
+          'Verification link is invalid or has expired',
+          'INVALID_VERIFICATION_TOKEN'
+        );
+      }
+      await tx.user.update({
+        where: { id: record.userId },
+        data: { emailVerified: true, emailVerifiedAt: new Date() },
+      });
+    });
+
     await userCache.invalidate(record.userId);
-    auditLog({
-      event: AuditEvent.EMAIL_VERIFIED,
-      userId: record.userId,
-    }).catch(error =>
+    auditLog({ event: AuditEvent.EMAIL_VERIFIED, userId: record.userId }).catch(error =>
       reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error)
     );
   },
@@ -1266,7 +1425,7 @@ export const authService = {
       where: { userId: user.id, used: false },
     });
     await prisma.emailVerificationToken.create({
-      data: { token, userId: user.id, expiresAt: expiry },
+      data: { token: null, tokenHash: hashOpaqueToken(token), userId: user.id, expiresAt: expiry },
     });
 
     await emailService.sendVerificationEmail(user.email, token);

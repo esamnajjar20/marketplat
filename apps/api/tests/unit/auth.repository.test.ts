@@ -7,6 +7,8 @@ jest.mock('../../src/config/prisma', () => ({
   prisma: {
     user: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
     },
   },
@@ -25,15 +27,26 @@ describe('authRepository', () => {
 
   describe('findByEmail', () => {
     it('queries by email', async () => {
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-      await authRepository.findByEmail('test@example.com');
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { email: 'test@example.com' } });
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+      await authRepository.findByEmail(' Test@Example.com ');
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
+        where: { email: { equals: 'test@example.com', mode: 'insensitive' } },
+        take: 2,
+      });
     });
 
     it('returns null when no user matches', async () => {
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
       const result = await authRepository.findByEmail('missing@example.com');
       expect(result).toBeNull();
+    });
+
+    it('fails closed when legacy case variants create an ambiguous identity', async () => {
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([
+        { id: 'user-1' }, { id: 'user-2' },
+      ]);
+      await expect(authRepository.findByEmail('user@example.com'))
+        .rejects.toMatchObject({ code: 'EMAIL_IDENTITY_AMBIGUOUS' });
     });
   });
 

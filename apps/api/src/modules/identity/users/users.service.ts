@@ -274,9 +274,9 @@ export const usersService = {
   },
 
   /**
-   * Re-authenticate with the account password before deleting an account.
-   * OAuth-only users are deliberately rejected until a provider re-auth
-   * flow is implemented; an access token alone is not sufficient.
+   * Password-based step-up authentication for account deletion. OAuth-only
+   * users use the dedicated Google callback flow in auth.controller.ts,
+   * which validates the linked Google subject and the live refresh session.
    */
   deleteMeWithReauth: async (userId: string, currentPassword: string): Promise<void> => {
     const user = await prisma.user.findUnique({
@@ -298,8 +298,8 @@ export const usersService = {
   },
 
   // D-01: cascade ACTIVE ads to DELETED + S-04: revoke all tokens.
-  // This is an internal operation; HTTP controllers must call
-  // deleteMeWithReauth rather than expose this method directly.
+  // This is an internal operation; HTTP controllers must complete a
+  // password or linked-provider re-authentication step before calling it.
   deleteMe: async (userId: string): Promise<void> => {
     const user = await usersRepository.findById(userId);
     if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
@@ -343,12 +343,11 @@ export const usersService = {
     // reserved TLD for exactly this purpose (RFC 2606). Name is set to
     // a generic Arabic placeholder so any historical audit row or
     // admin list still reads as a user, not as a corrupted record.
-    // The passwordHash is left untouched — it was already unusable
-    // (the login path rejects isActive=false before it ever gets to
-    // bcrypt) and clearing it here would break the "is this account
-    // OAuth-only?" check in changePassword for a user who is deleted
-    // but somehow tries to log in again.
-    //
+    // Revoke the Redis session ledger before committing the irreversible DB
+    // change. Access tokens are valid only while their session metadata exists;
+    // if Redis is unavailable we fail before anonymizing/deactivating the user.
+    await tokenStore.deleteAllRefreshTokens(userId);
+
     // Deactivate + anonymize + hide ads all in one transaction so
     // there is no window where the account is "still half-alive".
     const anonEmail = `deleted-${userId}@deleted.invalid`;
@@ -361,6 +360,12 @@ export const usersService = {
           email: anonEmail,
           phone: anonPhone,
           name: 'مستخدم محذوف',
+          // Release linked identities and remove credential material so a
+          // deleted Google account can be registered again without retaining
+          // a reusable provider subject or password verifier.
+          googleId: null,
+          provider: 'local',
+          passwordHash: null,
           bio: null,
           avatarUrl: null,
         },
@@ -369,14 +374,17 @@ export const usersService = {
         where: { userId, status: AdStatus.ACTIVE },
         data: { status: AdStatus.DELETED },
       }),
+      prisma.passwordResetToken.deleteMany({ where: { userId } }),
+      prisma.emailVerificationToken.deleteMany({ where: { userId } }),
+      prisma.pushSubscription.deleteMany({ where: { userId } }),
+      prisma.fcmDeviceToken.deleteMany({ where: { userId } }),
     ]);
 
-    // S-04: revoke sessions and invalidate every public projection owned by
-    // the account. This includes store/product/service/provider lists, not
-    // only ads: deactivation hides all of those through their owner relation.
+    // Redis sessions were revoked before the database transaction. Now
+    // invalidate the cached account projection and every public projection
+    // owned by this account (stores/products/services/providers as well as ads).
     await Promise.all([
       userCache.invalidate(userId),
-      tokenStore.deleteAllRefreshTokens(userId),
       bumpAdsCacheVersionAndHome(),
       hidePublicEntities(...ALL_PUBLIC_LIST_NAMESPACES),
     ]);
@@ -394,18 +402,10 @@ export const usersService = {
   },
 
   /**
-   * previously changePassword only updated passwordHash and
-   * did nothing else — every other active session (refresh tokens on
-   * other devices, and the current access token for its remaining
-   * ~15min lifetime) stayed fully valid after the change. This is the
-   * exact scenario changing a password is meant to defend against: if
-   * an account is compromised, an attacker's session must not survive
-   * the legitimate user's password change. Mirrors the same
-   * session-invalidation pattern already used by logoutAll() and
-   * deleteMe() (S-04) — deleteAllRefreshTokens + cache invalidation —
-   * plus blacklisting the *current* access token, since unlike
-   * deleteMe the user stays logged in on the device they used to
-   * change the password and only that one session should remain valid.
+   * Password changes revoke every session, including the current Access Token.
+   * The caller must clear local auth state and require a fresh login; the API
+   * intentionally does not keep one device authenticated after credential
+   * rotation because a compromised session may be the one changing the password.
    */
   changePassword: async (
     userId: string,
@@ -434,21 +434,23 @@ export const usersService = {
       throw new BadRequestError('Current password is incorrect', 'CURRENT_PASSWORD_INVALID');
 
     const passwordHash = await hashPassword(newPassword);
+    // Revoke every session before the password write. If Redis cannot confirm
+    // revocation, do not commit the new credential while old Access Tokens may
+    // still be accepted. The user may need to sign in again if the DB write then
+    // fails, which is safer than leaving a stale session alive.
+    await tokenStore.deleteAllRefreshTokens(userId);
+    const ttl = currentAccessToken ? getTokenRemainingTTL(currentAccessToken) : 0;
+    if (ttl > 0 && currentAccessToken) {
+      await tokenStore.blacklistAccessToken(currentAccessToken, ttl);
+    }
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 
-    // Invalidate every other session. The current access token is
-    // blacklisted too — the caller must re-authenticate (or, in
-    // practice, the frontend re-logs-in with the fresh token pair it
-    // already has from this same request) rather than silently
-    // continuing to ride the pre-change token until it naturally expires.
-    const ttl = currentAccessToken ? getTokenRemainingTTL(currentAccessToken) : 0;
-    await Promise.all([
-      tokenStore.deleteAllRefreshTokens(userId),
-      userCache.invalidate(userId),
-      ttl > 0 && currentAccessToken
-        ? tokenStore.blacklistAccessToken(currentAccessToken, ttl)
-        : Promise.resolve(),
-    ]);
+    // Invalidate the cached account projection after the credential update.
+    // The session ledger was already removed above, so every old Access Token
+    // is rejected even if cache invalidation is delayed.
+    // The current Access Token was also blacklisted above; every other
+    // previously issued Access Token fails the live-session check.
+    await userCache.invalidate(userId);
 
     auditLog({ event: AuditEvent.PASSWORD_CHANGED, userId }).catch(error =>
       reportBackgroundFailure('apps/api/src/modules/identity/users/users.service.ts', error)

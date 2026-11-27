@@ -79,6 +79,7 @@ function RootChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isPrivateRoute = requiresAuthenticatedUser(pathname);
   const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  const needsProfileCompletion = Boolean(user?.needsProfileCompletion);
   const isWithin = (base: string) => normalizedPath === base || normalizedPath.startsWith(`${base}/`);
   const workspace: 'services' | 'activity' | 'settings' | 'store' | 'sales' | null =
     ['/my-services', '/service-requests', '/appointments', '/service-provider-analytics', '/service-editor', '/appointment-create'].some(isWithin)
@@ -94,13 +95,19 @@ function RootChrome({ children }: { children: ReactNode }) {
               : null;
 
   useEffect(() => {
+    if (isRestoring || !needsProfileCompletion || normalizedPath === '/complete-profile') return;
+    router.replace('/complete-profile');
+  }, [isRestoring, needsProfileCompletion, normalizedPath]);
+
+  useEffect(() => {
     if (!isPrivateRoute || isRestoring || user) return;
     router.replace({ pathname: '/login', params: { redirect: pathname } });
   }, [isPrivateRoute, isRestoring, pathname, user]);
 
-  // Do not mount private screens while the stored session is being restored or
-  // after it has been found missing. This prevents a brief private-data flash.
+  // Do not mount private screens while the stored session is being restored,
+  // and do not expose marketplace screens before required onboarding completes.
   const blockPrivateScreen = isPrivateRoute && (isRestoring || !user);
+  const blockIncompleteProfile = needsProfileCompletion && normalizedPath !== '/complete-profile';
 
   return (
     <MobileDrawerProvider>
@@ -116,7 +123,7 @@ function RootChrome({ children }: { children: ReactNode }) {
         <BottomNavigation />
         <ToastHost />
         <ConfirmHost />
-        {blockPrivateScreen ? (
+        {blockPrivateScreen || blockIncompleteProfile ? (
           <View
             accessibilityRole="progressbar"
             accessibilityLabel="جارٍ التحقق من جلسة الدخول"

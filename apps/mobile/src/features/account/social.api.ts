@@ -1,8 +1,11 @@
+import type { ApiEnvelope as SharedApiEnvelope, ApiPaginationMeta } from '@/api/contracts';
 import { apiRequest } from '@/api/client';
 import { buildFilterParams } from '../../../../../shared/filters';
+import type { ReportReason } from '@marketplat/contracts';
+export type { ReportReason } from '@marketplat/contracts';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: PaginationMeta } };
-export type PaginationMeta = { page?: number; limit?: number; total?: number; totalPages?: number; hasNextPage?: boolean };
+type Envelope<T> = SharedApiEnvelope<T>;
+export type PaginationMeta = ApiPaginationMeta;
 export type PublicUser = {
   id: string; name?: string | null; city?: string | null; bio?: string | null; avatarUrl?: string | null;
   createdAt?: string; _count?: { ads?: number };
@@ -17,7 +20,6 @@ export type PublicUser = {
 export type PublicAd = { id: string; title: string; price: number | string | null; images?: string[]; city?: string; createdAt?: string };
 export type FollowListItem = { id: string; targetType: string; targetId: string; target?: { id: string; name?: string | null; avatarUrl?: string | null; city?: string | null } | null; follower?: { id: string; name?: string | null; avatarUrl?: string | null; city?: string | null } | null };
 export type BlockedUserItem = { id: string; blockedId: string; createdAt?: string; blocked?: { id: string; name?: string | null; avatarUrl?: string | null } | null };
-export type ReportReason = 'SCAM' | 'FAKE' | 'OFFENSIVE' | 'SPAM';
 
 function unwrap<T>(response: Envelope<T>, fallback: string): T {
   if (!response || response.success !== true || response.data === undefined) throw new Error(response?.message || fallback);

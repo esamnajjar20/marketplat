@@ -41,7 +41,7 @@ import { toast } from 'sonner';
 import { ProductFormPreview } from '@/components/stores/ProductFormPreview';
 import type { Product, ProductAvailability, UpdateProductPayload, ProductFormValues } from '@/types/product.types';
 import { getStoreTypeLabels, type StoreAttributes, type StoreTypeField } from '@/types/store.types';
-import { productComposerFieldsSchema } from '@marketplat/contracts';
+import { productComposerFieldsSchema, DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -60,11 +60,7 @@ interface Errors {
   attributes?: string;
 }
 
-const AVAILABILITY_LABELS: Record<ProductAvailability, string> = {
-  IN_STOCK: 'متوفر',
-  LIMITED: 'كمية محدودة',
-  OUT_OF_STOCK: 'غير متوفر',
-};
+const AVAILABILITY_LABELS: Record<ProductAvailability, string> = DOMAIN_STATUS_LABELS.productAvailability;
 
 // PHASE-OFFLINE-DRAFTS: نفس نمط AdForm.tsx's DraftValues بالضبط — كل
 // شيء عدا images/existingImages (ملفات File حية غير قابلة لـ JSON، أو

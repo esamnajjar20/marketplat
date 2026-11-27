@@ -14,7 +14,7 @@ const read = (path: string) => readFileSync(join(repoRoot, path), 'utf8');
 const checks: any[] = [];
 const check = (label: string|Error|AssertMessageFunction|undefined, condition: unknown) => { assert.ok(condition, label); checks.push(label); };
 const schema = read('apps/api/prisma/schema.prisma');
-const routes = read('apps/api/src/routes.ts');
+const routes = read('apps/api/src/routes/commerce.routes.ts');
 const service = read('apps/api/src/modules/commerce/marketplace-orders/marketplace-orders.service.ts');
 const api = read('apps/mobile/src/features/commerce/orders.api.ts');
 const detail = read('apps/mobile/app/products/[id].tsx');

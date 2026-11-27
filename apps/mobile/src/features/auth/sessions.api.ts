@@ -1,6 +1,7 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { apiRequest } from '@/api/client';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T };
+type Envelope<T> = SharedApiEnvelope<T>;
 export type ActiveSession = {
   sessionId: string;
   userAgent: string;

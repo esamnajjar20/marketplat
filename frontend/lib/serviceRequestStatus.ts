@@ -1,16 +1,8 @@
 import type { ServiceRequestStatus } from '@/types/service.types';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 /** Shared between MyServiceRequestsList (customer) and IncomingServiceRequestsList (provider). */
-export const SERVICE_REQUEST_STATUS_LABELS: Record<ServiceRequestStatus, string> = {
-  PENDING: 'قيد الانتظار',
-  ACCEPTED: 'مقبول',
-  REJECTED: 'مرفوض',
-  IN_PROGRESS: 'قيد التنفيذ',
-  COMPLETED: 'مكتمل',
-  CANCELLED: 'ملغى',
-  EXPIRED: 'منتهي تلقائيًا',
-  DISPUTED: 'قيد النزاع',
-};
+export const SERVICE_REQUEST_STATUS_LABELS: Record<ServiceRequestStatus, string> = DOMAIN_STATUS_LABELS.serviceRequest;
 
 export const SERVICE_REQUEST_STATUS_VARIANT: Record<
   ServiceRequestStatus,

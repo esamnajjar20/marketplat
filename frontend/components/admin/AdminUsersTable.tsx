@@ -32,6 +32,7 @@ import type { AdminUser, AssignableRole } from '@/types/admin.types';
 import type { UserRole } from '@/types/auth.types';
 import { adminPagination } from '@/lib/adminHubTabs';
 import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
+import { canManageRole, DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 // Gap #20 (admin permission tiers): frontend mirror of the backend's
 // single source of truth (roleHierarchy.ts's canManageRole). This is
@@ -39,19 +40,11 @@ import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTabl
 // rejected for anyway — the backend re-checks the exact same rule for
 // real on every request, so a mismatch here can only ever be overly
 // strict, never a security hole.
-const ROLE_RANK: Record<UserRole, number> = { USER: 0, MODERATOR: 1, ADMIN: 2, SUPER_ADMIN: 3 };
-
-function canManageRole(actorRole: UserRole, targetCurrentRole: UserRole, targetNewRole: UserRole): boolean {
-  const actorRank = ROLE_RANK[actorRole];
-  if (actorRank < ROLE_RANK.ADMIN) return false;
-  return ROLE_RANK[targetCurrentRole] < actorRank && ROLE_RANK[targetNewRole] < actorRank;
-}
-
 const ROLE_BADGE: Record<UserRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'warning'; className?: string }> = {
-  USER:        { label: 'مستخدم',        variant: 'secondary' },
-  MODERATOR:   { label: 'مشرف مساعد',    variant: 'outline', className: 'border-primary text-primary' },
-  ADMIN:       { label: 'مدير',          variant: 'default' },
-  SUPER_ADMIN: { label: 'مدير أعلى',     variant: 'warning' },
+  USER:        { label: DOMAIN_STATUS_LABELS.role.USER,        variant: 'secondary' },
+  MODERATOR:   { label: DOMAIN_STATUS_LABELS.role.MODERATOR,    variant: 'outline', className: 'border-primary text-primary' },
+  ADMIN:       { label: DOMAIN_STATUS_LABELS.role.ADMIN,        variant: 'default' },
+  SUPER_ADMIN: { label: DOMAIN_STATUS_LABELS.role.SUPER_ADMIN,  variant: 'warning' },
 };
 
 const ROLE_ICON: Record<AssignableRole, typeof UserIcon> = {

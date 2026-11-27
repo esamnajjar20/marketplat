@@ -1,6 +1,6 @@
-export type RequestType = 'SERVICE' | 'PRODUCT' | 'RENTAL';
-export type RequestStatus = 'OPEN' | 'ACCEPTED' | 'CANCELLED' | 'EXPIRED';
-export type RequestOfferStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
+import type { RequestOfferStatus, RequestStatus, RequestType } from '@marketplat/contracts';
+
+export type { RequestOfferStatus, RequestStatus, RequestType };
 
 export type RequestOfferSummary = {
   id: string;

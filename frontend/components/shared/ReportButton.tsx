@@ -19,17 +19,13 @@ import {
 } from '@/components/shared/ui/Select';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import { toast } from 'sonner';
 import type { ReportReason } from '@/types/admin.types';
 import type { CreateReportPayload } from '@/api/reports.api';
 import type { UseMutationResult } from '@tanstack/react-query';
 
-const REASON_LABELS: Record<ReportReason, string> = {
-  SCAM:      'عملية احتيال',
-  FAKE:      'محتوى وهمي أو مضلل',
-  OFFENSIVE: 'محتوى مسيء',
-  SPAM:      'رسائل مزعجة (سبام)',
-};
+const REASON_LABELS: Record<ReportReason, string> = DOMAIN_STATUS_LABELS.reportReason;
 
 interface Props<TData = unknown, TError = unknown> {
   /** Label shown on the trigger link, e.g. "الإبلاغ عن هذا الإعلان". */

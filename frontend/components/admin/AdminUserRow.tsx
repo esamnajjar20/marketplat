@@ -11,14 +11,13 @@ import { formatDate } from '@/lib/formatters';
 import type { UserRole } from '@/types/auth.types';
 import { USER_ACTIVE_STATUS_VARIANT, USER_ACTIVE_STATUS_LABELS, userActiveKey } from '@/lib/userActiveStatus';
 import { cn } from '@/lib/utils';
+import { canManageRole, DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
-const ROLE_RANK: Record<UserRole, number> = { USER: 0, MODERATOR: 1, ADMIN: 2, SUPER_ADMIN: 3 };
 const ASSIGNABLE_ROLES: AssignableRole[] = ['USER', 'MODERATOR', 'ADMIN'];
 const ROLE_BADGE: Record<UserRole, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'warning'; className?: string }> = {
-  USER: { label: 'مستخدم', variant: 'secondary' }, MODERATOR: { label: 'مشرف مساعد', variant: 'outline', className: 'border-primary text-primary' }, ADMIN: { label: 'مدير', variant: 'default' }, SUPER_ADMIN: { label: 'مدير أعلى', variant: 'warning' },
+  USER: { label: DOMAIN_STATUS_LABELS.role.USER, variant: 'secondary' }, MODERATOR: { label: DOMAIN_STATUS_LABELS.role.MODERATOR, variant: 'outline', className: 'border-primary text-primary' }, ADMIN: { label: DOMAIN_STATUS_LABELS.role.ADMIN, variant: 'default' }, SUPER_ADMIN: { label: DOMAIN_STATUS_LABELS.role.SUPER_ADMIN, variant: 'warning' },
 };
 const ROLE_ICON: Record<AssignableRole, typeof UserIcon> = { USER: UserIcon, MODERATOR: ShieldAlert, ADMIN: Crown };
-function canManageRole(actorRole: UserRole, current: UserRole, next: UserRole) { return ROLE_RANK[actorRole] >= ROLE_RANK.ADMIN && ROLE_RANK[current] < ROLE_RANK[actorRole] && ROLE_RANK[next] < ROLE_RANK[actorRole]; }
 
 type RoleTarget = { id: string; currentRole: UserRole; nextRole: AssignableRole; name: string };
 type Props = { user: AdminUser; selected: boolean; actorRole: UserRole; pendingStatusUserId?: string; pendingRoleUserId?: string; onToggle: (id: string) => void; onToggleStatus: (id: string, active: boolean) => void; onRoleTarget: (target: RoleTarget) => void; };

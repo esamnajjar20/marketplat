@@ -39,14 +39,11 @@ import { ROUTES } from '@/lib/constants';
 import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 
 import { formatServicePrice } from '@/lib/formatters';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import type { ServiceListingStatus } from '@/types/service.types';
 
-const STATUS_LABELS: Record<ServiceListingStatus, string> = {
-  ACTIVE: 'نشطة',
-  PAUSED: 'متوقفة',
-  DELETED: 'محذوفة',
-};
+const STATUS_LABELS: Record<ServiceListingStatus, string> = DOMAIN_STATUS_LABELS.serviceListing;
 
 import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
 import { Spinner } from '@/components/ui/spinner';

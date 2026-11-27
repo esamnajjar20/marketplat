@@ -10,31 +10,10 @@
  * server-side only, the frontend never needs to know it beyond which
  * group value to send).
  */
-export type UserActivityType =
-  | 'AD_CREATED'
-  | 'AD_UPDATED'
-  | 'AD_DELETED'
-  | 'PRODUCT_CREATED'
-  | 'PRODUCT_UPDATED'
-  | 'PRODUCT_DELETED'
-  | 'SERVICE_CREATED'
-  | 'SERVICE_UPDATED'
-  | 'SERVICE_DELETED'
-  | 'STORE_CREATED'
-  | 'STORE_UPDATED'
-  | 'FAVORITE_ADDED'
-  | 'FAVORITE_REMOVED'
-  | 'STORE_FOLLOWED'
-  | 'STORE_UNFOLLOWED'
-  | 'MESSAGE_SENT'
-  | 'SERVICE_REQUEST_CREATED'
-  | 'SERVICE_REQUEST_STATUS_CHANGED'
-  | 'APPOINTMENT_BOOKED'
-  | 'APPOINTMENT_CANCELLED'
-  | 'PROFILE_UPDATED'
-  | 'PASSWORD_CHANGED';
+import type { UserActivityType, ActivityEntityType } from '@marketplat/contracts';
+export type { UserActivityType, ActivityEntityType } from '@marketplat/contracts';
 
-/** Matches activity.validation.ts's ACTIVITY_GROUPS exactly — the 8
+/** UI query grouping, intentionally not a Prisma enum. Matches activity.validation.ts's ACTIVITY_GROUPS — the 8
  * filter tabs (الكل/الإعلانات/المنتجات/الخدمات/المتاجر/الرسائل/الطلبات/الحساب). */
 export type ActivityGroup =
   | 'ALL'
@@ -50,15 +29,6 @@ export type ActivityGroup =
  * non-FK reasoning as the backend model (see schema.prisma's comment
  * on UserActivity.entityType): the referenced row can be deleted
  * later without the timeline row breaking. */
-export type ActivityEntityType =
-  | 'AD'
-  | 'PRODUCT'
-  | 'SERVICE_LISTING'
-  | 'STORE'
-  | 'CONVERSATION'
-  | 'SERVICE_REQUEST'
-  | 'APPOINTMENT';
-
 /** Only SERVICE_REQUEST_STATUS_CHANGED populates this today — see
  * activity.'s serviceRequestStatusChanged builder. */
 export interface ActivityMetadata {

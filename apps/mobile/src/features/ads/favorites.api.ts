@@ -1,3 +1,4 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { buildFilterParams } from '../../../../../shared/filters';
 import { apiRequest } from '@/api/client';
 
@@ -8,7 +9,7 @@ export type FavoriteRecord = {
   ad?: { id: string; title?: string; price?: number | string | null; images?: string[]; city?: string; isNegotiable?: boolean; createdAt?: string; category?: { id: string; name?: string; nameAr?: string | null } | null; user?: { id: string; name?: string | null; city?: string | null } | null };
 };
 
-type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
+type Envelope<T> = SharedApiEnvelope<T>;
 
 export type FavoritePage<T> = { items: T[]; page: number; totalPages: number; total: number };
 

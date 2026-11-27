@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { serviceBusinessTypeSchema, serviceAvailabilitySchema, serviceListingStatusSchema } from '@marketplat/contracts';
 import { contactPhoneSchema, latitudeNumberSchema, longitudeNumberSchema, latitudeSchema, longitudeSchema } from '@marketplat/contracts';
 
 // UNIFY-PAYMENTS: no local storePaymentMethodSchema here anymore — a
@@ -28,7 +29,7 @@ export const workingHoursSchema = z.object({
 export const createServiceProviderSchema = z.object({
   body: z.object({
     businessName: z.string().min(2, 'Business name must be at least 2 characters').max(100),
-    businessType: z.enum(['INDIVIDUAL', 'SMALL_BUSINESS']).default('INDIVIDUAL'),
+    businessType: serviceBusinessTypeSchema.default('INDIVIDUAL'),
     logoUrl: z.string().url('logoUrl must be a valid URL').optional(),
     description: z.string().min(10, 'Description must be at least 10 characters').max(1000),
     // previously a plain array with no
@@ -53,7 +54,7 @@ export type CreateServiceProviderInput = z.infer<typeof createServiceProviderSch
 export const updateServiceProviderSchema = z.object({
   body: z.object({
     businessName: z.string().min(2).max(100).optional(),
-    businessType: z.enum(['INDIVIDUAL', 'SMALL_BUSINESS']).optional(),
+    businessType: serviceBusinessTypeSchema.optional(),
     logoUrl: z.string().url('logoUrl must be a valid URL').optional(),
     description: z.string().min(10).max(1000).optional(),
     serviceAreaCities: z
@@ -64,7 +65,7 @@ export const updateServiceProviderSchema = z.object({
       .optional(),
     workingHours: workingHoursSchema.optional(),
     contactPhone: contactPhoneSchema.optional(),
-    availabilityStatus: z.enum(['AVAILABLE', 'BUSY', 'UNAVAILABLE']).optional(),
+    availabilityStatus: serviceAvailabilitySchema.optional(),
     latitude: latitudeNumberSchema.nullable().optional(),
     longitude: longitudeNumberSchema.nullable().optional(),
   }),
@@ -130,7 +131,7 @@ export const serviceProviderDashboardQuerySchema = z.object({
     period: z.enum(['7d', '30d', 'all']).default('all'),
     page: z.coerce.number().int().min(1).max(1000).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(10),
-    status: z.enum(['ACTIVE', 'PAUSED', 'DELETED']).optional(),
+    status: serviceListingStatusSchema.optional(),
     search: z.string().trim().min(1).max(200).optional(),
   }),
 });

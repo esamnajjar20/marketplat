@@ -19,6 +19,7 @@ import { useAdminUpdateReportStatus, useAdminBulkUpdateReportStatus } from '@/ho
 import { REPORT_REASON_LABELS, REPORT_STATUS_LABELS, ROUTES } from '@/lib/constants';
 import { parseApiError } from '@/lib/errorParser';
 import type { ReportStatus, ReportTargetType } from '@/types/admin.types';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import { AdminReportRow } from '@/components/admin/AdminReportRow';
 import { adminPagination } from '@/lib/adminHubTabs';
 import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
@@ -30,13 +31,7 @@ const REPORT_STATUSES = ['PENDING', 'RESOLVED', 'DISMISSED'] as const;
 // whichever of the three target kinds the report actually points at —
 // each maps to its own public route and label so the admin can open the
 // right page instead of always landing on /ads/:id.
-const TARGET_TYPE_LABELS: Record<ReportTargetType, string> = {
-  AD: 'إعلان',
-  USER: 'مستخدم',
-  STORE: 'متجر',
-  PRODUCT: 'منتج',
-  SERVICE_LISTING: 'خدمة',
-};
+const TARGET_TYPE_LABELS: Record<ReportTargetType, string> = DOMAIN_STATUS_LABELS.reportTargetType;
 
 function targetHref(targetType: ReportTargetType, targetId: string): string {
   if (targetType === 'USER') return ROUTES.userProfile(targetId);

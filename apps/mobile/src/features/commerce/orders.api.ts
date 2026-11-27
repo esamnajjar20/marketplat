@@ -1,9 +1,11 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
+import type { MarketplaceOrderStatus } from '@marketplat/contracts';
 import { buildFilterParams } from '../../../../../shared/filters';
 import { apiRequest } from '@/api/client';
 import { criticalOrderEnvelopeResponseSchema, criticalOrderListEnvelopeResponseSchema } from '@/api/response-schemas';
 import type { PageResult } from './commerce.api';
 
-export type MarketplaceOrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+export type { MarketplaceOrderStatus } from '@marketplat/contracts';
 export type MarketplaceOrderItem = { id: string; productId?: string | null; productName: string; productImage?: string | null; quantity: number; unitPrice: number | string; lineTotal: number | string };
 export type MarketplaceOrder = {
   id: string; buyerId: string; sellerId: string; storeId: string; status: MarketplaceOrderStatus;
@@ -14,7 +16,7 @@ export type MarketplaceOrder = {
   store?: { id: string; name: string; logoUrl?: string | null; city?: string | null; phone?: string | null };
   buyer?: { id: string; name: string; phone?: string | null }; seller?: { id: string; name: string; phone?: string | null };
 };
-type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
+type Envelope<T> = SharedApiEnvelope<T>;
 function unwrap<T>(response: Envelope<T>, fallback: string): T {
   if (response?.success !== true || response.data === undefined) throw new Error(response?.message || fallback);
   return response.data;

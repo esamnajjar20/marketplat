@@ -1,3 +1,4 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { apiRequest } from '@/api/client';
 import { readPublicCache, writePublicCache } from '@/storage/public-cache';
 import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
@@ -12,7 +13,7 @@ export type PublicCategory = {
   children?: PublicCategory[];
 };
 
-type ApiEnvelope<T> = { success: boolean; message?: string; data?: T };
+type ApiEnvelope<T> = SharedApiEnvelope<T>;
 
 let memoryCache: { items: PublicCategory[]; savedAt: number } | null = null;
 let inFlight: Promise<PublicCategory[]> | null = null;

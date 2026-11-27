@@ -1,44 +1,36 @@
 import { prisma } from '../../../config/prisma';
 import { User } from '@prisma/client';
 import { handlePrismaError } from '../../../shared/db/prismaErrors';
+import { BadRequestError } from '../../../shared/errors/BadRequestError';
 
 /**
- * every email that enters or leaves this
- * repository is lowercased and trimmed once, here, so that
- * register("User@Example.com") and login("user@example.com") agree on
- * what "the same email" means. Before this, the only normalization
- * in the auth flow was Google's own lowercase-ing of OAuth email
- * claims — local registration stored whatever the user typed, and
- * every lookup compared raw strings against that. Two consequences:
- *
- *   1. A user who registered on a phone whose keyboard
- *      auto-capitalized the first letter would silently hold an
- *      account keyed on "User@Example.com"; their next login typed
- *      as "user@example.com" would fail with Invalid credentials,
- *      and no amount of password reset would recover it — the reset
- *      email path looks up the same lowercased address.
- *
- *   2. A second account could be created with the mixed-case variant
- *      of an existing email (the P2002 unique constraint on User.email
- *      is case-sensitive in Postgres), leaving the two accounts
- *      unaware of each other and letting an attacker who knows a
- *      victim's email squat the "correct" spelling.
- *
- * Applied at the repository boundary rather than at each call site
- * so a future endpoint (or a new caller in auth.service.ts) cannot
- * accidentally bypass it. This does not migrate existing rows — the
- * handful of already-mis-cased accounts in production keep working
- * exactly as before (their stored string still matches what they
- * typed); the forward-looking. If a data migration is ever
- * needed, it would be a separate, reviewable step.
+ * Normalize every email at the repository boundary. Reads are case-insensitive
+ * to keep legacy mixed-case rows reachable during rolling deployments; the
+ * identity lifecycle migration canonicalizes existing rows and adds a
+ * LOWER(email) unique index so writers outside this repository cannot create
+ * case-only duplicates.
  */
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
 export const authRepository = {
-  findByEmail: async (email: string): Promise<User | null> =>
-    prisma.user.findUnique({ where: { email: normalizeEmail(email) } }),
+  findByEmail: async (email: string): Promise<User | null> => {
+    const matches = await prisma.user.findMany({
+      where: { email: { equals: normalizeEmail(email), mode: 'insensitive' } },
+      take: 2,
+    });
+    // Before the normalization migration is applied, legacy mixed-case
+    // duplicates may still exist. Never authenticate/reset against an
+    // arbitrary first row: fail closed until the duplicate is resolved.
+    if (matches.length > 1) {
+      throw new BadRequestError(
+        'Multiple accounts use this email with different casing. Contact support to resolve the account.',
+        'EMAIL_IDENTITY_AMBIGUOUS'
+      );
+    }
+    return matches[0] ?? null;
+  },
 
   findByPhone: async (phone: string): Promise<User | null> =>
     prisma.user.findUnique({ where: { phone } }),

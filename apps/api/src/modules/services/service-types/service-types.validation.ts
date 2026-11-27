@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ServiceTypeFieldScope, ServiceTypeFieldType } from '@prisma/client';
+import { servicePricingTypeSchema, serviceLocationTypeSchema } from '@marketplat/contracts';
 
 const jsonValue = z.record(z.string(), z.unknown());
 const capabilitiesSchema = z
@@ -10,7 +11,7 @@ const capabilitiesSchema = z
     atCustomer: z.boolean().optional(),
     atProvider: z.boolean().optional(),
     allowedPricingTypes: z
-      .array(z.enum(['FIXED', 'STARTING_FROM', 'NEGOTIABLE']))
+      .array(servicePricingTypeSchema)
       .min(1)
       .max(3)
       .superRefine((values, ctx) => {
@@ -23,7 +24,7 @@ const capabilitiesSchema = z
       })
       .optional(),
     allowedLocations: z
-      .array(z.enum(['AT_CUSTOMER', 'AT_PROVIDER', 'REMOTE']))
+      .array(serviceLocationTypeSchema)
       .min(1)
       .max(3)
       .superRefine((values, ctx) => {

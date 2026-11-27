@@ -9,6 +9,7 @@ import { isPrismaError } from '../../../shared/db/prismaErrors';
 import { bumpPublicListCache } from '../../../shared/cache/publicListCache';
 import { storeTypesRepository } from './store-types.repository';
 import { storeTypeFieldsRepository } from './store-type-fields.repository';
+import type { StoreFieldScope } from '@marketplat/contracts';
 import {
   CreateStoreTypeFieldInput,
   UpdateStoreTypeFieldInput,
@@ -27,7 +28,6 @@ async function invalidate(storeTypeId: string) {
 }
 
 export type StoreAttributes = Record<string, string | number | boolean>;
-export type StoreFieldScope = 'STORE' | 'PRODUCT';
 
 export const storeTypeFieldsService = {
   getPublic: async (storeTypeId: string) => {

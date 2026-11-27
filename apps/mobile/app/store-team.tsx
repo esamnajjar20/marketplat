@@ -12,8 +12,9 @@ import { fetchMyActiveStoreMemberships, fetchStoreMembers, inviteStoreMember, re
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { roleLabel, domainLabel } from '@/lib/status-labels';
+import { DOMAIN_STATUS_LABELS, STORE_MEMBER_ROLES } from '@marketplat/contracts';
 
-const roles = [['MANAGER', 'مدير'], ['EDITOR', 'محرر'], ['STAFF', 'موظف']] as const;
+const roles = STORE_MEMBER_ROLES.map((value) => [value, DOMAIN_STATUS_LABELS.storeMemberRole[value]] as const);
 
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 

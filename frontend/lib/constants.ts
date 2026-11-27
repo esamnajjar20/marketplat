@@ -1,3 +1,4 @@
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import type { AdSortField, AdSortOrder } from '@/types/ad.types';
 import { getRawApiUrl, getRawAppUrl } from '@/lib/env';
 import type { StoreSortField } from '@/types/store.types';
@@ -188,67 +189,19 @@ export const CITIES = [
   'بيت حانون', 'جباليا', 'النصيرات', 'المغازي', 'البريج',
 ] as const;
 
-export const CONDITION_LABELS: Record<string, string> = {
-  NEW:         'جديد',
-  USED:        'مستعمل',
-  REFURBISHED: 'مجدد',
-};
+export const CONDITION_LABELS: Record<string, string> = DOMAIN_STATUS_LABELS.adCondition;
 
-/** Keys must match AdStatus exactly (see types/ad.types.ts). */
-export const STATUS_LABELS: Record<string, string> = {
-  ACTIVE:  'نشط',
-  SOLD:    'تم البيع',
-  DELETED: 'محذوف',
-  EXPIRED: 'منتهي',
-};
+/** Keys and labels are owned by the shared domain contract. */
+export const STATUS_LABELS: Record<string, string> = DOMAIN_STATUS_LABELS.ad;
 
-/** Must match the backend Prisma `ReportReason` enum exactly (prisma/schema.prisma). */
-export const REPORT_REASON_LABELS: Record<string, string> = {
-  SCAM:      'عملية احتيال',
-  FAKE:      'إعلان مزيف',
-  OFFENSIVE: 'محتوى مسيء',
-  SPAM:      'إعلان مكرر أو غير مرغوب',
-};
+/** Report labels are owned by the shared domain contract. */
+export const REPORT_REASON_LABELS: Record<string, string> = DOMAIN_STATUS_LABELS.reportReason;
 
-/** Must match the backend Prisma `ReportStatus` enum exactly (PENDING | RESOLVED | DISMISSED — NOT REVIEWED, see admin.types.ts's own note on this). FEAT-REPORT-USER-STORE: used by MyReportsList so a reporter sees the same status wording admins see in AdminReportsTable. */
-export const REPORT_STATUS_LABELS: Record<string, string> = {
-  PENDING:   'قيد المراجعة',
-  RESOLVED:  'تم الحل',
-  DISMISSED: 'تم الرفض',
-};
+/** Report lifecycle labels are owned by the shared domain contract. */
+export const REPORT_STATUS_LABELS: Record<string, string> = DOMAIN_STATUS_LABELS.report;
 
 /** Must match the backend Prisma `AuditEventType` enum exactly (prisma/schema.prisma). */
-export const AUDIT_EVENT_LABELS: Record<string, string> = {
-  REGISTER:                   'تسجيل حساب جديد',
-  LOGIN_SUCCESS:               'تسجيل دخول ناجح',
-  LOGIN_FAILED:                 'محاولة تسجيل دخول فاشلة',
-  LOGOUT:                       'تسجيل خروج',
-  LOGOUT_ALL:                   'تسجيل خروج من كل الأجهزة',
-  TOKEN_REFRESHED:              'تجديد الجلسة',
-  TOKEN_REUSE_DETECTED:         'اكتشاف إعادة استخدام رمز',
-  SESSION_REVOKED:              'إلغاء جلسة',
-  ACCOUNT_LOCKED:               'قفل الحساب',
-  PASSWORD_CHANGED:             'تغيير كلمة المرور',
-  ROLE_CHANGED:                 'تغيير الدور',
-  ACCOUNT_DISABLED:             'تعطيل الحساب',
-  ADMIN_AD_FEATURED:            'تمييز إعلان (إدارة)',
-  ADMIN_AD_PINNED:              'تثبيت إعلان (إدارة)',
-  ADMIN_AD_DELETED:             'حذف إعلان (إدارة)',
-  ADMIN_USER_STATUS_CHANGED:    'تغيير حالة مستخدم (إدارة)',
-  ADMIN_SELLER_VERIFIED:        'توثيق بائع (إدارة)',
-  ADMIN_SELLER_SUSPENDED:       'إيقاف بائع (إدارة)',
-  ADMIN_STORE_STATUS_CHANGED:   'تغيير حالة متجر (إدارة)',
-  ADMIN_STORE_PLAN_CHANGED:     'تغيير خطة متجر (إدارة)',
-  ADMIN_STORE_TYPE_CHANGED:     'تغيير نوع متجر (إدارة)',
-  OAUTH_LOGIN:                  'تسجيل دخول عبر OAuth',
-  OAUTH_ACCOUNT_LINKED:         'ربط حساب OAuth',
-  OAUTH_SIGNUP:                 'تسجيل حساب عبر OAuth',
-  // FRAUD-UI: was missing — see admin.types.ts's AuditEventType note.
-  // Without an entry here, AdminAuditLogsTable's label lookup fell
-  // through to the raw enum string for every fraud-review audit row.
-  ADMIN_FRAUD_SIGNAL_REVIEWED:  'مراجعة إشارة احتيال (إدارة)',
-  ADMIN_FRAUD_MANUAL_FLAG:      'وضع علامة احتيال يدوية (إدارة)',
-};
+export const AUDIT_EVENT_LABELS: Record<string, string> = DOMAIN_STATUS_LABELS.auditEvent;
 
 export const AD_SORT_OPTIONS: readonly { label: string; sortBy: AdSortField; sortOrder: AdSortOrder }[] = [
   { label: 'الأحدث',       sortBy: 'createdAt', sortOrder: 'desc' },

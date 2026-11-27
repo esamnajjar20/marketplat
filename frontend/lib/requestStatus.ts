@@ -1,25 +1,12 @@
 import type { RequestOfferStatus, RequestStatus, RequestType } from '@/types/request.types';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import { formatNumber } from '@/lib/formatters';
 
-export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
-  OPEN: 'مفتوح',
-  ACCEPTED: 'مقبول',
-  CANCELLED: 'ملغى',
-  EXPIRED: 'منتهي',
-};
+export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = DOMAIN_STATUS_LABELS.request;
 
-export const REQUEST_OFFER_STATUS_LABEL: Record<RequestOfferStatus, string> = {
-  PENDING: 'قيد الانتظار',
-  ACCEPTED: 'مقبول',
-  DECLINED: 'مرفوض',
-  WITHDRAWN: 'مسحوب',
-};
+export const REQUEST_OFFER_STATUS_LABEL: Record<RequestOfferStatus, string> = DOMAIN_STATUS_LABELS.offer;
 
-export const REQUEST_TYPE_LABEL: Record<RequestType, string> = {
-  SERVICE: 'خدمة',
-  PRODUCT: 'منتج',
-  RENTAL: 'إيجار',
-};
+export const REQUEST_TYPE_LABEL: Record<RequestType, string> = DOMAIN_STATUS_LABELS.requestType;
 
 /** Badge variants aligned with rest of the app. */
 export const REQUEST_STATUS_VARIANT: Record<

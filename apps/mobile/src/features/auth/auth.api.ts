@@ -1,16 +1,8 @@
 import { apiRequest } from '@/api/client';
+import type { ApiSuccessEnvelope, UserIdentityContract } from '@marketplat/contracts';
 import { authEnvelopeResponseSchema, refreshEnvelopeResponseSchema } from '@/api/response-schemas';
 
-export type AuthUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  needsProfileCompletion?: boolean;
-  emailVerified?: boolean;
-  city?: string | null;
-  avatarUrl?: string | null;
-};
+export type AuthUser = UserIdentityContract;
 
 export type AuthSession = {
   accessToken: string;
@@ -19,15 +11,11 @@ export type AuthSession = {
   user: AuthUser;
 };
 
-type AuthEnvelope = {
-  success: boolean;
-  message?: string;
-  data?: {
-    user?: AuthUser;
-    tokens?: { accessToken?: string; expiresIn?: number };
-    csrfToken?: string;
-  };
-};
+type AuthEnvelope = ApiSuccessEnvelope<{
+  user?: AuthUser;
+  tokens?: { accessToken?: string; expiresIn?: number };
+  csrfToken?: string;
+}>;
 
 /** Uses the existing cookie-based backend contract; refreshToken is never read or stored by the app. */
 export async function loginWithPassword(email: string, password: string): Promise<AuthSession> {
@@ -40,7 +28,7 @@ export async function loginWithPassword(email: string, password: string): Promis
   const data = response?.data;
   const accessToken = data?.tokens?.accessToken;
   const user = data?.user;
-  if (response?.success !== true || typeof accessToken !== 'string' || !accessToken || !user || typeof user.id !== 'string' || typeof user.email !== 'string' || typeof user.name !== 'string') {
+  if (typeof accessToken !== 'string' || !accessToken || !user || typeof user.id !== 'string' || typeof user.email !== 'string' || typeof user.name !== 'string') {
     throw new Error(response?.message || 'لم تكتمل استجابة تسجيل الدخول.');
   }
   return {
@@ -62,7 +50,7 @@ export async function loginWithGoogleMobile(ticket: string, verifier: string): P
   const data = response?.data;
   const accessToken = data?.tokens?.accessToken;
   const user = data?.user;
-  if (response?.success !== true || typeof accessToken !== 'string' || !accessToken || !user || typeof user.id !== 'string' || typeof user.email !== 'string' || typeof user.name !== 'string') {
+  if (typeof accessToken !== 'string' || !accessToken || !user || typeof user.id !== 'string' || typeof user.email !== 'string' || typeof user.name !== 'string') {
     throw new Error(response?.message || 'لم تكتمل استجابة تسجيل الدخول باستخدام Google.');
   }
   return {
@@ -100,7 +88,7 @@ async function performAccessRefresh(signal?: AbortSignal): Promise<RefreshedAcce
     responseSchema: refreshEnvelopeResponseSchema as unknown as import('zod').ZodType<RefreshEnvelope>,
   });
   const accessToken = response?.data?.tokens?.accessToken;
-  if (response?.success !== true || typeof accessToken !== 'string' || !accessToken) {
+  if (typeof accessToken !== 'string' || !accessToken) {
     throw new Error('استجابة تجديد الجلسة من الخادم غير متوقعة.');
   }
   return {

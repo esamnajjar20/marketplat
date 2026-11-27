@@ -23,13 +23,10 @@ import { normalizeFilterPage } from '../../../shared/filters';
 import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 import type { ProductAvailability } from '@/types/product.types';
 import { cn } from '@/lib/utils';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import { formatTimestamp } from '@/lib/formatters';
 
-const AVAIL_LABELS: Record<ProductAvailability, string> = {
-  IN_STOCK: 'متوفر',
-  LIMITED: 'منخفض',
-  OUT_OF_STOCK: 'نافد',
-};
+const AVAIL_LABELS: Record<ProductAvailability, string> = DOMAIN_STATUS_LABELS.productAvailability;
 
 type StockFilter = 'all' | 'low' | 'out';
 

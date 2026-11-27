@@ -236,6 +236,32 @@ jest.mock('../src/config/redis', () => {
         return 'SUCCESS';
       }
 
+      if (script.includes("redis.call('ZREM', KEYS[3], ARGV[1])")) {
+        // DELETE_SINGLE_SESSION_SCRIPT: revoke refresh, metadata, and the
+        // user's sorted-set entry atomically.
+        const [refreshKey, metadataKey, zsetKey] = keys;
+        const [sessionId] = argv;
+        await del(refreshKey);
+        await del(metadataKey);
+        await zrem(zsetKey, sessionId);
+        return 1;
+      }
+
+      if (script.includes('metadata.lastSeen = ARGV[1]')) {
+        // UPDATE_SESSION_LAST_SEEN_SCRIPT: never recreate a revoked metadata
+        // key, and honor the shared 5-minute throttle.
+        const [metadataKey, throttleKey] = keys;
+        const [lastSeen] = argv;
+        const raw = store.get(metadataKey);
+        if (!raw) return 0;
+        if (store.has(throttleKey)) return 2;
+        const metadata = JSON.parse(raw) as Record<string, unknown>;
+        metadata.lastSeen = lastSeen;
+        await setex(metadataKey, 3600, JSON.stringify(metadata));
+        await setex(throttleKey, 300, '1');
+        return 1;
+      }
+
       if (script.includes('maxSessions')) {
         // SAVE_SESSION_SCRIPT (tokenStore.ts):
         // KEYS=[zsetKey, metaKey, refreshKey]
@@ -364,6 +390,7 @@ jest.mock('../src/config/redis', () => {
       const queued: Array<() => Promise<unknown>> = [];
       const pipeline: Record<string, any> = {
         get: jest.fn((key: string) => { queued.push(() => get(key)); return pipeline; }),
+        exists: jest.fn((key: string) => { queued.push(() => exists(key)); return pipeline; }),
         sadd: jest.fn((key: string, ...members: string[]) => { queued.push(() => sadd(key, ...members)); return pipeline; }),
         scard: jest.fn((key: string) => { queued.push(() => scard(key)); return pipeline; }),
         setex: jest.fn((key: string, ttl: number, value: string) => { queued.push(() => setex(key, ttl, value)); return pipeline; }),

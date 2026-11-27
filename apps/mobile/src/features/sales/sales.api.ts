@@ -1,7 +1,9 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
+import type { SaleEntityType, SalePaymentStatus } from '@marketplat/contracts';
 import { buildFilterParams } from '../../../../../shared/filters';
 import { apiRequest } from '@/api/client';
 
-export type SalePaymentStatus = 'PAID' | 'PARTIAL' | 'UNPAID' | 'OVERDUE';
+export type { SaleEntityType, SalePaymentStatus } from '@marketplat/contracts';
 export type SalesPeriod = 'day' | 'week' | 'month' | 'year';
 export type SaleItem = {
   id: string;
@@ -14,7 +16,7 @@ export type SaleItem = {
 };
 export type SaleRecord = {
   id: string;
-  entityType: 'PRODUCT' | 'AD' | 'SERVICE' | 'FREE';
+  entityType: SaleEntityType;
   entityTitle: string;
   entityImageUrl?: string | null;
   quantity: number;
@@ -49,7 +51,7 @@ export type SalesPage = {
   items: SaleRecord[];
   meta: { total: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean };
 };
-type Envelope<T> = { success: boolean; message?: string; data?: T };
+type Envelope<T> = SharedApiEnvelope<T>;
 function unwrap<T>(response: Envelope<T>, fallback: string): T {
   if (response?.success !== true || response.data === undefined) throw new Error(response?.message || fallback);
   return response.data;

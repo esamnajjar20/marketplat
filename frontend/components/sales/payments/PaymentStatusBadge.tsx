@@ -1,12 +1,8 @@
 import type { SalePaymentStatus } from '@/types/sale.types';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
-const labels: Record<SalePaymentStatus, string> = {
-  PAID: 'مدفوع',
-  PARTIAL: 'جزئي',
-  UNPAID: 'غير مدفوع',
-  OVERDUE: 'متأخر',
-};
+const labels: Record<SalePaymentStatus, string> = DOMAIN_STATUS_LABELS.salePayment;
 
 const tones: Record<SalePaymentStatus, 'success' | 'warning' | 'outline' | 'destructive'> = {
   PAID: 'success',

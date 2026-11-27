@@ -29,20 +29,14 @@ import { myStoreTabHref } from '@/lib/myStoreHubTabs';
 import { FilterChipGroup } from '@/components/shared/filters/FilterChipGroup';
 
 import { formatPrice } from '@/lib/formatters';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import type { ProductAvailability, ProductStatus } from '@/types/product.types';
 
-const STATUS_LABELS: Record<ProductStatus, string> = {
-  ACTIVE: 'نشط',
-  PAUSED: 'متوقف',
-  DELETED: 'محذوف',
-};
+const STATUS_LABELS: Record<ProductStatus, string> = DOMAIN_STATUS_LABELS.product;
 
-const AVAIL_LABELS: Record<ProductAvailability, string> = {
-  IN_STOCK: 'متوفر',
-  LIMITED: 'كمية محدودة',
-  OUT_OF_STOCK: 'غير متوفر',
-};
+const AVAIL_LABELS: Record<ProductAvailability, string> = DOMAIN_STATUS_LABELS.productAvailability;
+
 
 import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePublishCard';
 import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';

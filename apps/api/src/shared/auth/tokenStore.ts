@@ -53,6 +53,12 @@ const _lastSeenLocal = new Map<string, number>();
  */
 export const getBlacklistKey = (token: string): string => `${BLACKLIST_PREFIX}${hashToken(token)}`;
 
+/** Canonical key for a live session. Access-token authentication checks this
+ * on every request; deleting the session metadata therefore revokes every
+ * access token issued for that session, not only its refresh token. */
+export const getSessionMetadataKey = (userId: string, sessionId: string): string =>
+  `${SESSION_META_PREFIX}${userId}:${sessionId}`;
+
 const BL_L1 = new Map<string, { blacklisted: boolean; exp: number }>();
 const BL_L1_NEG_MS = 20_000;
 const BL_L1_POS_MS = 60_000;
@@ -251,6 +257,30 @@ const DELETE_ALL_SESSIONS_SCRIPT = `
   return #sessionIds
 `;
 
+const DELETE_SINGLE_SESSION_SCRIPT = `
+  redis.call('DEL', KEYS[1])
+  redis.call('DEL', KEYS[2])
+  redis.call('ZREM', KEYS[3], ARGV[1])
+  return 1
+`;
+
+// Update metadata only while the session key still exists, in the same Lua
+// operation. A GET -> SETEX pipeline could race logout/revocation and recreate
+// the metadata key after it had been deleted, reviving an old Access Token.
+const UPDATE_SESSION_LAST_SEEN_SCRIPT = `
+  local current = redis.call('GET', KEYS[1])
+  if not current then return 0 end
+  if redis.call('EXISTS', KEYS[2]) == 1 then return 2 end
+  local ttl = redis.call('TTL', KEYS[1])
+  if ttl <= 0 then return 0 end
+  local metadata = cjson.decode(current)
+  metadata.lastSeen = ARGV[1]
+  redis.call('SETEX', KEYS[1], ttl, cjson.encode(metadata))
+  redis.call('SETEX', KEYS[2], 300, '1')
+  return 1
+`;
+
+
 export interface SessionMetadata {
   userAgent: string;
   ip: string;
@@ -328,11 +358,14 @@ export const tokenStore = {
 
   // ── Delete Single Session ─────────────────────────────
   deleteRefreshToken: async (userId: string, sessionId: string): Promise<void> => {
-    const pipeline = redis.pipeline();
-    pipeline.del(`${REFRESH_PREFIX}${userId}:${sessionId}`);
-    pipeline.del(`${SESSION_META_PREFIX}${userId}:${sessionId}`);
-    pipeline.zrem(`${SESSION_ZSET_PREFIX}${userId}`, sessionId);
-    await pipeline.exec();
+    await (redis as any).eval(
+      DELETE_SINGLE_SESSION_SCRIPT,
+      3,
+      `${REFRESH_PREFIX}${userId}:${sessionId}`,
+      getSessionMetadataKey(userId, sessionId),
+      `${SESSION_ZSET_PREFIX}${userId}`,
+      sessionId
+    );
   },
 
   // ── Delete All Sessions (atomic — FIX AUDIT-V3-07, see
@@ -358,13 +391,17 @@ export const tokenStore = {
     await pipeline.exec();
   },
 
+  // ── Session validity ──────────────────────────────────
+  isSessionActive: async (userId: string, sessionId: string): Promise<boolean> =>
+    (await redis.exists(getSessionMetadataKey(userId, sessionId))) === 1,
+
   // ── Get Session Metadata ──────────────────────────────
   getSessionMetadata: async (
     userId: string,
     sessionId: string
   ): Promise<SessionMetadata | null> => {
     try {
-      const data = await redis.get(`${SESSION_META_PREFIX}${userId}:${sessionId}`);
+      const data = await redis.get(getSessionMetadataKey(userId, sessionId));
       return data ? (JSON.parse(data) as SessionMetadata) : null;
     } catch {
       return null;
@@ -378,36 +415,29 @@ export const tokenStore = {
     const localExp = _lastSeenLocal.get(localKey);
     if (localExp && now < localExp) return;
 
-    const key = `${SESSION_META_PREFIX}${userId}:${sessionId}`;
+    const key = getSessionMetadataKey(userId, sessionId);
     const throttleKey = `last_seen_throttle:${userId}:${sessionId}`;
 
     try {
-      const recentlyUpdated = await redis.exists(throttleKey);
-      if (recentlyUpdated) {
+      const updated = Number(await (redis as any).eval(
+        UPDATE_SESSION_LAST_SEEN_SCRIPT,
+        2,
+        key,
+        throttleKey,
+        new Date().toISOString()
+      ));
+      // 0 means the session is revoked/expired; 1 means metadata updated;
+      // 2 means it is still live but the Redis throttle is active. Cache both
+      // live outcomes locally, but never cache a missing/revoked session.
+      if (updated === 1 || updated === 2) {
         _lastSeenLocal.set(localKey, now + 5 * 60 * 1000);
-        return;
-      }
-
-      const data = await redis.get(key);
-      if (!data) return;
-
-      const meta = JSON.parse(data) as SessionMetadata;
-      meta.lastSeen = new Date().toISOString();
-
-      const ttl = await redis.ttl(key);
-      if (ttl > 0) {
-        const pipeline = redis.pipeline();
-        pipeline.setex(key, ttl, JSON.stringify(meta));
-        pipeline.setex(throttleKey, 5 * 60, '1');
-        await pipeline.exec();
-      }
-      _lastSeenLocal.set(localKey, now + 5 * 60 * 1000);
-      if (_lastSeenLocal.size > 5_000) {
-        const first = _lastSeenLocal.keys().next().value;
-        if (first) _lastSeenLocal.delete(first);
+        if (_lastSeenLocal.size > 5_000) {
+          const first = _lastSeenLocal.keys().next().value;
+          if (first) _lastSeenLocal.delete(first);
+        }
       }
     } catch {
-      // silent fail — lastSeen غير حرج
+      // lastSeen is non-critical. Atomic update avoids reviving revoked sessions.
     }
   },
 

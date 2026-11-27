@@ -36,14 +36,11 @@ import {
 import { BecomeStoreOwnerCard } from './BecomeStoreOwnerCard';
 import type { ParsedError } from '@/lib/errorParser';
 import type { StoreMember, StoreMemberRole } from '@/types/store-member.types';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 import { Spinner } from '@/components/ui/spinner';
 import { STORE_MEMBER_STATUS_LABELS, STORE_MEMBER_STATUS_VARIANT } from '@/lib/storeStatus';
-const ROLE_LABELS: Record<StoreMemberRole, string> = {
-  MANAGER: 'مدير',
-  STAFF: 'موظف',
-  EDITOR: 'محرر منتجات',
-};
+const ROLE_LABELS: Record<StoreMemberRole, string> = DOMAIN_STATUS_LABELS.storeMemberRole;
 
 const ROLE_HINTS: Record<StoreMemberRole, string> = {
   MANAGER: 'إدارة المنتجات والعروض والموظفين والإعدادات',

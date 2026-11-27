@@ -1,3 +1,5 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
+import type { AdCondition, AdStatus } from '@marketplat/contracts';
 import { ApiError, apiRequest } from '@/api/client';
 import { deletePublicCacheEntry, readPublicCache, readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import {
@@ -20,7 +22,7 @@ export type AdListItem = {
   price: number | string | null;
   images: string[];
   city: string;
-  condition?: string | null;
+  condition?: AdCondition | null;
   isNegotiable?: boolean;
   isFeatured?: boolean;
   createdAt?: string;
@@ -28,17 +30,12 @@ export type AdListItem = {
   user?: { id: string; name?: string | null; city?: string | null; avatarUrl?: string | null } | null;
 };
 
-type ApiEnvelope<T> = {
-  success: boolean;
-  message?: string;
-  data?: T;
-  meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } };
-};
+type ApiEnvelope<T> = SharedApiEnvelope<T>;
 
 export type AdDetail = AdListItem & {
   description?: string | null;
-  status?: string;
-  condition?: string | null;
+  status?: AdStatus;
+  condition?: AdCondition | null;
   views?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -53,7 +50,7 @@ export type AdListResult = {
   total?: number;
 };
 
-type PublicAdsOptions = { page?: number; limit?: number; search?: string; categoryId?: string; storeId?: string; city?: string; minPrice?: number; maxPrice?: number; condition?: 'NEW' | 'USED' | 'REFURBISHED'; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal };
+type PublicAdsOptions = { page?: number; limit?: number; search?: string; categoryId?: string; storeId?: string; city?: string; minPrice?: number; maxPrice?: number; condition?: AdCondition; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal };
 
 export function publicAdsCacheKey(options: PublicAdsOptions = {}): string {
   const params = buildFilterParams({

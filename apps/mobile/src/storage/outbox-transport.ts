@@ -1,9 +1,10 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { apiRequest } from '@/api/client';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { OutboxItem } from './mutation-outbox';
 import { toOutboxCreateAdRequest } from './outbox-transport-contract';
 
-type ApiEnvelope<T> = { success: boolean; message?: string; data?: T };
+type ApiEnvelope<T> = SharedApiEnvelope<T>;
 
 // Keep the request deadline comfortably below the SQLite lease duration used by
 // outbox-sync.ts. A timed-out request remains retryable with the same operation ID.

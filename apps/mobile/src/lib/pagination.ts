@@ -1,13 +1,7 @@
-/** Normalize server pagination metadata without guessing that every missing field means page 1 only. */
-export type PageMetaLike = {
-  page?: number;
-  limit?: number;
-  total?: number;
-  totalPages?: number;
-  hasNextPage?: boolean;
-  hasPrevPage?: boolean;
-  nextCursor?: string | null;
-};
+import type { PaginationMeta } from '@marketplat/contracts';
+
+/** Shared metadata shape; endpoints may return offset or cursor pagination. */
+export type PageMetaLike = PaginationMeta;
 
 /** Merge an incoming page while preserving order and removing duplicate entity keys. */
 export function mergeUniquePageItems<T>(

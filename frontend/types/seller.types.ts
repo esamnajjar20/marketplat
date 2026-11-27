@@ -10,7 +10,8 @@
 import type { AdListItem } from './ad.types';
 import type { StorePaymentMethodDto } from '@/types/store.types';
 
-export type SellerVerificationStatus = 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+import type { SellerVerificationStatus } from '@marketplat/contracts';
+export type { SellerVerificationStatus } from '@marketplat/contracts';
 
 export interface SellerProfile {
   id: string;

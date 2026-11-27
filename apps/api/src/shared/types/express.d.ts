@@ -32,6 +32,7 @@ declare global {
     // automatically with no further changes needed.
     interface User extends JwtPayload {
       role: string;
+      needsProfileCompletion?: boolean;
     }
 
     interface Request {

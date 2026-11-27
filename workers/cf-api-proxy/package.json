@@ -13,7 +13,7 @@
     "pretype-check": "node ../../tools/sync-cache-artifacts.mjs"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "5.9.3"
   },
   "dependencies": {
     "d1-namespace": "^1.1.1"

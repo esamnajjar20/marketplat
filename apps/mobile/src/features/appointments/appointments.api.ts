@@ -1,6 +1,7 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { buildFilterParams } from '../../../../../shared/filters';
 import { apiRequest } from '@/api/client';
-type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number; hasNextPage?: boolean } } };
+type Envelope<T> = SharedApiEnvelope<T>;
 function unwrap<T>(r: Envelope<T>, fallback: string): T { if (!r || r.success !== true || r.data === undefined) throw new Error(r?.message || fallback); return r.data; }
 export type AppointmentRow={id:string;providerId?:string;status?:string;scheduledStart:string;scheduledEnd:string;notes?:string|null;requestId?:string|null;request?:{id?:string;customerId?:string;listing?:{id?:string;title?:string;providerId?:string};customer?:{name?:string}};provider?:{id?:string;businessName?:string}};
 export type AppointmentPage = { items: AppointmentRow[]; page: number; totalPages: number; total: number };

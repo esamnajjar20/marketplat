@@ -1,4 +1,5 @@
 import { prisma } from '../../../config/prisma';
+import type { AdCondition } from '@marketplat/contracts';
 import { Prisma } from '@prisma/client';
 import { getPaginationParams } from '../../../shared/http/pagination';
 import { SearchQuery } from './search.validation';
@@ -251,7 +252,7 @@ type BranchBuilder = (
   categoryId: string | undefined,
   city: string | undefined,
   geo: GeoParams | null,
-  filters: { minPrice?: number; maxPrice?: number; condition?: 'NEW' | 'USED' | 'REFURBISHED' }
+  filters: { minPrice?: number; maxPrice?: number; condition?: AdCondition }
 ) => Prisma.Sql | null;
 
 // Each branch computes its own tsvector/rank inline (rather than

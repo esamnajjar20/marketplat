@@ -46,7 +46,7 @@ import type {
   ServiceListingFormValues,
   ServiceTypeField,
 } from '@/types/service.types';
-import { serviceListingComposerFieldsSchema } from '@marketplat/contracts';
+import { serviceListingComposerFieldsSchema, DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 interface Props {
   mode: 'create' | 'edit';
@@ -63,17 +63,9 @@ interface Errors {
   attributes?: Record<string, string>;
 }
 
-const PRICING_LABELS: Record<ServicePricingType, string> = {
-  FIXED: 'سعر ثابت',
-  STARTING_FROM: 'يبدأ من',
-  NEGOTIABLE: 'حسب الاتفاق',
-};
+const PRICING_LABELS: Record<ServicePricingType, string> = DOMAIN_STATUS_LABELS.servicePricing;
 
-const LOCATION_LABELS: Record<ServiceLocationType, string> = {
-  AT_CUSTOMER: 'لدى العميل',
-  AT_PROVIDER: 'لدى مقدم الخدمة',
-  REMOTE: 'عن بُعد',
-};
+const LOCATION_LABELS: Record<ServiceLocationType, string> = DOMAIN_STATUS_LABELS.serviceLocation;
 
 // PHASE-OFFLINE-DRAFTS: نفس نمط AdForm.tsx's DraftValues بالضبط.
 type ServiceDraftValues = Omit<ServiceListingFormValues, 'images' | 'existingImages'>;

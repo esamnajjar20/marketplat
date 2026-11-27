@@ -15,15 +15,10 @@ import { useMyProducts } from '@/hooks/queries/useProducts';
 import { formatPrice, formatDateTime } from '@/lib/formatters';
 import type { Promotion, PromotionStatus } from '@/types/promotion.types';
 import { cn } from '@/lib/utils';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 import { Spinner } from '@/components/ui/spinner';
-const STATUS_LABELS: Record<PromotionStatus, string> = {
-  DRAFT: 'مسودة',
-  SCHEDULED: 'مجدول',
-  ACTIVE: 'نشط',
-  EXPIRED: 'منتهي',
-  CANCELLED: 'ملغى',
-};
+const STATUS_LABELS: Record<PromotionStatus, string> = DOMAIN_STATUS_LABELS.promotion;
 
 const STATUS_VARIANTS: Record<PromotionStatus, 'default' | 'secondary' | 'destructive' | 'success' | 'warning'> = {
   DRAFT: 'secondary',

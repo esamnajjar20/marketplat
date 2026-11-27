@@ -54,6 +54,14 @@ export const resetPasswordSchema = z.object({
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>['body'];
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>['body'];
 
+
+/** Start a Google step-up flow for deleting an authenticated native account. */
+export const mobileGoogleDeleteStartSchema = z.object({
+  body: z.object({
+    codeChallenge: z.string().regex(/^[A-Za-z0-9_-]{43}$/, 'Invalid PKCE code challenge'),
+  }),
+});
+
 /** One-time native OAuth exchange. The ticket is short-lived and bound to a PKCE verifier. */
 export const mobileGoogleExchangeSchema = z.object({
   body: z.object({

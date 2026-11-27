@@ -157,7 +157,7 @@ check('bottom navigation and drawer consume active theme tokens and fetch capabi
   assert.match(bottomNavigation, /const \{ colors \} = useAppTheme\(\)/);
   assert.match(bottomNavigation, /createStyles\(colors\)/);
   assert.doesNotMatch(bottomNavigation.slice(bottomNavigation.indexOf('function createStyles')), /\bcolors\./);
-  assert.match(drawer, /getVisibleDrawerItems\(Boolean\(user\), activeCapabilities\)/);
+  assert.match(drawer, /getVisibleDrawerItems\(Boolean\(user\), activeCapabilities,\s*\{/);
   assert.match(drawer, /useAppTheme\(\)/);
   assert.match(drawer, /fetchMySellerProfile/);
   assert.match(drawer, /fetchMyActiveStoreMemberships/);

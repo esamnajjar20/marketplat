@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { appointmentStatusSchema } from '@marketplat/contracts';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 
 // (audit H3): nothing capped the length, so a 10-hour or
@@ -37,7 +38,7 @@ export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>['bo
 export const updateAppointmentStatusSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({
-    status: z.enum(['COMPLETED', 'CANCELLED', 'NO_SHOW']),
+    status: appointmentStatusSchema.exclude(['SCHEDULED']),
   }),
 });
 

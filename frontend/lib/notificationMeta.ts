@@ -1,3 +1,4 @@
+import { calendarDayDifference } from '@marketplat/contracts';
 /**
  * مصدر واحد لأيقونات/تسميات/روابط/فئات الإشعارات —
  * تستهلكه NotificationBell و NotificationsPage.
@@ -91,10 +92,8 @@ export function hrefFor(notification: HrefSource): string | null {
 }
 
 export function dayBucketLabel(iso: string, now = new Date()): string {
-  const d = new Date(iso);
-  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startMsg = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diffDays = Math.round((startToday.getTime() - startMsg.getTime()) / 86_400_000);
+  const diffDays = calendarDayDifference(now, iso);
+  if (diffDays === null || diffDays < 0) return 'أقدم';
   if (diffDays === 0) return 'اليوم';
   if (diffDays === 1) return 'أمس';
   if (diffDays < 7) return 'هذا الأسبوع';

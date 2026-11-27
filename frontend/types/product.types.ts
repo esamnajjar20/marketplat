@@ -10,9 +10,8 @@
  */
 import type { StoreDetails, StoreAttributes } from './store.types';
 import type { SellerProfile } from './seller.types';
-
-export type ProductAvailability = 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
-export type ProductStatus = 'ACTIVE' | 'PAUSED' | 'DELETED';
+import type { ProductAvailability, ProductStatus } from '@marketplat/contracts';
+export type { ProductAvailability, ProductStatus } from '@marketplat/contracts';
 
 export interface ProductCategory {
   id: string;

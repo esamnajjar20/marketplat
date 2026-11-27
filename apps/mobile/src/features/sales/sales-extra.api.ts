@@ -1,9 +1,12 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { buildFilterParams } from '../../../../../shared/filters';
 import type { SalePaymentStatus } from './sales.api';
+import type { InstallmentStatus, SaleTransferMethod, ReturnReason } from '@marketplat/contracts';
+export type { SaleTransferMethod, ReturnReason as SaleReturnReason } from '@marketplat/contracts';
 import { apiRequest } from '@/api/client';
 import type { SaleRecord } from './sales.api';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { total: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean } } };
+type Envelope<T> = SharedApiEnvelope<T>;
 function unwrap<T>(r: Envelope<T>, fallback: string): T {
   if (r?.success !== true || r.data === undefined) throw new Error(r?.message || fallback);
   return r.data;
@@ -12,10 +15,9 @@ export async function addSalePayment(id: string, input: { amount: number; method
 export async function addSaleReturn(id: string, input: { itemId?: string; quantity: number; refundAmount: number; reason: SaleReturnReason; reasonNote?: string; restockedToInventory: boolean; offlineOperationId: string }, token: string, csrfToken?: string | null, ownerId?: string | null): Promise<unknown> { return unwrap(await apiRequest<Envelope<unknown>>(`/api/v1/sales/${encodeURIComponent(id)}/return`, { method: 'POST', token, cacheOwnerId: ownerId ?? undefined, headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), 'X-Offline-Op-Id': input.offlineOperationId }, body: JSON.stringify(input) }), 'تعذر تسجيل المرتجع.'); }
 export type DebtSummary = { totalDue: number; overdueDue: number; dueToday: number; debtorCount: number };
 export type DebtPage = { rows: SaleRecord[]; totalCount: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean };
-export type InstallmentRow = { id: string; installmentNo: number; amount: number | string; paidAmount: number | string; dueDate: string; status: string; sale: SaleRecord & { customer?: { name?: string; phone?: string | null } | null } };
+export type InstallmentRow = { id: string; installmentNo: number; amount: number | string; paidAmount: number | string; dueDate: string; status: InstallmentStatus; sale: SaleRecord & { customer?: { name?: string; phone?: string | null } | null } };
 export type CustomerRow = { id: string; name: string; phone?: string | null; email?: string | null; address?: string | null; note?: string | null; tags?: string[]; isVip?: boolean; isBlacklisted?: boolean; totalSpent?: number | string; totalDue?: number | string; purchaseCount?: number; lastPurchaseAt?: string | null };
-export type SaleTransferMethod = 'CASH' | 'JAWWAL_PAY' | 'BANK_PALESTINE' | 'PALPAY' | 'CARD' | 'OTHER';
-export type SaleReturnReason = 'DAMAGED' | 'WRONG_ITEM' | 'NOT_LIKED' | 'LATE' | 'OTHER';
+export type SaleReturnReason = ReturnReason;
 export type CustomerSummary = { totalCustomers: number; vipCustomers: number; debtors: number; inactiveCustomers: number; totalSpent: number; averageCustomerSpend: number };
 export type ActivityRow = { id: string; type: string; title: string; description?: string | null; entityType?: string | null; entityId?: string | null; createdAt: string };
 export async function fetchSaleDetail(id: string, token: string, ownerId?: string | null): Promise<SaleRecord & Record<string, unknown>> { return unwrap(await apiRequest<Envelope<SaleRecord & Record<string, unknown>>>(`/api/v1/sales/${encodeURIComponent(id)}`, { token, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل تفاصيل البيع.'); }

@@ -1,8 +1,9 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { apiRequest } from '@/api/client';
 import { buildFilterParams } from '../../../../../shared/filters';
 import { uploadMobileImagesDirect } from '../media/direct-upload.api';
 import type { ServiceListing } from '@/features/services/services.api';
-type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; totalPages?: number; total?: number } } };
+type Envelope<T> = SharedApiEnvelope<T>;
 function unwrap<T>(r: Envelope<T>, fallback: string): T { if (!r || r.success !== true || r.data === undefined) throw new Error(r?.message || fallback); return r.data; }
 const csrf = (token?: string | null) => token ? { 'X-CSRF-Token': token } : undefined;
 export type ServiceReview = { id: string; requestId?: string; score: number; comment?: string | null; createdAt: string; reviewer?: { name?: string | null; avatarUrl?: string | null }; rater?: { name?: string | null } };

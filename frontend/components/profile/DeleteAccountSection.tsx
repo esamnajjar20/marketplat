@@ -11,11 +11,13 @@
  * matching the weight of what's actually happening (every active ad
  * disappears, every session everywhere is logged out).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input }  from '@/components/shared/ui/Input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/shared/ui/Dialog';
 import { useDeleteAccount } from '@/hooks/mutations/useUpdateProfile';
+import { API_BASE_URL } from '@/lib/constants';
+import { toast } from 'sonner';
 
 const CONFIRM_WORD = 'حذف';
 
@@ -24,6 +26,24 @@ export function DeleteAccountSection() {
   const [confirmText, setConfirmText] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const deleteAccount = useDeleteAccount();
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get('delete');
+    if (result === 'failed') {
+      toast.error('تعذر تأكيد الهوية عبر Google. تأكد من اختيار الحساب المرتبط ثم أعد المحاولة.');
+    } else if (result === 'reauth_required') {
+      toast.error('انتهت جلستك. سجّل الدخول مجدداً ثم أعد محاولة حذف الحساب.');
+    } else if (url.searchParams.get('account') === 'deleted') {
+      toast.success('تم حذف الحساب وتسجيل الخروج من جميع الأجهزة.');
+      url.searchParams.delete('account');
+    }
+    if (result) {
+      url.searchParams.delete('delete');
+      url.searchParams.delete('error');
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+  }, []);
 
   function handleOpen() {
     setConfirmText('');
@@ -63,7 +83,7 @@ export function DeleteAccountSection() {
         تسجيل خروجك من جميع الأجهزة. لا يمكن التراجع عن هذا الإجراء.
       </p>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        إذا أنشأت حسابك باستخدام Google فقط ولم تضف كلمة مرور محلية، فإن إعادة توثيق Google مطلوبة قبل الحذف، وهذا المسار غير متاح بعد. لا تحاول استخدام كلمة مرور Google هنا.
+        يمكنك تأكيد الحذف بكلمة المرور الحالية، أو عبر Google إذا كان حساب Google مرتبطاً مسبقاً بحسابك.
       </p>
       <div className="flex justify-start">
         <Button variant="destructive" className="rounded-xl font-bold" onClick={handleOpen}>
@@ -100,6 +120,16 @@ export function DeleteAccountSection() {
                 placeholder="كلمة المرور الحالية"
               />
             </div>
+            <a
+              href={`${API_BASE_URL}/auth/google?purpose=delete`}
+              aria-disabled={confirmText !== CONFIRM_WORD}
+              onClick={(event) => {
+                if (confirmText !== CONFIRM_WORD) event.preventDefault();
+              }}
+              className={`block rounded-xl border border-border px-3 py-2.5 text-center text-sm font-semibold transition-colors ${confirmText === CONFIRM_WORD ? 'hover:bg-muted' : 'pointer-events-none opacity-50'}`}
+            >
+              تأكيد الهوية عبر Google
+            </a>
             <div className="space-y-1.5">
               <label htmlFor="confirm-delete" className="text-sm font-medium">
                 اكتب <span className="font-bold">{CONFIRM_WORD}</span> للتأكيد

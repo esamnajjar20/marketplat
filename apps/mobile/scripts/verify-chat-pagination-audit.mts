@@ -11,9 +11,9 @@ const validation = readFileSync(new URL('../../api/src/modules/engagement/conver
 
 assert.match(api, /cursor: 'true'/, 'mobile message pages must opt into cursor-only metadata');
 assert.match(api, /new URLSearchParams\(\{ limit: '30', cursor: 'true' \}\)/, 'mobile chat should fetch a reduced first message page');
-assert.match(validation, /cursor: z\.preprocess/, 'API must validate the cursor-mode flag');
+assert.match(validation, /cursor:\s*queryBooleanSchema\.optional\(\)/, 'API must validate cursor-mode flag with the shared strict boolean parser');
 assert.match(backendRepository, /query\.cursor\s*\|\|\s*query\.before\s*\?\s*Promise\.resolve\(null\)/, 'cursor navigation must avoid full-thread COUNT queries');
-assert.match(backendService, /query\.before\s*\?\s*Promise\.resolve\(\{ count: 0 \}\)/, 'older history pages must not update all read receipts');
+assert.match(backendService, /const readReceipt = query\.before\s*\?\s*\{ count: 0, messageIds: \[\] as string\[\], readAt: null as Date \| null \}/, 'older history pages must not update all read receipts');
 assert.match(backendService, /if \(!query\.before\)/, 'notification-read side effects must be limited to newest-window requests');
 assert.match(cache, /PRIMARY KEY \(owner_id, conversation_id, message_id\)/, 'cached messages must be isolated by account and conversation');
 assert.match(cache, /MAX_MESSAGES_PER_CONVERSATION = 300/, 'local history cache must be bounded');

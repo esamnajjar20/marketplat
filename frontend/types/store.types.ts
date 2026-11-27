@@ -17,10 +17,8 @@
  *     what "sort by newest" actually returns.
  */
 import type { SellerProfile } from './seller.types';
-
-export type StoreStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED';
-export type StoreFieldType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'SELECT';
-export type StoreFieldScope = 'STORE' | 'PRODUCT';
+import type { StoreStatus, StorePlan, StoreFieldType, StoreFieldScope } from '@marketplat/contracts';
+export type { StoreStatus, StorePlan, StoreFieldType, StoreFieldScope } from '@marketplat/contracts';
 
 export interface StoreTypeFieldOption { value: string; labelAr: string; }
 
@@ -112,7 +110,6 @@ export function getStoreTypeLabels(storeType?: Partial<StoreType> | null): Store
   };
 }
 
-export type StorePlan = 'FREE' | 'FEATURED';
 
 /** STORE-HOURS: same { sun: {open,close}|null, ... } shape as the
  * backend's workingHoursSchema / ServiceProviderDetails.workingHours —

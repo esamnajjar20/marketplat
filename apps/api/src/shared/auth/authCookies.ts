@@ -313,7 +313,7 @@ export function clearOAuthStateCookie(res: Response): void {
 // compared for equality, not secrets an attacker can grind).
 const OAUTH_PURPOSE_COOKIE_NAME = 'oauth_purpose';
 
-export type OAuthPurpose = 'verify' | 'reset' | 'link';
+export type OAuthPurpose = 'verify' | 'reset' | 'link' | 'delete';
 
 export function setOAuthPurpose(res: Response, purpose: OAuthPurpose): void {
   res.cookie(OAUTH_PURPOSE_COOKIE_NAME, purpose, {
@@ -327,7 +327,9 @@ export function setOAuthPurpose(res: Response, purpose: OAuthPurpose): void {
 
 export function getOAuthPurpose(req: Request): OAuthPurpose | undefined {
   const value = req.cookies?.[OAUTH_PURPOSE_COOKIE_NAME];
-  return value === 'verify' || value === 'reset' || value === 'link' ? value : undefined;
+  return value === 'verify' || value === 'reset' || value === 'link' || value === 'delete'
+    ? value
+    : undefined;
 }
 
 export function clearOAuthPurpose(res: Response): void {

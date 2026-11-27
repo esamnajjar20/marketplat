@@ -1,6 +1,7 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { apiRequest } from '@/api/client';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T };
+type Envelope<T> = SharedApiEnvelope<T>;
 /** Re-authenticated account deactivation. Password-less OAuth accounts need their provider re-auth flow. */
 export async function deleteAccountAfterReauthentication(currentPassword: string, token: string, csrfToken?: string | null): Promise<void> {
   const response = await apiRequest<Envelope<unknown>>('/api/v1/users/me/delete-confirmed', {

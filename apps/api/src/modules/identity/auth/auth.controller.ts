@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { authService } from './auth.service';
+import { usersService } from '../users/users.service';
 import { sessionRedis as redis } from '../../../config/redis';
 import {
   forgotPasswordSchema,
@@ -10,6 +11,7 @@ import {
   resetPasswordSchema,
   verifyEmailSchema,
   mobileGoogleExchangeSchema,
+  mobileGoogleDeleteStartSchema,
 } from './auth.validation';
 import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/auth/requireUser';
@@ -278,7 +280,7 @@ export const authController = {
     // default sign-in flow keeps using loginRedirect.
     const purpose = getOAuthPurpose(req);
     clearOAuthPurpose(res);
-    const mobileOAuth = res.locals.mobileOAuth as { flowId: string; challenge: string } | undefined;
+    const mobileOAuth = res.locals.mobileOAuth as { flowId: string; challenge: string; purpose?: 'delete'; userId?: string; sessionId?: string } | undefined;
 
     const cleanupMobileOAuth = async (): Promise<void> => {
       clearMobileOAuthFlowCookie(res);
@@ -291,6 +293,10 @@ export const authController = {
       if (purpose === 'verify') return `${base}verify-email${query}`;
       if (purpose === 'reset') return `${base}forgot-password${query}`;
       if (purpose === 'link') return `${base}settings?tab=security${query}`;
+      if (purpose === 'delete') {
+        const suffix = query ? query.replace(/^\?/, '&') : '';
+        return `${base}settings?tab=account&delete=failed${suffix}`;
+      }
       return `${loginRedirect}${query}`;
     };
 
@@ -311,6 +317,35 @@ export const authController = {
         return;
       }
 
+      // Native account deletion is bound to the app session that initiated
+      // the PKCE flow. It never creates a replacement login session.
+      if (mobileOAuth?.purpose === 'delete') {
+        if (!mobileOAuth.userId || !mobileOAuth.sessionId) {
+          throw new UnauthorizedError('Invalid account deletion flow', 'INVALID_OAUTH_FLOW');
+        }
+        const userId = await authService.verifyGoogleReauthForSessionIdentity(
+          mobileOAuth.userId,
+          mobileOAuth.sessionId,
+          profile
+        );
+        // Create the one-time PKCE receipt before committing deletion. If Redis
+        // is unavailable, the account remains intact and the user can retry.
+        const ticket = crypto.randomBytes(32).toString('base64url');
+        const ticketHash = crypto.createHash('sha256').update(ticket, 'utf8').digest('hex');
+        const stored = await redis.set(
+          `auth:google:mobile-delete-ticket:${ticketHash}`,
+          JSON.stringify({ challenge: mobileOAuth.challenge, accountDeleted: true }),
+          'EX',
+          90,
+          'NX'
+        );
+        if (stored !== 'OK') throw new Error('Unable to create native account deletion receipt');
+        await usersService.deleteMe(userId);
+        await cleanupMobileOAuth();
+        res.redirect(`marketplat://oauth/callback?ticket=${encodeURIComponent(ticket)}&action=deleted`);
+        return;
+      }
+
       // (purpose and base are read above, before the try, so the
       // failure path can be context-aware — see errorRedirect's own
       // comment. The purpose cookie was cleared there too, so a
@@ -323,6 +358,21 @@ export const authController = {
         }
         await authService.linkGoogleFromRefreshToken(refreshToken, profile);
         res.redirect(`${base}settings?tab=security&google=linked`);
+        return;
+      }
+
+      if (purpose === 'delete') {
+        const refreshToken = getRefreshTokenFromCookie(req);
+        if (!refreshToken) {
+          res.redirect(`${base}settings?tab=account&delete=reauth_required`);
+          return;
+        }
+        const userId = await authService.verifyGoogleReauthForSession(refreshToken, profile);
+        await usersService.deleteMe(userId);
+        clearRefreshTokenCookie(res);
+        clearCsrfCookie(res);
+        clearSessionHintCookie(res);
+        res.redirect(`${base}login?account=deleted`);
         return;
       }
 
@@ -412,6 +462,63 @@ export const authController = {
       res.redirect(errorRedirect(`?error=google_auth_failed${suffix}`));
     }
   },
+  /** Create a short-lived native Google step-up flow bound to this live session. */
+  mobileGoogleDeleteStart: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { body } = mobileGoogleDeleteStartSchema.parse({ body: req.body });
+      await authService.assertGoogleDeletionAvailable(user.userId, user.sessionId);
+      const flowId = crypto.randomBytes(32).toString('hex');
+      const stored = await redis.set(
+        `auth:google:mobile-flow:${flowId}`,
+        JSON.stringify({
+          challenge: body.codeChallenge,
+          purpose: 'delete',
+          userId: user.userId,
+          sessionId: user.sessionId,
+        }),
+        'EX',
+        600,
+        'NX'
+      );
+      if (stored !== 'OK') throw new Error('Unable to create native Google deletion flow');
+      res.status(201).json(successResponse('Google re-authentication flow created', { flowId }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /** Consume the one-time PKCE receipt for a completed native account deletion. */
+  mobileGoogleDeleteExchange: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { body } = mobileGoogleExchangeSchema.parse({ body: req.body });
+      const challenge = crypto
+        .createHash('sha256')
+        .update(body.verifier, 'utf8')
+        .digest('base64url');
+      const ticketHash = crypto.createHash('sha256').update(body.ticket, 'utf8').digest('hex');
+      const ticketKey = `auth:google:mobile-delete-ticket:${ticketHash}`;
+      const consumeScript = `
+        local raw = redis.call('GET', KEYS[1])
+        if not raw then return false end
+        local payload = cjson.decode(raw)
+        if payload.challenge ~= ARGV[1] or payload.accountDeleted ~= true then return false end
+        redis.call('DEL', KEYS[1])
+        return raw
+      `;
+      const raw = await redis.eval(consumeScript, 1, ticketKey, challenge);
+      if (typeof raw !== 'string') {
+        throw new UnauthorizedError('Google deletion receipt is invalid, expired, or already used');
+      }
+      clearRefreshTokenCookie(res);
+      clearCsrfCookie(res);
+      clearSessionHintCookie(res);
+      res.status(200).json(successResponse('Account deleted', { accountDeleted: true }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   /**
    * POST /auth/mobile/google/exchange — exchange a short-lived, PKCE-bound
    * native OAuth ticket for the ordinary cookie-backed mobile session.

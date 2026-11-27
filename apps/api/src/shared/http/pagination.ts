@@ -1,14 +1,6 @@
+import type { OffsetPaginationMeta } from '@marketplat/contracts';
 export { paginationQuerySchema, type PaginationQuery } from '@marketplat/contracts';
-
-export interface PaginationMeta {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
-  nextCursor?: string | null;
-}
+export type PaginationMeta = OffsetPaginationMeta;
 
 // INTEG FIX: frontend's types/api.types.ts declares PaginationMeta.hasNextPage
 // and .hasPrevPage as required (non-optional) booleans, and lib/apiPagination.ts's

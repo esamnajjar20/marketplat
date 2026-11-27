@@ -2,6 +2,7 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { createTestUser } from '../helpers/auth.helper';
 import { prisma } from '../../src/config/prisma';
+import { emailService } from '../../src/shared/email/emailService';
 
 describe('Forgot / Reset Password', () => {
   describe('POST /auth/forgot-password', () => {
@@ -56,6 +57,8 @@ describe('Forgot / Reset Password', () => {
       const tokenRow = await prisma.passwordResetToken.findFirst({ where: { userId: user.id } });
       expect(tokenRow).not.toBeNull();
       expect(tokenRow?.used).toBe(false);
+      expect(tokenRow?.token).toBeNull();
+      expect(tokenRow?.tokenHash).toMatch(/^[a-f0-9]{64}$/);
       expect(tokenRow!.expiresAt.getTime()).toBeGreaterThan(Date.now());
     });
 
@@ -93,13 +96,19 @@ describe('Forgot / Reset Password', () => {
 
   describe('POST /auth/reset-password', () => {
     async function requestResetToken(email: string): Promise<string> {
-      await request(app).post('/api/v1/auth/forgot-password').send({ email });
-      const row = await prisma.passwordResetToken.findFirst({
-        where: { user: { email } },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (!row) throw new Error('No reset token was created for test setup');
-      return row.token;
+      let deliveredToken: string | null = null;
+      const sendSpy = jest
+        .spyOn(emailService, 'sendPasswordResetEmail')
+        .mockImplementation(async (_recipient, token) => {
+          deliveredToken = token;
+        });
+      try {
+        await request(app).post('/api/v1/auth/forgot-password').send({ email });
+      } finally {
+        sendSpy.mockRestore();
+      }
+      if (!deliveredToken) throw new Error('No reset token was delivered for test setup');
+      return deliveredToken;
     }
 
     it('resets the password with a valid token', async () => {

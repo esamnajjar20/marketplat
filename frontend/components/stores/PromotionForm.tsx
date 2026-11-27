@@ -11,6 +11,7 @@ import { useCreatePromotion } from '@/hooks/mutations/usePromotionMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { formatPrice } from '@/lib/formatters';
 import type { DiscountType } from '@/types/promotion.types';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 interface Props {
   open: boolean;
@@ -38,10 +39,7 @@ interface Errors {
   maxUses?: string;
 }
 
-const DISCOUNT_TYPE_LABELS: Record<DiscountType, string> = {
-  PERCENTAGE: 'نسبة مئوية %',
-  FIXED_AMOUNT: 'مبلغ ثابت ₪',
-};
+const DISCOUNT_TYPE_LABELS: Record<DiscountType, string> = DOMAIN_STATUS_LABELS.discountType;
 
 const emptyValues: Values = {
   productId: '',

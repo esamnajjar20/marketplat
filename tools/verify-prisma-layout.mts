@@ -38,7 +38,7 @@ if (existsSync(schemaPath) && existsSync(migrationPath)) {
     /INDEX IF NOT EXISTS "AdImageOfflineOperation_createdAt_idx"/i,
   ]) if (!pattern.test(migration)) errors.push(`Migration is missing expected SQL pattern: ${pattern}`);
 
-  if (!/REFERENCES\s+"(ads|users)"/i.test(migration)) warnings.push('Migration does not define foreign keys to ads/users; confirm this is intentional for the durable replay ledger.');
+  if (!/REFERENCES\s+"(ads|users)"/i.test(migration) && !/Deliberately no Ad\/User FKs/i.test(schema) && !/Intentionally no Ad\/User FKs/i.test(migration)) warnings.push('Migration has no Ad/User foreign keys and lacks an explicit rationale.');
   const src = resolve(root, 'apps/api/src');
   if (existsSync(src)) {
     const stack = [src]; let found = false;
@@ -47,7 +47,7 @@ if (existsSync(schemaPath) && existsSync(migrationPath)) {
       for (const ent of readdirSync(dir, { withFileTypes: true })) {
         const path = join(dir, ent.name);
         if (ent.isDirectory()) stack.push(path);
-        else if (/\.(ts|js)$/.test(ent.name) && readFileSync(path, 'utf8').includes('AdImageOfflineOperation')) found = true;
+        else if (/\.(ts|js)$/.test(ent.name) && /adImageOfflineOperation|AdImageOfflineOperation/i.test(readFileSync(path, 'utf8'))) found = true;
       }
     }
     if (!found) warnings.push('No application source reference to AdImageOfflineOperation was found; confirm the feature is wired to this persistence model.');

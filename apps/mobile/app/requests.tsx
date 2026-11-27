@@ -19,12 +19,9 @@ import {
 } from '@/components/ui';
 import { spacing, typography } from '@/theme/tokens';
 import { AppFlashList } from '@/components/ui/AppFlashList';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
-const typeLabel: Record<string, string> = {
-  SERVICE: 'خدمة',
-  PRODUCT: 'منتج',
-  RENTAL: 'تأجير',
-};
+const typeLabel = DOMAIN_STATUS_LABELS.requestType;
 
 const requestKeyExtractor = (item: MarketplaceRequest) => item.id;
 const RequestSeparator = () => <View style={{ height: spacing.md }} />;

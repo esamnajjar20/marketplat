@@ -18,7 +18,9 @@
 // Gap #20 (admin permission tiers): MODERATOR/SUPER_ADMIN added
 // alongside USER/ADMIN — kept in sync with the backend Prisma Role
 // enum (backend/shared/constants/roles.ts).
-export type UserRole = 'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN';
+import type { UserRole as SharedUserRole } from '@marketplat/contracts';
+
+export type UserRole = SharedUserRole;
 
 // ── Entities ──────────────────────────────────────────────────────
 
@@ -126,7 +128,7 @@ export interface AuthResultUser {
   id:    string;
   name:  string;
   email: string;
-  role:  string; // backend types as string, we narrow to UserRole after validation
+  role:  UserRole;
   // FIX FEAT-EMAIL-VERIFY: carried through from the backend's
   // AuthResult.user -- register()/login() include it so the frontend
   // knows whether to show the verification banner right away.

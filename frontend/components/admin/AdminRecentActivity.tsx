@@ -1,4 +1,5 @@
 'use client';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
@@ -9,13 +10,7 @@ import { ApiError } from '@/components/shared/ApiError';
 import { parseApiError } from '@/lib/errorParser';
 import { adminTabHref } from '@/lib/adminHubTabs';
 
-const STATUS_LABEL: Record<string, string> = {
-  ACTIVE: 'نشط',
-  PENDING: 'قيد المراجعة',
-  REJECTED: 'مرفوض',
-  SOLD: 'مباع',
-  EXPIRED: 'منتهي',
-};
+const STATUS_LABEL: Readonly<Record<string, string>> = DOMAIN_STATUS_LABELS.ad;
 
 export function AdminRecentActivity() {
   const { data, isLoading, isError, error, refetch } = useAdminAds({ page: 1, limit: 5 });

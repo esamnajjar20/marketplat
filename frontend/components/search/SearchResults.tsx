@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import type { AdCondition } from '@marketplat/contracts';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
@@ -58,7 +59,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
   };
   const minPrice = parseUrlNumber(minPriceRaw);
   const maxPrice = parseUrlNumber(maxPriceRaw);
-  const condition = type === 'ads' ? (sp.get('condition') as 'NEW' | 'USED' | 'REFURBISHED' | null) ?? undefined : undefined;
+  const condition = type === 'ads' ? (sp.get('condition') as AdCondition | null) ?? undefined : undefined;
   const sort       = (sp.get('sort') as SearchSort) ?? 'relevance';
   // TRACK-NEARBY-SEARCH: lat/lng/radius live in the URL like every
   // other filter on this page (SearchNearbyToggle writes them through

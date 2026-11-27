@@ -1,3 +1,4 @@
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 /**
  * Admin moderation mutations: feature/pin ads, force-delete ads,
  * activate/deactivate users, resolve reports.
@@ -335,11 +336,7 @@ export function useAdminBulkSetSellerSuspended() {
   });
 }
 
-const ROLE_LABELS_AR: Record<AssignableRole, string> = {
-  USER: 'مستخدم عادي',
-  MODERATOR: 'مشرف مساعد',
-  ADMIN: 'مدير',
-};
+const ROLE_LABELS_AR: Record<AssignableRole, string> = DOMAIN_STATUS_LABELS.role;
 
 /**
  * FIX AUDIT-V3-05 / Gap #20 (admin permission tiers): previously there

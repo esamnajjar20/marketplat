@@ -22,19 +22,8 @@ import { API_BASE_URL } from './constants';
 import { hasAnalyticsConsent } from './analyticsConsent';
 import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 
-export type AnalyticsEventType =
-  | 'PAGE_VIEW'
-  | 'AD_VIEW'
-  | 'SEARCH'
-  | 'CATEGORY_BROWSE'
-  | 'CONTACT_CLICK'
-  | 'SIGNUP_STARTED'
-  | 'SIGNUP_COMPLETED'
-  // PR4A (recommendation view signals): mirrors AD_VIEW's own
-  // metadata convention (see AdDetailSection.tsx) — productId/
-  // categoryId and serviceListingId/categoryId respectively.
-  | 'PRODUCT_VIEW'
-  | 'SERVICE_VIEW';
+import type { AnalyticsEventType } from '@marketplat/contracts';
+export type { AnalyticsEventType } from '@marketplat/contracts';
 
 interface QueuedEvent {
   eventId: string;

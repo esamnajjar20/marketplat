@@ -1,7 +1,9 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
+import type { AdCondition } from '@marketplat/contracts';
 import { apiRequest } from '@/api/client';
 import { buildFilterParams } from '../../../../../shared/filters';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; totalPages?: number; total?: number } } };
+type Envelope<T> = SharedApiEnvelope<T>;
 
 export type SearchResult = {
   id: string; type: 'ad' | 'product' | 'store' | 'service'; title: string; description: string;
@@ -11,7 +13,7 @@ export type SearchResult = {
 };
 export type SearchOptions = {
   q?: string; type?: 'all' | 'ads' | 'products' | 'stores' | 'services'; categoryId?: string;
-  city?: string; minPrice?: number; maxPrice?: number; condition?: 'NEW' | 'USED' | 'REFURBISHED';
+  city?: string; minPrice?: number; maxPrice?: number; condition?: AdCondition;
   sort?: 'relevance' | 'rating' | 'newest' | 'views' | 'price_asc' | 'price_desc'; page?: number; limit?: number; signal?: AbortSignal;
 };
 export async function searchMarketplace(options: SearchOptions) {

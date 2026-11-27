@@ -1,12 +1,8 @@
 import type { AppointmentStatus } from '@/types/service.types';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
 /** Shared between AppointmentsList and any future appointment detail view. */
-export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
-  SCHEDULED: 'محجوز',
-  COMPLETED: 'مكتمل',
-  CANCELLED: 'ملغى',
-  NO_SHOW: 'لم يحضر',
-};
+export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = DOMAIN_STATUS_LABELS.appointment;
 
 export const APPOINTMENT_STATUS_VARIANT: Record<
   AppointmentStatus,

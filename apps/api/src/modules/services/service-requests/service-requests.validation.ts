@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { serviceRequestStatusSchema } from '@marketplat/contracts';
 import { positiveMoneySchema } from '@marketplat/contracts';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
 
@@ -19,7 +20,7 @@ export type CreateServiceRequestInput = z.infer<typeof createServiceRequestSchem
 export const respondToServiceRequestSchema = z.object({
   params: z.object({ id: z.string().min(1) }),
   body: z.object({
-    action: z.enum(['ACCEPTED', 'REJECTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'DISPUTED']),
+    action: serviceRequestStatusSchema.exclude(['PENDING', 'EXPIRED']),
     quotedPrice: positiveMoneySchema.optional(),
     agreedPrice: positiveMoneySchema.optional(),
     disputeReason: z.string().trim().min(10).max(1000).optional(),

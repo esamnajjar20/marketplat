@@ -1,4 +1,6 @@
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import type { StoreStatus } from '@/types/store.types';
+import type { StoreMemberStatus } from '@/types/store-member.types';
 
 /**
  * MyStoreCard and AdminStoresTable each defined their own
@@ -8,11 +10,7 @@ import type { StoreStatus } from '@/types/store.types';
  * truth from here on, same pattern as adStatus.ts /
  * serviceRequestStatus.ts.
  */
-export const STORE_STATUS_LABELS: Record<StoreStatus, string> = {
-  PENDING: 'قيد المراجعة',
-  ACTIVE:  'نشط',
-  BLOCKED: 'محظور',
-};
+export const STORE_STATUS_LABELS: Record<StoreStatus, string> = DOMAIN_STATUS_LABELS.store;
 
 export const STORE_STATUS_VARIANT: Record<
   StoreStatus,
@@ -24,14 +22,10 @@ export const STORE_STATUS_VARIANT: Record<
 };
 
 /** StoreMember.status — previously hand-rolled inside MyStoreMembersList. */
-export const STORE_MEMBER_STATUS_LABELS: Record<string, string> = {
-  PENDING: 'بانتظار القبول',
-  ACTIVE:  'نشط',
-  REMOVED: 'مزال',
-};
+export const STORE_MEMBER_STATUS_LABELS: Record<StoreMemberStatus, string> = DOMAIN_STATUS_LABELS.storeMember;
 
 export const STORE_MEMBER_STATUS_VARIANT: Record<
-  string,
+  StoreMemberStatus,
   'default' | 'secondary' | 'destructive' | 'success' | 'warning'
 > = {
   PENDING: 'warning',

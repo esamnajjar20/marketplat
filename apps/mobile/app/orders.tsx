@@ -22,14 +22,15 @@ import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useAuthSession, useAuthStatus, useAuthUser } from '@/features/auth/AuthContext';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
+import { DOMAIN_STATUS_LABELS, type MarketplaceOrderStatus } from '@marketplat/contracts';
 
-const STATUS: Record<string, { label: string; tone: 'brand' | 'danger' | 'success' | 'muted' | 'accent' }> = {
-  PENDING: { label: 'بانتظار تأكيد المتجر', tone: 'accent' },
-  CONFIRMED: { label: 'تم تأكيد الطلب', tone: 'brand' },
-  PROCESSING: { label: 'قيد التجهيز', tone: 'brand' },
-  SHIPPED: { label: 'تم الشحن', tone: 'brand' },
-  DELIVERED: { label: 'تم التسليم', tone: 'success' },
-  CANCELLED: { label: 'ملغي', tone: 'danger' },
+const STATUS_TONE: Record<MarketplaceOrderStatus, 'brand' | 'danger' | 'success' | 'muted' | 'accent'> = {
+  PENDING: 'accent',
+  CONFIRMED: 'brand',
+  PROCESSING: 'brand',
+  SHIPPED: 'brand',
+  DELIVERED: 'success',
+  CANCELLED: 'danger',
 };
 
 export default function MyOrdersScreen() {
@@ -100,7 +101,7 @@ export default function MyOrdersScreen() {
         }
         ItemSeparatorComponent={ListGapMd}
         renderItem={({ item: order }) => {
-          const status = STATUS[order.status] ?? { label: order.status, tone: 'muted' as const };
+          const status = { label: DOMAIN_STATUS_LABELS.order[order.status] ?? order.status, tone: STATUS_TONE[order.status] ?? 'muted' as const };
           const first = order.items[0];
           const totalQty = order.items.reduce((sum, item) => sum + item.quantity, 0);
           return (

@@ -3,8 +3,8 @@ import { buildFilterParams, type FilterPatch } from '../../shared/filters';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { ApiRequestConfig } from './requestConfig';
-
-export type FollowTargetType = 'USER' | 'STORE' | 'CATEGORY';
+import type { FollowTargetType } from '@marketplat/contracts';
+export type { FollowTargetType } from '@marketplat/contracts';
 export interface FollowPerson { id: string; name: string; avatarUrl: string | null; city: string | null; }
 export interface FollowStore { id: string; name: string; logoUrl: string | null; city: string; }
 export interface FollowCategory { id: string; name: string; nameAr: string; slug: string; categoryType: 'AD' | 'PRODUCT' | 'SERVICE'; }

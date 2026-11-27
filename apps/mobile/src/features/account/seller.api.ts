@@ -1,5 +1,6 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { apiRequest } from '@/api/client';
-type Envelope<T>={success:boolean;message?:string;data?:T};
+type Envelope<T> = SharedApiEnvelope<T>;
 export type SellerProfile={id:string;displayName?:string|null;bio?:string|null;verified?:boolean;suspended?:boolean;verificationStatus?:string;paymentMethods?:unknown[]|null;userId?:string};
 function data<T>(r:Envelope<T>,fallback:string):T{if(!r||r.success!==true||r.data===undefined)throw new Error(r?.message||fallback);return r.data;}
 export async function fetchMySellerProfile(token:string,ownerId?:string|null):Promise<SellerProfile|null>{const r=await apiRequest<Envelope<SellerProfile|null>>('/api/v1/sellers/me/profile',{token,cacheOwnerId:ownerId??undefined});if(!r||r.success!==true)throw new Error(r?.message||'تعذر تحميل ملف البائع.');return r.data??null;}

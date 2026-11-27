@@ -17,6 +17,7 @@ import {
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing, fontWeights, radius } from '@/theme/tokens';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
+import type { AdCondition } from '@marketplat/contracts';
 import { fetchPublicCategories, flattenPublicCategories } from '@/features/categories/categories.api';
 import { fetchProductCategories } from '@/features/commerce/commerce.api';
 import { fetchServiceCategoryOptions } from '@/features/services/services.api';
@@ -54,7 +55,7 @@ export default function SavedSearchesScreen() {
   const [min, setMin] = useState(() => first(params.minPrice) || '');
   const [max, setMax] = useState(() => first(params.maxPrice) || '');
   const [categoryId, setCategoryId] = useState(() => first(params.categoryId) || '');
-  const [condition, setCondition] = useState<'NEW' | 'USED' | 'REFURBISHED' | ''>(() => {
+  const [condition, setCondition] = useState<AdCondition | ''>(() => {
     const value = first(params.condition);
     return first(params.type) === 'ads' && (value === 'NEW' || value === 'USED' || value === 'REFURBISHED') ? value : '';
   });

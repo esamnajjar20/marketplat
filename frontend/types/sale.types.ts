@@ -1,5 +1,5 @@
-export type SaleEntityType = 'PRODUCT' | 'AD' | 'SERVICE' | 'FREE';
-export type SalePaymentStatus = 'PAID' | 'PARTIAL' | 'UNPAID' | 'OVERDUE';
+import type { SaleEntityType, SalePaymentStatus, SaleTransferMethod, ReturnReason } from '@marketplat/contracts';
+export type { SaleEntityType, SalePaymentStatus, SaleTransferMethod, ReturnReason } from '@marketplat/contracts';
 
 /** Query parameters shared by GET /sales and its query-cache identity. */
 export interface SalesListQueryParams {
@@ -21,7 +21,6 @@ export interface SalesReportQueryParams {
   status?: SalePaymentStatus;
   limit?: number;
 }
-export type SaleTransferMethod = 'CASH' | 'JAWWAL_PAY' | 'BANK_PALESTINE' | 'PALPAY' | 'CARD' | 'OTHER';
 
 export interface SaleCustomer {
   id: string;
@@ -52,7 +51,7 @@ export interface SaleReturnRecord {
   itemId: string | null;
   quantity: number;
   refundAmount: string;
-  reason: 'DAMAGED' | 'WRONG_ITEM' | 'NOT_LIKED' | 'LATE' | 'OTHER';
+  reason: ReturnReason;
   reasonNote: string | null;
   restockedToInventory: boolean;
   createdAt: string;

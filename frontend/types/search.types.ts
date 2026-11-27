@@ -17,6 +17,9 @@
  *     "small non-list payload" convention as ToggleStoreFollowResult.
  */
 
+import type { AdCondition } from '@marketplat/contracts';
+export type { AdCondition } from '@marketplat/contracts';
+
 export type SearchType = 'all' | 'ads' | 'products' | 'stores' | 'services';
 export type SearchResultType = 'ad' | 'product' | 'store' | 'service';
 /** TRACK-NEARBY-SEARCH: 'distance' only valid alongside lat/lng — see SearchQuery's own comment. */
@@ -77,7 +80,7 @@ export interface SearchQuery {
   categoryId?: string;
   minPrice?: number;
   maxPrice?: number;
-  condition?: 'NEW' | 'USED' | 'REFURBISHED';
+  condition?: AdCondition;
   sort?: SearchSort;
   page?: number;
   limit?: number;

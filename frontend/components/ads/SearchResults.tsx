@@ -21,6 +21,7 @@ import { CACHE_TTL, ROUTES } from '@/lib/constants';
 import { canonicalBrowseSearchParams, getBrowseNumber, getBrowseParam, parseBrowseSearchParams, type BrowseSearchParams } from '@/lib/browseSearchParams';
 import { useCategoryBySlug } from '@/hooks/queries/useCategories';
 import type { AdSortField } from '@/types/ad.types';
+import type { AdCondition } from '@marketplat/contracts';
 import { LayoutGrid, LayoutList, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -94,7 +95,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
   // over the route's own slug so users can still narrow further.
   const categoryId = getBrowseParam(searchParams, 'categoryId') ?? slugCategory?.id ?? undefined;
   const city       = getBrowseParam(searchParams, 'city');
-  const condition  = getBrowseParam(searchParams, 'condition') as 'NEW' | 'USED' | 'REFURBISHED' | undefined;
+  const condition  = getBrowseParam(searchParams, 'condition') as AdCondition | undefined;
   const minPrice   = getBrowseNumber(searchParams, 'minPrice');
   const maxPrice   = getBrowseNumber(searchParams, 'maxPrice');
   // L-4 (audit fix): was hardcoded as 'createdAt' | 'price', excluding

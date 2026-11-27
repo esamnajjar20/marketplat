@@ -55,6 +55,9 @@ export interface CachedUser {
   // crashing the reader; the gating middleware treats that as
   // "stale, refetch once" so a deploy does not lock everyone out.
   emailVerified?: boolean;
+  /** Required for server-side onboarding enforcement; optional only for
+   * compatibility with cache entries written before this projection existed. */
+  needsProfileCompletion?: boolean;
 }
 
 function l1Get(userId: string): CachedUser | null {
@@ -246,7 +249,7 @@ export const userCache = {
           const genBefore = currentGen(userId);
           const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { id: true, role: true, isActive: true, emailVerified: true },
+            select: { id: true, role: true, isActive: true, emailVerified: true, needsProfileCompletion: true },
           });
           if (!user) return null;
 
@@ -255,6 +258,7 @@ export const userCache = {
             role: user.role as string,
             isActive: user.isActive,
             emailVerified: user.emailVerified,
+            needsProfileCompletion: user.needsProfileCompletion,
           };
 
           if (currentGen(userId) === genBefore) {

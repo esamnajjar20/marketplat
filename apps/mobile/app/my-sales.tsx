@@ -15,6 +15,7 @@ import { fetchSales, fetchSalesSummary, type SalePaymentStatus, type SaleRecord,
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { formatDate, formatMoney, formatNumber } from '@/lib/formatters';
 import { AppFlashList } from '@/components/ui/AppFlashList';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import { ListGapLg } from '@/components/ui/ListSeparator';
 const periodOptions: {
     value: SalesPeriod;
@@ -41,21 +42,19 @@ const statusOptions: {
         value: 'ALL', label: 'الكل'
     },
     {
-        value: 'PAID', label: 'مدفوعة'
+        value: 'PAID', label: DOMAIN_STATUS_LABELS.salePayment.PAID
     },
     {
-        value: 'PARTIAL', label: 'مدفوعة جزئيًا'
+        value: 'PARTIAL', label: DOMAIN_STATUS_LABELS.salePayment.PARTIAL
     },
     {
-        value: 'UNPAID', label: 'غير مدفوعة'
+        value: 'UNPAID', label: DOMAIN_STATUS_LABELS.salePayment.UNPAID
     },
     {
-        value: 'OVERDUE', label: 'متأخرة'
+        value: 'OVERDUE', label: DOMAIN_STATUS_LABELS.salePayment.OVERDUE
     },
 ];
-const statusLabel: Record<SalePaymentStatus, string> = {
-    PAID: 'مدفوعة', PARTIAL: 'مدفوعة جزئيًا', UNPAID: 'غير مدفوعة', OVERDUE: 'متأخرة'
-};
+const statusLabel: Record<SalePaymentStatus, string> = DOMAIN_STATUS_LABELS.salePayment;
 const money = (value: unknown, currency = 'ILS') => formatMoney(value, currency);
 const dateLabel = (value: string) => formatDate(value, 'date');
 export default function MySalesScreen() {

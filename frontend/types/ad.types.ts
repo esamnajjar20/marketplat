@@ -2,16 +2,14 @@
  * Ad / listing types.
  * Aligned with backend Prisma schema and API response shapes.
  *
- * Removed 'PENDING' from AdStatus — not in backend schema.
+ * AdStatus includes ACTIVE, SOLD, DELETED, and EXPIRED, matching Prisma.
  * price is string | null (Prisma Decimal serialises to string in JSON).
  * sort → sortBy, order → sortOrder to match backend getAdsSchema.
  */
 
-// ── Enums (must match backend Prisma enums exactly) ───────────────
-
-/** backend schema has only ACTIVE | SOLD | DELETED */
-export type AdStatus    = 'ACTIVE' | 'SOLD' | 'DELETED' | 'EXPIRED';
-export type AdCondition = 'NEW' | 'USED' | 'REFURBISHED';
+// ── Enums are sourced from the shared Prisma-mirrored domain contract ──
+import type { AdStatus, AdCondition } from '@marketplat/contracts';
+export type { AdStatus, AdCondition };
 
 /**
  * matches backend sortBy enum.

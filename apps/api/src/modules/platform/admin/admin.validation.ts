@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import { AdStatus } from '@prisma/client';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
-import { optionalQueryBooleanSchema } from '@marketplat/contracts';
+import {
+  optionalQueryBooleanSchema,
+  assignableUserRoleSchema,
+  productStatusSchema,
+  serviceListingStatusSchema,
+  requestStatusSchema,
+  requestTypeSchema,
+} from '@marketplat/contracts';
 
 export const adminGetAdsSchema = z.object({
   query: z.object({
@@ -48,7 +55,7 @@ export const toggleActiveSchema = z.object({
 // break-glass role assigned directly in the database, never through
 // this endpoint, for anyone. Rejecting it at the schema gives a clear
 // 400 instead of a 403 surfacing from deep in the service layer.
-const assignableRoleSchema = z.enum(['USER', 'MODERATOR', 'ADMIN']);
+const assignableRoleSchema = assignableUserRoleSchema;
 
 export const changeRoleSchema = z.object({
   body: z.object({ role: assignableRoleSchema }),
@@ -65,10 +72,10 @@ export const changeRoleSchema = z.object({
 // matching the shape of adminGetAdsSchema / adminGetUsersSchema so
 // those three endpoints reject bad input at the edge instead of
 // relying on the service to be defensive.
-const productStatusEnum = z.enum(['ACTIVE', 'PAUSED', 'DELETED']);
-const serviceListingStatusEnum = z.enum(['ACTIVE', 'PAUSED', 'DELETED']);
-const openRequestStatusEnum = z.enum(['OPEN', 'ACCEPTED', 'CANCELLED', 'EXPIRED']);
-const openRequestTypeEnum = z.enum(['SERVICE', 'PRODUCT', 'RENTAL']);
+const productStatusEnum = productStatusSchema;
+const serviceListingStatusEnum = serviceListingStatusSchema;
+const openRequestStatusEnum = requestStatusSchema;
+const openRequestTypeEnum = requestTypeSchema;
 
 export const adminGetProductsSchema = z.object({
   query: z.object({

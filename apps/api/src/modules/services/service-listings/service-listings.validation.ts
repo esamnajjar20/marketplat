@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { serviceListingStatusSchema } from '@marketplat/contracts';
 import { positiveMoneySchema } from '@marketplat/contracts';
 import { ServicePricingType, ServiceLocationType, ServiceListingStatus } from '@prisma/client';
 import { optionalQueryNumber } from '../../../shared/http/queryHelpers';
@@ -80,7 +81,7 @@ export const updateServiceListingSchema = z.object({
       durationEstimate: z.string().max(100).nullable().optional(),
       attributes: serviceAttributesSchema,
       serviceLocation: z.nativeEnum(ServiceLocationType).optional(),
-      status: z.enum(['ACTIVE', 'PAUSED']).optional(),
+      status: serviceListingStatusSchema.exclude(['DELETED']).optional(),
     })
     .superRefine((data, ctx) => {
       if (

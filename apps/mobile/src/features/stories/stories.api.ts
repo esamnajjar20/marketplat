@@ -1,10 +1,12 @@
+import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { apiRequest } from '@/api/client';
+import type { StoryVisibility } from '@marketplat/contracts';
 
-type Envelope<T> = { success: boolean; message?: string; data?: T };
+type Envelope<T> = SharedApiEnvelope<T>;
 export type Story = {
   id: string; userId: string; user: { id: string; name: string; avatarUrl?: string | null };
   mediaUrl?: string | null; text?: string | null; background?: string | null;
-  visibility: 'PUBLIC' | 'FOLLOWERS'; createdAt: string; expiresAt: string;
+  visibility: StoryVisibility; createdAt: string; expiresAt: string;
   viewCount: number; viewed: boolean; isOwner: boolean;
 };
 export type StoryGroup = { user: Story['user']; stories: Story[]; hasUnseen: boolean; latestCreatedAt: string };
@@ -22,7 +24,7 @@ export async function fetchUserStories(userId: string, token?: string | null): P
   if (!Array.isArray(data)) throw new Error('استجابة قصص المستخدم غير صالحة.');
   return data;
 }
-export async function createStory(input: { text?: string; visibility: 'PUBLIC' | 'FOLLOWERS'; background?: string }, asset: { uri: string; fileName?: string | null; mimeType?: string | null } | null, token: string, csrfToken?: string | null): Promise<Story> {
+export async function createStory(input: { text?: string; visibility: StoryVisibility; background?: string }, asset: { uri: string; fileName?: string | null; mimeType?: string | null } | null, token: string, csrfToken?: string | null): Promise<Story> {
   if (!input.text?.trim() && !asset) throw new Error('أضف نصًا أو صورة للقصة.');
   const form = new FormData();
   if (input.text?.trim()) form.append('text', input.text.trim());

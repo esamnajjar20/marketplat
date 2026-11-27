@@ -6,6 +6,7 @@
  */
 
 import type { ServicePricingType } from '@/types/service.types';
+import { calendarDayDifference, formatCurrencyValue, formatDateValue, formatListingPriceValue, formatNumberValue, formatShortDateValue, toValidSharedDate } from '@marketplat/contracts';
 
 // ── Number ────────────────────────────────────────────────────────
 
@@ -17,10 +18,7 @@ import type { ServicePricingType } from '@/types/service.types';
  * @example formatNumber(12000) → "12,000"
  */
 export function formatNumber(value: number | null | undefined): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return '--';
-  // Latin digits everywhere (same as formatPrice/formatMoney/formatTime) so a
-  // single screen never mixes ١٢٣ and 123.
-  return new Intl.NumberFormat('ar-PS', { numberingSystem: 'latn', maximumFractionDigits: 2 }).format(value);
+  return formatNumberValue(value, 2, '--');
 }
 
 /** Ratio (0..1) as a percentage with up to 1 decimal. @example formatPercent(0.256) → "25.6%" */
@@ -42,21 +40,7 @@ export function formatPrice(
   price: string | number | null | undefined,
   currency = '₪',
 ): string {
-  if (price === null || price === undefined || price === '') {
-    return 'السعر غير محدد';
-  }
-  const num = typeof price === 'number' ? price : parseFloat(price);
-  if (Number.isNaN(num)) return 'السعر غير محدد';
-
-  return (
-    new Intl.NumberFormat('ar-PS', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-      numberingSystem: 'latn',
-    }).format(num) +
-    ' ' +
-    currency
-  );
+  return formatListingPriceValue(price, currency, 'السعر غير محدد');
 }
 
 /**
@@ -66,23 +50,13 @@ export function formatPrice(
  * (0 decimals, "السعر غير محدد" fallback).
  *
  * @example formatMoney("12345.5") → "12,345.50 ₪"
- * @example formatMoney(null)      → "0.00 ₪"
+ * @example formatMoney(null)      → "غير متاح"
  */
 export function formatMoney(
   value: string | number | null | undefined,
   currency = '₪',
 ): string {
-  const num = Number(value ?? 0);
-  const safe = Number.isFinite(num) ? num : 0;
-  return (
-    new Intl.NumberFormat('ar-PS', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-      numberingSystem: 'latn',
-    }).format(safe) +
-    ' ' +
-    currency
-  );
+  return formatCurrencyValue(value, currency, 'غير متاح');
 }
 
 /**
@@ -111,10 +85,6 @@ const RTF = new Intl.RelativeTimeFormat('ar-u-nu-latn', { numeric: 'auto', });
 const GAZA_DATE_PARTS = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Gaza', year: 'numeric', month: '2-digit', day: '2-digit',
 });
-function gazaDayNumber(date: Date): number {
-  const parts = Object.fromEntries(GAZA_DATE_PARTS.formatToParts(date).map((part) => [part.type, part.value]));
-  return Math.floor(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)) / 86_400_000);
-}
 function gazaCalendarParts(date: Date): { year: number; month: number; day: number } {
   const parts = Object.fromEntries(GAZA_DATE_PARTS.formatToParts(date).map((part) => [part.type, part.value]));
   return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day) };
@@ -169,13 +139,14 @@ export function formatRelativeTimeShort(dateStr: string, now = Date.now()): stri
   if (Number.isNaN(date.getTime())) return '—';
 
   const diffSec = (now - date.getTime()) / 1000;
+  if (diffSec < 0) return formatRelativeTime(dateStr, now);
   if (diffSec < 60) return 'الآن';
   if (diffSec < 3_600) return `${Math.floor(diffSec / 60)}د`;
 
   const nowDate = new Date(now);
   const nowCalendar = gazaCalendarParts(nowDate);
   const dateCalendar = gazaCalendarParts(date);
-  const daysAgo = gazaDayNumber(nowDate) - gazaDayNumber(date);
+  const daysAgo = calendarDayDifference(nowDate, date) ?? -1;
 
   if (daysAgo === 0) {
     return new Intl.DateTimeFormat('ar-PS', {
@@ -183,7 +154,7 @@ export function formatRelativeTimeShort(dateStr: string, now = Date.now()): stri
     }).format(date);
   }
   if (daysAgo === 1) return 'أمس';
-  if (daysAgo < 7) {
+  if (daysAgo > 1 && daysAgo < 7) {
     return new Intl.DateTimeFormat('ar-PS', { weekday: 'long', timeZone: 'Asia/Gaza' }).format(date);
   }
   if (dateCalendar.year === nowCalendar.year) {
@@ -197,41 +168,17 @@ export function formatRelativeTimeShort(dateStr: string, now = Date.now()): stri
 
 /** Full localised date string in Arabic. */
 export function formatDate(dateStr: string): string {
-  // SW-FMT-INVALID-DATE-01: Intl.DateTimeFormat.format() throws
-  // RangeError on an Invalid Date.
-  if (!dateStr) return '—';
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return '—';
-  return new Intl.DateTimeFormat('ar-PS', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    numberingSystem: 'latn',
-    timeZone: 'Asia/Gaza',
-  }).format(d);
+  return formatDateValue(dateStr, 'date', '—');
 }
 
-/**
- * Time-of-day only, e.g. for an appointment's scheduledStart/scheduledEnd
- * or an availability freeRanges entry.
- * @example formatTime("2026-08-05T09:30:00.000Z") → "9:30 ص"
- */
+/** Time-of-day only in the product timezone. */
 export function formatTime(dateStr: string): string {
-  // SW-FMT-INVALID-DATE-01
-  if (!dateStr) return '—';
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return '—';
-  return new Intl.DateTimeFormat('ar-PS', {
-    hour: 'numeric',
-    minute: '2-digit',
-    numberingSystem: 'latn',
-    timeZone: 'Asia/Gaza',
-  }).format(d);
+  return formatDateValue(dateStr, 'time', '—');
 }
 
-/** Combined date + time, e.g. for an appointment list row. */
+/** Combined date + time in the product timezone. */
 export function formatDateTime(dateStr: string): string {
-  return `${formatDate(dateStr)} — ${formatTime(dateStr)}`;
+  return formatDateValue(dateStr, 'dateTime', '—');
 }
 
 /**
@@ -239,41 +186,31 @@ export function formatDateTime(dateStr: string): string {
  * and returns null for anything unparseable so no formatter can throw.
  */
 type DateInput = string | number | Date | null | undefined;
-function toValidDate(value: DateInput): Date | null {
-  if (value === null || value === undefined || value === '') return null;
-  const d = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
 
-/** Date + time in the Gaza timezone, e.g. admin panels, sync/draft logs. */
+/** Date + time in Asia/Gaza. */
 export function formatTimestamp(value: DateInput): string {
-  const d = toValidDate(value);
-  return d ? d.toLocaleString('ar-PS', { numberingSystem: 'latn', timeZone: 'Asia/Gaza' }) : '—';
+  return formatDateValue(value, 'dateTime', '—');
 }
 
-/** Date only (numeric) in the Gaza timezone, e.g. table cells. */
+/** Date only (numeric) in Asia/Gaza. */
 export function formatShortDate(value: DateInput): string {
-  const d = toValidDate(value);
-  return d ? d.toLocaleDateString('ar-PS', { numberingSystem: 'latn', timeZone: 'Asia/Gaza' }) : '—';
+  return formatShortDateValue(value, '—');
 }
 
-/** "5 Aug 2026, 9:30 AM"-style medium date + short time in Gaza TZ (lists, banners). */
+/** Medium-style date + time in the same product timezone. */
 export function formatDateTimeMedium(value: DateInput): string {
-  const d = toValidDate(value);
-  return d
-    ? new Intl.DateTimeFormat('ar-PS', { dateStyle: 'medium', timeStyle: 'short', numberingSystem: 'latn', timeZone: 'Asia/Gaza' }).format(d)
-    : '—';
+  return formatDateValue(value, 'dateTime', '—');
 }
 
 /** Clock time only in the Gaza timezone, e.g. log rows. */
 export function formatClockTime(value: DateInput): string {
-  const d = toValidDate(value);
+  const d = toValidSharedDate(value);
   return d ? d.toLocaleTimeString('ar-PS', { numberingSystem: 'latn', timeZone: 'Asia/Gaza' }) : '—';
 }
 
 /** Clock time with milliseconds in the Gaza timezone (Latin digits), e.g. network/diagnostic logs. */
 export function formatClockTimeMs(value: DateInput): string {
-  const d = toValidDate(value);
+  const d = toValidSharedDate(value);
   return d
     ? new Intl.DateTimeFormat('ar-PS', { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3, numberingSystem: 'latn', timeZone: 'Asia/Gaza' }).format(d)
     : '';
@@ -281,7 +218,7 @@ export function formatClockTimeMs(value: DateInput): string {
 
 /** Hour:minute only in the Gaza timezone with Latin digits, e.g. draft-saved / story timestamps. */
 export function formatHourMinute(value: DateInput): string {
-  const d = toValidDate(value);
+  const d = toValidSharedDate(value);
   return d
     ? new Intl.DateTimeFormat('ar-PS', { hour: 'numeric', minute: '2-digit', numberingSystem: 'latn', timeZone: 'Asia/Gaza' }).format(d)
     : '';
@@ -289,7 +226,7 @@ export function formatHourMinute(value: DateInput): string {
 
 /** Short "day month, hh:mm" in the Gaza timezone with Latin digits, e.g. activity-log rows. */
 export function formatDayMonthTime(value: DateInput): string {
-  const d = toValidDate(value);
+  const d = toValidSharedDate(value);
   return d
     ? new Intl.DateTimeFormat('ar-PS', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', numberingSystem: 'latn', timeZone: 'Asia/Gaza' }).format(d)
     : '';

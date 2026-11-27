@@ -4,14 +4,31 @@ import { verifyAccessToken } from '../shared/auth/jwt';
 import {
   tokenStore,
   getBlacklistKey,
-  peekBlacklistL1,
   rememberBlacklistL1,
+  getSessionMetadataKey,
 } from '../shared/auth/tokenStore';
 import { userCache, getUserCacheKey } from '../shared/cache/userCache';
 import { UnauthorizedError } from '../shared/errors/UnauthorizedError';
-import { env } from '../config/env';
+import { ForbiddenError } from '../shared/errors/ForbiddenError';
 import { sessionRedis as redis } from '../config/redis';
 import { logger } from '../shared/observability/logger';
+
+function isProfileCompletionExempt(req: Request): boolean {
+  const path = `${req.baseUrl ?? ''}${req.path ?? ''}`.replace(/\/{2,}/g, '/');
+  const method = String(req.method ?? 'GET').toUpperCase();
+
+  if (path.endsWith('/users/me') && ['GET', 'PATCH', 'DELETE'].includes(method)) return true;
+  if (path.endsWith('/users/me/bootstrap') && method === 'GET') return true;
+  if (path.endsWith('/users/me/delete-confirmed') && method === 'POST') return true;
+  if (path.endsWith('/users/me/password') && method === 'POST') return true;
+  if (path.endsWith('/auth/logout') && method === 'POST') return true;
+  if (path.endsWith('/auth/logout-all') && method === 'POST') return true;
+  if (path.endsWith('/auth/sessions') && method === 'GET') return true;
+  if (/\/auth\/sessions\/[^/]+$/.test(path) && method === 'DELETE') return true;
+  if (path.endsWith('/auth/resend-verification') && method === 'POST') return true;
+  if (path.endsWith('/auth/mobile/google/delete/start') && method === 'POST') return true;
+  return false;
+}
 
 export const authenticate = async (
   req: Request,
@@ -24,103 +41,100 @@ export const authenticate = async (
       throw new UnauthorizedError('No token provided');
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.slice('Bearer '.length).trim();
+    if (!token) throw new UnauthorizedError('No token provided');
 
-    // Verify JWT first (CPU-only, no I/O) — fail fast before hitting Redis
     const payload = verifyAccessToken(token);
-
-    // UPSTASH-SAVE: مسار ساخن بدون Redis
-    const localBl = peekBlacklistL1(token);
-    const localUser = userCache.peek(payload.userId);
-    if (localBl === false && localUser && localUser.isActive) {
-      req.user = { ...payload, role: localUser.role };
-      tokenStore
-        .updateSessionLastSeen(payload.userId, payload.sessionId)
-        .catch(error =>
-          reportBackgroundFailure('apps/api/src/middlewares/auth.middleware.ts', error)
-        );
-      next();
-      return;
-    }
-    if (localBl === true) {
-      throw new UnauthorizedError('Token has been revoked');
+    if (!payload.userId || !payload.sessionId || !payload.jti) {
+      throw new UnauthorizedError('Invalid or expired token');
     }
 
-    // P-02: batch both Redis reads into one pipeline round-trip
-    // [0] = blacklist check, [1] = user cache
-    let blacklistResult: string | null = null;
-    let userCacheResult: string | null = null;
-
+    // Every access token is bound to a live Redis session record. The old
+    // L1 fast path checked only token blacklist + user state and therefore
+    // let Access Tokens from revoked sessions survive until JWT expiry.
+    // Do not cache positive session checks: revocation must take effect on
+    // every worker on the very next request.
+    let blacklistResult: string | null;
+    let userCacheResult: string | null;
+    let sessionExists: number;
     try {
       const pipeline = redis.pipeline();
-      // BUGFIX (found during a post-implementation code audit):
-      // previously built this key inline as `BLACKLIST_PREFIX +
-      // hashToken(token)`, duplicating shared/auth/tokenStore.ts's
-      // own (unused) isBlacklisted() key logic — two independent,
-      // silently-divergable copies of the same construction. Now
-      // derives it from tokenStore's single exported
-      // getBlacklistKey(), while still issuing the actual Redis
-      // command as part of this file's own batched pipeline (P-02) —
-      // that batching is the reason this couldn't just call
-      // tokenStore.isBlacklisted() directly, which does its own
-      // standalone redis.get().
       pipeline.get(getBlacklistKey(token));
-      // derives the user-cache key from userCache.ts's
-      // single exported getUserCacheKey() — same rationale as
-      // getBlacklistKey() above: one source of truth for the key
-      // format instead of two independently-editable copies.
       pipeline.get(getUserCacheKey(payload.userId));
+      pipeline.exists(getSessionMetadataKey(payload.userId, payload.sessionId));
       const results = await pipeline.exec();
-
-      // T553 — pipeline.exec() resolves even when an individual
-      // command failed; the failure shows up as [err, null] at that
-      // slot. Reading only [1] (the value) silently turns a per-command
-      // error into "no data" — for the blacklist slot that's a
-      // fail-open under BLACKLIST_STRICT (a revoked token passes).
-      // Surface any per-command error by throwing, so the surrounding
-      // catch applies the strict/dev policy as intended.
-      const blacklistCmdErr = results?.[0]?.[0];
-      const userCacheCmdErr = results?.[1]?.[0];
-      if (blacklistCmdErr || userCacheCmdErr) {
-        throw blacklistCmdErr ?? userCacheCmdErr;
+      const commandError = results?.find(result => result?.[0])?.[0];
+      if (commandError) throw commandError;
+      if (!results || results.length !== 3) {
+        throw new Error('Unexpected authentication pipeline result');
       }
-
-      // pipeline.exec() returns [[err, val], [err, val], ...]
-      blacklistResult = (results?.[0]?.[1] as string | null) ?? null;
-      userCacheResult = (results?.[1]?.[1] as string | null) ?? null;
-    } catch (err) {
-      // Redis unavailable — strict mode rejects, dev mode allows
-      if (env.security.blacklistStrict) {
-        logger.error('Redis unavailable during auth — rejecting (strict mode)');
-        throw new UnauthorizedError('Authentication service unavailable');
-      }
-      logger.warn('Redis unavailable during auth — allowing (dev mode)');
+      blacklistResult = (results[0]?.[1] as string | null) ?? null;
+      userCacheResult = (results[1]?.[1] as string | null) ?? null;
+      sessionExists = Number(results[2]?.[1] ?? 0);
+    } catch (error) {
+      logger.error('Redis unavailable during session authentication', { error });
+      // The session ledger lives only in Redis. Failing open here would
+      // defeat logout-all/revoke-session precisely during an outage.
+      throw new UnauthorizedError(
+        'Authentication service unavailable',
+        'AUTH_SERVICE_UNAVAILABLE'
+      );
     }
 
-    // Blacklist check
     if (blacklistResult !== null) {
       rememberBlacklistL1(token, true);
       throw new UnauthorizedError('Token has been revoked');
     }
     rememberBlacklistL1(token, false);
 
-    // Resolve user — from pipeline result or DB fallback
-    let user: { id: string; role: string; isActive: boolean } | null = null;
+    if (sessionExists !== 1) {
+      throw new UnauthorizedError('Session has been revoked or expired', 'SESSION_EXPIRED');
+    }
+
+    let user: import('../shared/cache/userCache').CachedUser | null = null;
     if (userCacheResult) {
-      user = JSON.parse(userCacheResult);
-      if (user) void userCache.set(user);
-    } else {
+      try {
+        user = JSON.parse(userCacheResult) as import('../shared/cache/userCache').CachedUser;
+      } catch {
+        user = null;
+      }
+    }
+
+    // Cache entries from before the onboarding projection existed are stale.
+    // Evict and refetch rather than allowing an undefined flag to bypass it.
+    if (user && typeof user.needsProfileCompletion !== 'boolean') {
+      await userCache.invalidate(payload.userId);
+      user = null;
+    }
+    if (!user) user = await userCache.getOrFetch(payload.userId);
+    if (user && typeof user.needsProfileCompletion !== 'boolean') {
+      await userCache.invalidate(payload.userId);
       user = await userCache.getOrFetch(payload.userId);
     }
 
     if (!user || !user.isActive) {
       throw new UnauthorizedError('Account is deactivated or not found');
     }
+    if (typeof user.needsProfileCompletion !== 'boolean') {
+      throw new UnauthorizedError(
+        'Account state is temporarily unavailable',
+        'ACCOUNT_STATE_UNAVAILABLE'
+      );
+    }
 
-    // Inject role from cache (not from JWT — role changes are immediate)
-    req.user = { ...payload, role: user.role };
+    req.user = {
+      ...payload,
+      role: user.role,
+      needsProfileCompletion: user.needsProfileCompletion,
+    };
 
-    // Update lastSeen async — fire and forget, never blocks response
+    if (user.needsProfileCompletion && !isProfileCompletionExempt(req)) {
+      throw new ForbiddenError(
+        'Complete your profile before using the marketplace',
+        'PROFILE_COMPLETION_REQUIRED'
+      );
+    }
+
     tokenStore
       .updateSessionLastSeen(payload.userId, payload.sessionId)
       .catch(error =>
@@ -129,7 +143,7 @@ export const authenticate = async (
 
     next();
   } catch (error) {
-    if (error instanceof UnauthorizedError) {
+    if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
       next(error);
     } else {
       next(new UnauthorizedError('Invalid or expired token'));
@@ -184,44 +198,41 @@ export const optionalAuthenticate = async (
       next();
       return;
     }
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.slice('Bearer '.length).trim();
     const payload = verifyAccessToken(token);
-    const localBl = peekBlacklistL1(token);
-    if (localBl === true) {
+    if (!payload.userId || !payload.sessionId || !payload.jti) {
       next();
       return;
     }
-    // this path previously read only
-    // the L1 cache and never consulted Redis, unlike `authenticate`
-    // above. Between a logout (which writes the blacklist key to Redis
-    // and broadcasts the L1 invalidation to every worker) and the
-    // pub/sub message actually landing in this process, the revoked
-    // token stayed accepted on every public-read route — the ad
-    // detail page, the seller profile, the search results — for the
-    // duration of the broadcast latency, with no upper bound if a
-    // worker was partitioned from the pub/sub channel. Same pipeline
-    // check as `authenticate`, but degrading to anonymous on Redis
-    // failure rather than 401: the whole point of this middleware is
-    // to never block public reads, so a Redis blip must not turn
-    // every public page into a login wall for logged-in users.
-    if (localBl === undefined) {
-      try {
-        const revoked = await redis.get(getBlacklistKey(token));
-        if (revoked !== null) {
-          rememberBlacklistL1(token, true);
-          next();
-          return;
-        }
-        rememberBlacklistL1(token, false);
-      } catch {
-        // Redis unavailable — treat as anonymous (do not set req.user).
-        next();
-        return;
-      }
+
+    // Public routes remain public during an auth-infrastructure outage, but
+    // a viewer identity is attached only after authoritative session checks.
+    const pipeline = redis.pipeline();
+    pipeline.get(getBlacklistKey(token));
+    pipeline.exists(getSessionMetadataKey(payload.userId, payload.sessionId));
+    const results = await pipeline.exec();
+    const commandError = results?.find(result => result?.[0])?.[0];
+    if (commandError || !results || results.length !== 2) {
+      next();
+      return;
     }
+
+    const blacklisted = results[0]?.[1] != null;
+    const sessionExists = Number(results[1]?.[1] ?? 0) === 1;
+    if (blacklisted || !sessionExists) {
+      if (blacklisted) rememberBlacklistL1(token, true);
+      next();
+      return;
+    }
+    rememberBlacklistL1(token, false);
+
     const localUser = userCache.peek(payload.userId);
-    if (localUser && localUser.isActive) {
-      req.user = { ...payload, role: localUser.role };
+    if (localUser?.isActive && localUser.needsProfileCompletion === false) {
+      req.user = {
+        ...payload,
+        role: localUser.role,
+        needsProfileCompletion: false,
+      };
     }
     next();
   } catch {

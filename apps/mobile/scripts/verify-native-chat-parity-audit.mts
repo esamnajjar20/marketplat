@@ -11,7 +11,7 @@ const mediaSync = read('../src/features/messaging/chat-media-outbox-sync.ts');
 const checks = [
   ['conversation search is local and includes participants/context/message preview', /const visibleItems = useMemo/.test(inbox) && /item\.lastMessage\?\.body/.test(inbox)],
   ['inbox filters unread and archived conversations', /filter === 'unread'/.test(inbox) && /filter === 'archived'/.test(inbox)],
-  ['pinned conversations sort before other conversations', /pinnedAt/.test(inbox) && /\.sort\(\(a,b\)/.test(inbox)],
+  ['pinned conversations sort before other conversations', /pinnedAt/.test(inbox) && /\.sort\(\(\s*a\s*,\s*b\s*\)/.test(inbox)],
   ['conversation pin/archive/mute uses authenticated API mutations', /setConversationFlags\(/.test(inbox) && /mutedUntil/.test(inbox)],
   ['thread search is local and does not fetch per keystroke', /const visibleMessages = normalizedSearch/.test(thread)],
   ['image attachments use image picker and the existing server route', /launchImageLibraryAsync/.test(thread) && /queueAndTryMedia\('image'/.test(thread) && /sendChatImage\(/.test(mediaSync) && /field === 'image' \? 'image'/.test(api)],
@@ -24,7 +24,7 @@ const checks = [
   ['image upload rejects oversized local files and unsupported MIME types', /5 \* 1024 \* 1024/.test(thread) && /image\/jpeg','image\/png','image\/webp/.test(thread)],
   ['received audio plays in the conversation and files open in the in-app browser', /useAudioPlayer/.test(thread) && /onPlayAudio=\{playChatAudio\}/.test(thread) && /تشغيل الرسالة الصوتية/.test(messageRow) && /WebBrowser\.openBrowserAsync/.test(messageRow) && /isAllowedMediaUrl/.test(messageRow)],
   ['conversation list can show validated participant avatars', /other\?\.avatarUrl/.test(read('../src/features/messaging/ConversationListItem.tsx')) && /isAllowedMediaUrl\(other\?\.avatarUrl\)/.test(read('../src/features/messaging/ConversationListItem.tsx')) && /<Avatar\b/.test(read('../src/features/messaging/ConversationListItem.tsx'))],
-  ['message inbox and thread use reduced first-page sizes for weak connections', /limit: '20'/.test(api) && /limit: '30'/.test(api)],
+  ['message inbox and thread use reduced first-page sizes for weak connections', /limit: 20/.test(api) && /limit: '30'/.test(api)],
 ];
 let failed = 0;
 for (const [label, ok] of checks) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failed++; }

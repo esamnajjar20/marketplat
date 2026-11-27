@@ -24,7 +24,7 @@ const dateTime = (v?: string | null) => {
     if (!v)
         return null;
     const d = new Date(v);
-    return Number.isFinite(d.getTime()) ? formatDate(d) : null;
+    return Number.isFinite(d.getTime()) ? formatDate(d, 'dateTime') : null;
 };
 type Action = 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 export default function ServiceRequestDetailScreen() {

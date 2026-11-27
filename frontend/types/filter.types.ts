@@ -11,9 +11,8 @@
  */
 
 import type { SearchSort, SearchType } from '@/types/search.types';
-
-/** Ad condition — must match backend Prisma enum / search validation. */
-export type AdCondition = 'NEW' | 'USED' | 'REFURBISHED';
+import type { AdCondition } from '@marketplat/contracts';
+export type { AdCondition } from '@marketplat/contracts';
 
 /**
  * Canonical filter state. Every key is optional; absent = "not applied".

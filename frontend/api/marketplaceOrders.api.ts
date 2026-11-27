@@ -1,8 +1,9 @@
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import { apiClient } from './client';
 import { buildFilterParams, type FilterPatch } from '../../shared/filters';
+import type { MarketplaceOrderStatus } from '@marketplat/contracts';
+export type { MarketplaceOrderStatus } from '@marketplat/contracts';
 
-export type MarketplaceOrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 export type MarketplaceOrderItem = {
   id: string;
   productId: string | null;

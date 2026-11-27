@@ -9,14 +9,9 @@ import { Badge } from '@/components/shared/ui/Badge';
 import { Checkbox } from '@/components/shared/ui/Checkbox';
 import { ROUTES, REPORT_REASON_LABELS } from '@/lib/constants';
 import type { Report, ReportStatus } from '@/types/admin.types';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 
-const TARGET_TYPE_LABELS = {
-  AD: 'إعلان',
-  USER: 'مستخدم',
-  STORE: 'متجر',
-  PRODUCT: 'منتج',
-  SERVICE_LISTING: 'خدمة',
-} as const;
+const TARGET_TYPE_LABELS = DOMAIN_STATUS_LABELS.reportTargetType;
 
 function targetHref(targetType: Report['targetType'], targetId: string): string {
   if (targetType === 'USER') return ROUTES.userProfile(targetId);

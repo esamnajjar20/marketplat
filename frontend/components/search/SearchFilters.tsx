@@ -20,6 +20,7 @@ import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { cn } from '@/lib/utils';
 import type { SearchType } from '@/types/search.types';
+import type { AdCondition } from '@marketplat/contracts';
 import { PRICE_PRESETS } from '@/types/filter.types';
 import { parseSearchParams } from '@/lib/filterUrl';
 import { FilterResetButton } from '@/components/shared/filters/FilterResetButton';
@@ -181,7 +182,7 @@ export function SearchFilters({ showPanelTitle = true }: { showPanelTitle?: bool
                     onValueChange={(value) => apply(
                       value === 'ALL'
                         ? { condition: undefined, clearKeys: ['condition'] }
-                        : { condition: value as 'NEW' | 'USED' | 'REFURBISHED' },
+                        : { condition: value as AdCondition },
                     )}
                   >
                     <SelectTrigger className="w-full">

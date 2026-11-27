@@ -3,8 +3,8 @@
  * store-members.service / repository responses.
  */
 
-export type StoreMemberRole = 'MANAGER' | 'STAFF' | 'EDITOR';
-export type StoreMemberStatus = 'PENDING' | 'ACTIVE' | 'REMOVED';
+import type { StoreMemberRole, StoreMemberStatus } from '@marketplat/contracts';
+export type { StoreMemberRole, StoreMemberStatus } from '@marketplat/contracts';
 
 export interface StoreMemberUser {
   id: string;

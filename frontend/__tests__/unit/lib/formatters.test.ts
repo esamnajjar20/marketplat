@@ -318,10 +318,10 @@ describe('formatMoney', () => {
     expect(formatMoney(0)).toBe('0.00 ₪');
     expect(formatMoney(99.999)).toBe('100.00 ₪');
   });
-  it('treats null/undefined/NaN as zero instead of throwing', () => {
-    expect(formatMoney(null)).toBe('0.00 ₪');
-    expect(formatMoney(undefined)).toBe('0.00 ₪');
-    expect(formatMoney('abc')).toBe('0.00 ₪');
+  it('keeps null/undefined/NaN unavailable instead of silently treating them as zero', () => {
+    expect(formatMoney(null)).toBe('غير متاح');
+    expect(formatMoney(undefined)).toBe('غير متاح');
+    expect(formatMoney('abc')).toBe('غير متاح');
   });
   it('supports a custom currency', () => {
     expect(formatMoney(5, '$')).toBe('5.00 $');

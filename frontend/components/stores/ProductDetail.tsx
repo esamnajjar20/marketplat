@@ -1,4 +1,5 @@
 'use client';
+import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 import {
   DETAIL_PANEL_PADDED,
@@ -66,11 +67,7 @@ const ProductRecommendations = dynamic(
   { ssr: false, loading: () => null },
 );
 
-const AVAILABILITY_LABEL: Record<ProductAvailability, string> = {
-  IN_STOCK: 'متوفر',
-  LIMITED: 'كمية محدودة',
-  OUT_OF_STOCK: 'غير متوفر',
-};
+const AVAILABILITY_LABEL: Record<ProductAvailability, string> = DOMAIN_STATUS_LABELS.productAvailability;
 
 interface Props {
   product: ProductWithFullStore;
