@@ -73,6 +73,6 @@ export function useServiceCategoriesForAdmin() {
   return useQuery({
     queryKey: queryKeys.serviceCategories.adminAll(),
     queryFn: ({ signal }) => serviceCategoriesApi.getAllForAdmin({ signal }).then((r) => r.data.data),
-    staleTime: 0,
+    staleTime: CACHE_TTL.adminAlwaysFresh,
   });
 }

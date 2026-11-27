@@ -1,12 +1,18 @@
+import { MOBILE_CACHE_POLICY } from '../cachePolicy.generated.ts';
+
 /**
  * Public-cache policy shared by the SQLite adapter and dependency-free Node tests.
  * Explicitly saved-offline resources live in their own table and are not expired here.
+ * All budgets and freshness windows are owned by shared/cache-policy.json.
  */
-export const MAX_PUBLIC_CACHE_ENTRIES = 100;
-export const MAX_PUBLIC_CACHE_BYTES = 6_000_000;
-export const PUBLIC_CACHE_MAX_STALE_MS = 7 * 24 * 60 * 60 * 1_000;
-export const PRIVATE_CACHE_MAX_STALE_MS = 24 * 60 * 60 * 1_000;
-export const CACHE_CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1_000;
+const PUBLIC_CACHE_POLICY = MOBILE_CACHE_POLICY.mobile.storage.publicCache;
+export const MAX_PUBLIC_CACHE_ENTRIES = PUBLIC_CACHE_POLICY.maxEntries;
+export const MAX_PUBLIC_CACHE_BYTES = PUBLIC_CACHE_POLICY.maxBytes;
+export const MAX_PUBLIC_CACHE_ENTRY_CHARS = PUBLIC_CACHE_POLICY.maxEntryChars;
+export const MAX_PUBLIC_CACHE_ENTRY_BYTES = PUBLIC_CACHE_POLICY.maxEntryBytes;
+export const PUBLIC_CACHE_MAX_STALE_MS = PUBLIC_CACHE_POLICY.publicMaxStaleMs;
+export const PRIVATE_CACHE_MAX_STALE_MS = PUBLIC_CACHE_POLICY.privateMaxStaleMs;
+export const CACHE_CLOCK_SKEW_TOLERANCE_MS = PUBLIC_CACHE_POLICY.clockSkewToleranceMs;
 
 export function maxCacheAgeForKey(cacheKey: string): number {
   return typeof cacheKey === 'string' && cacheKey.startsWith('api-private:')

@@ -1,7 +1,7 @@
 /**
- * Single Redis TTL for admin-managed reference trees (ad / product / service
- * categories). These keys are also invalidated explicitly on every admin
- * mutation, so the TTL is only a safety net. Keep the three category services
- * on this one constant so they cannot drift apart.
+ * Compatibility export for the shared TTL used by admin-managed reference trees.
+ * The only editable source is shared/cache-policy.json.
  */
-export const REFERENCE_DATA_REDIS_TTL_SECONDS = 60 * 60;
+import { CACHE_POLICY } from './cachePolicy';
+
+export const REFERENCE_DATA_REDIS_TTL_SECONDS = CACHE_POLICY.server.referenceTreeTtlSec;

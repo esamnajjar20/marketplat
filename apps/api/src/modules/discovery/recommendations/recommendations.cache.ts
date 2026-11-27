@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { swrGetWithStatus, bumpGeneration, type SwrStatus } from '../../../shared/cache/swrCache';
 import { onHomeInvalidated } from '../home/home.cache.keys';
+import { cachePolicy } from '../../../shared/cache/cachePolicy';
 import type { GetRecommendationsQuery } from './recommendations.validation';
 
 /**
@@ -31,14 +32,15 @@ import type { GetRecommendationsQuery } from './recommendations.validation';
  */
 export const RECS_KEY_PREFIX = 'recs:v1:';
 export const RECS_GEN_KEY = 'recs:gen';
-export const RECS_SOFT_TTL_MS = 60_000;
-export const RECS_SOFT_JITTER_MS = 10_000;
-export const RECS_GUEST_HARD_TTL_SECONDS = 300;
-export const RECS_USER_HARD_TTL_SECONDS = 120;
-export const RECS_LOCK_TTL_MS = 10_000;
-export const RECS_MAX_CACHEABLE_CITY = 24;
+const RECOMMENDATIONS_CACHE_POLICY = cachePolicy('recommendations').server;
+export const RECS_SOFT_TTL_MS = RECOMMENDATIONS_CACHE_POLICY.softTtlMs;
+export const RECS_SOFT_JITTER_MS = RECOMMENDATIONS_CACHE_POLICY.softJitterMs;
+export const RECS_GUEST_HARD_TTL_SECONDS = RECOMMENDATIONS_CACHE_POLICY.guestHardTtlSec;
+export const RECS_USER_HARD_TTL_SECONDS = RECOMMENDATIONS_CACHE_POLICY.userHardTtlSec;
+export const RECS_LOCK_TTL_MS = RECOMMENDATIONS_CACHE_POLICY.lockTtlMs;
+export const RECS_MAX_CACHEABLE_CITY = RECOMMENDATIONS_CACHE_POLICY.maxCacheableCityLength;
 /** 2 decimals ≈ 1.1 km: fine for a distance *ranking* signal, bounded key space. */
-const COORD_DECIMALS = 2;
+const COORD_DECIMALS = RECOMMENDATIONS_CACHE_POLICY.coordinateDecimals;
 
 const roundCoord = (n: number): number => Number(n.toFixed(COORD_DECIMALS));
 

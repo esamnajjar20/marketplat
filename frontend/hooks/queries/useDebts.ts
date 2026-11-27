@@ -1,5 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import { CACHE_TTL } from '@/lib/constants';
 import { salesApi } from '@/api/sales.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore, selectIsAuthenticated, selectHasAccessToken, selectIsAuthResolving } from '@/store/auth.store';
@@ -16,6 +17,6 @@ export function useDebts(options?: { enabled?: boolean; page?: number; limit?: n
     queryKey: queryKeys.sales.debtOverview(page, limit),
     queryFn: ({ signal }) => salesApi.debtOverview({ page, limit }, { signal }).then((r) => r.data.data),
     enabled: (options?.enabled ?? true) && isAuthenticated && hasAccessToken && !isAuthResolving,
-    staleTime: 30_000,
+    staleTime: CACHE_TTL.debts,
   });
 }

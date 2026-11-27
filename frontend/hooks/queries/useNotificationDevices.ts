@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { CACHE_TTL } from '@/lib/constants';
 import { notificationsApi } from '@/api/notifications.api';
 import { queryKeys } from '@/lib/queryKeys';
 import {
@@ -22,6 +23,6 @@ export function useNotificationDevices() {
     queryKey: queryKeys.notifications.devices(),
     queryFn: ({ signal }) => notificationsApi.getDevices({ signal }).then((r) => r.data.data ?? []),
     enabled: isAuthenticated && hasToken,
-    staleTime: 30_000,
+    staleTime: CACHE_TTL.notificationDevices,
   });
 }

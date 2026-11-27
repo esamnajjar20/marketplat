@@ -88,7 +88,7 @@ export function useAdminStoreTypes() {
   return useQuery({
     queryKey: queryKeys.admin.storeTypes(),
     queryFn: ({ signal }) => adminApi.getStoreTypes({ signal }).then((r) => r.data.data),
-    staleTime: 60 * 60 * 1000,
+    staleTime: CACHE_TTL.adminStoreTypes,
   });
 }
 
@@ -266,6 +266,6 @@ export function useAdminStoreTypeFields(storeTypeId?: string) {
     queryKey: queryKeys.storeTypes.fields(`admin:${storeTypeId ?? ''}`),
     queryFn: ({ signal }) => adminApi.getStoreTypeFields(storeTypeId!, { signal }).then((r) => r.data.data),
     enabled: Boolean(storeTypeId),
-    staleTime: 5 * 60 * 1000,
+    staleTime: CACHE_TTL.adminStoreTypeFields,
   });
 }

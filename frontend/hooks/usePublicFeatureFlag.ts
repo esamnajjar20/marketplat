@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { CACHE_GC_TTL, CACHE_TTL } from '@/lib/constants';
 import { isPublicFeatureFlagEnabled, type PublicFeatureFlag } from '@/lib/publicFeatureFlags';
 import { queryKeys } from '@/lib/queryKeys';
 
@@ -42,8 +43,8 @@ export function usePublicFeatureFlag(
   const query = useQuery({
     queryKey: queryKeys.publicFeatureFlags.all(),
     queryFn: fetchPublicFeatureFlags,
-    staleTime: 30_000,
-    gcTime: 5 * 60_000,
+    staleTime: CACHE_TTL.publicFeatureFlags,
+    gcTime: CACHE_GC_TTL.publicFeatureFlags,
     refetchOnWindowFocus: true,
     retry: 1,
   });

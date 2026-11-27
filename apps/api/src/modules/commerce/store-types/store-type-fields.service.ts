@@ -1,4 +1,5 @@
 import { cacheRedis as redis } from '../../../config/redis';
+import { CACHE_POLICY } from '../../../shared/cache/cachePolicy';
 import { prisma } from '../../../config/prisma';
 import { Prisma } from '@prisma/client';
 import { logger } from '../../../shared/observability/logger';
@@ -14,7 +15,7 @@ import {
 } from './store-type-fields.validation';
 
 const MAX_FIELDS = 20;
-const CACHE_TTL_SECONDS = 30 * 60;
+const CACHE_TTL_SECONDS = CACHE_POLICY.server.referenceDictionaryTtlSec;
 const cacheKey = (storeTypeId: string) => `store_type_fields:${storeTypeId}:active:v2`;
 
 async function invalidate(storeTypeId: string) {

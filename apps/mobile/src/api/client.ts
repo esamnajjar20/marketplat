@@ -6,6 +6,7 @@ import { markFreshApiResponse, markOfflineCacheResponse } from '@/api/offline-ca
 import { logger } from '@/lib/logger';
 import { isHardOffline } from '@/lib/connectivity-state';
 import { COPY } from '@/lib/copy';
+import cacheContract from '../../../../shared/cache/cache-contract.json';
 /** Minimal API transport. Set EXPO_PUBLIC_API_URL in apps/mobile/.env before connecting real screens. */
 export type ApiFieldErrors = Record<string, string[]>;
 export type ApiErrorMeta = Record<string, unknown>;
@@ -197,33 +198,13 @@ function isSuccessfulPublicEnvelope(value: unknown): boolean {
   return Boolean(value && typeof value === 'object' && (value as { success?: unknown }).success === true);
 }
 
-/** One mutation-to-cache map for all mobile features. Private snapshots are always
- * invalidated within the authenticated owner namespace; missing owner IDs never
- * trigger a cross-account purge. Public read models are invalidated independently. */
-const MUTATION_CACHE_RULES: ReadonlyArray<{
-  route: RegExp;
-  privatePrefixes: readonly string[];
-  publicPrefixes: readonly string[];
-}> = [
-  { route: /^\/api\/v1\/(?:ads|ad-images)(?:\/|$)/, privatePrefixes: ['/api/v1/ads', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/ads', 'api-public:/api/v1/search', 'ads:', 'ad-detail:'] },
-  { route: /^\/api\/v1\/(?:products|product-images)(?:\/|$)/, privatePrefixes: ['/api/v1/products', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/products', 'api-public:/api/v1/stores', 'api-public:/api/v1/search', 'home:public-products:v1'] },
-  { route: /^\/api\/v1\/(?:service-listings|services|service-images)(?:\/|$)/, privatePrefixes: ['/api/v1/service-listings', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/service-listings', 'api-public:/api/v1/search', 'service-listings:', 'home:public-services:v1'] },
-  { route: /^\/api\/v1\/(?:stores|store-members|store-invites|store-promotions|store-hours)(?:\/|$)/, privatePrefixes: ['/api/v1/stores', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/stores', 'api-public:/api/v1/search', 'home:public-stores:v1'] },
-  { route: /^\/api\/v1\/(?:favorites|favourites)(?:\/|$)/, privatePrefixes: ['/api/v1/favorites', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/search', 'api-public:/api/v1/ads', 'api-public:/api/v1/products'] },
-  { route: /^\/api\/v1\/(?:stories)(?:\/|$)/, privatePrefixes: ['/api/v1/stories', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/stories', 'api-public:/api/v1/search'] },
-  { route: /^\/api\/v1\/(?:blocks|blocked-users)(?:\/|$)/, privatePrefixes: ['/api/v1/blocks', '/api/v1/blocked-users', '/api/v1/users/me'], publicPrefixes: [] },
-  { route: /^\/api\/v1\/(?:users|profile|sellers)(?:\/|$)/, privatePrefixes: ['/api/v1/users', '/api/v1/sellers/me', '/api/v1/service-providers'], publicPrefixes: ['api-public:/api/v1/sellers', 'api-public:/api/v1/search', 'api-public:/api/v1/service-listings'] },
-  { route: /^\/api\/v1\/(?:service-providers)(?:\/|$)/, privatePrefixes: ['/api/v1/service-providers', '/api/v1/service-listings'], publicPrefixes: ['api-public:/api/v1/service-listings', 'api-public:/api/v1/sellers/ranking', 'home:public-services:v1'] },
-  { route: /^\/api\/v1\/(?:service-reviews|reviews|ratings)(?:\/|$)/, privatePrefixes: ['/api/v1/service-reviews', '/api/v1/service-listings', '/api/v1/service-providers'], publicPrefixes: ['api-public:/api/v1/service-listings', 'api-public:/api/v1/sellers/ranking', 'home:public-services:v1'] },
-  { route: /^\/api\/v1\/service-requests(?:\/|$)/, privatePrefixes: ['/api/v1/service-requests'], publicPrefixes: [] },
-  { route: /^\/api\/v1\/follows(?:\/|$)/, privatePrefixes: ['/api/v1/follows', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/search'] },
-  { route: /^\/api\/v1\/orders(?:\/|$)/, privatePrefixes: ['/api/v1/orders'], publicPrefixes: [] },
-  { route: /^\/api\/v1\/requests(?:\/|$)/, privatePrefixes: ['/api/v1/requests'], publicPrefixes: [] },
-  { route: /^\/api\/v1\/appointments(?:\/|$)/, privatePrefixes: ['/api/v1/appointments'], publicPrefixes: [] },
-  { route: /^\/api\/v1\/sales(?:\/|$)/, privatePrefixes: ['/api/v1/sales'], publicPrefixes: [] },
-  { route: /^\/api\/v1\/customers(?:\/|$)/, privatePrefixes: ['/api/v1/customers'], publicPrefixes: [] },
-  { route: /^\/api\/v1\/notifications(?:\/|$)/, privatePrefixes: ['/api/v1/notifications'], publicPrefixes: [] },
-];
+/** Mobile mutation invalidation is generated from the shared cache contract.
+ * Keep private owner-scoped prefixes and public read-model prefixes in one place. */
+const MUTATION_CACHE_RULES = cacheContract.mobileMutationInvalidation.map((rule) => ({
+  route: new RegExp(rule.route),
+  privatePrefixes: rule.privatePrefixes,
+  publicPrefixes: rule.publicPrefixes,
+}));
 
 async function invalidateMutationCaches(path: string, ownerId?: string): Promise<void> {
   const pathname = path.split('?', 1)[0];

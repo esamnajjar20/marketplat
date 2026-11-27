@@ -72,7 +72,10 @@
     "audit:http-payload-phase4": "node scripts/http-payload-phase4-audit.mts",
     "audit:db-query-phase5": "node scripts/prisma-query-phase5-audit.mts",
     "audit:db-query-phase6": "node scripts/prisma-query-phase6-audit.mts",
-    "profile:db-queries": "node scripts/profile-prisma-metrics.mts"
+    "profile:db-queries": "node scripts/profile-prisma-metrics.mts",
+    "prebuild": "node ../../tools/sync-cache-artifacts.mjs",
+    "pretype-check": "node ../../tools/sync-cache-artifacts.mjs",
+    "pretest": "node ../../tools/sync-cache-artifacts.mjs"
   },
   "lint-staged": {
     "src/**/*.ts": [

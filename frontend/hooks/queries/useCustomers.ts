@@ -1,5 +1,6 @@
 'use client';
 import { queryOptions, useQuery, keepPreviousData } from '@tanstack/react-query';
+import { CACHE_TTL } from '@/lib/constants';
 import { customersApi } from '@/api/customers.api';
 import { queryKeys, type CustomerListQueryParams } from '@/lib/queryKeys';
 import type { Customer } from '@/types/customer.types';
@@ -34,7 +35,7 @@ function normalize(raw: unknown): PaginatedCustomers {
 }
 
 export function useCustomerSummary() {
-  return useQuery({ queryKey: queryKeys.customers.summary(), queryFn: ({ signal }) => customersApi.summary({ signal }).then(r => r.data.data), staleTime: 30_000 });
+  return useQuery({ queryKey: queryKeys.customers.summary(), queryFn: ({ signal }) => customersApi.summary({ signal }).then(r => r.data.data), staleTime: CACHE_TTL.customers });
 }
 
 export function customerListQueryOptions(params?: CustomerListQueryParams) {
@@ -53,7 +54,7 @@ export function useCustomerOverview(params?: CustomerListQueryParams) {
   return useQuery({
     queryKey: queryKeys.customers.overview(params),
     queryFn: ({ signal }) => customersApi.overview(params, { signal }).then((r) => r.data.data),
-    staleTime: 30_000,
+    staleTime: CACHE_TTL.customers,
   });
 }
 
@@ -64,7 +65,7 @@ export function customerSearchQueryOptions(q: string) {
       const raw = (r.data as unknown as { data?: Customer[] }).data;
       return Array.isArray(raw) ? raw : [];
     }),
-    staleTime: 30_000,
+    staleTime: CACHE_TTL.customers,
   });
 }
 

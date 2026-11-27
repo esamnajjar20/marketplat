@@ -8,7 +8,9 @@
     "type-check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p ../keepalive-worker/tsconfig.json",
     "test": "npm run build && node cache-policy.test.mts",
     "check": "npm run type-check && npm test",
-    "audit:probe": "node cache-probe.mts"
+    "audit:probe": "node cache-probe.mts",
+    "prebuild": "node ../../tools/sync-cache-artifacts.mjs",
+    "pretype-check": "node ../../tools/sync-cache-artifacts.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

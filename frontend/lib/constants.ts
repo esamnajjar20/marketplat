@@ -330,31 +330,30 @@ export const API_BASE_URL = (() => {
  * the same TTL values and they can be tuned in one place.
  */
 export const CACHE_TTL = {
-  // Entries marked [policy] are read from shared/cache-policy.json so web, API,
-  // SW and mobile cannot drift. The rest are deliberate per-feature tuning
-  // (documented inline) and have no policy domain.
+  // Every cache duration is resolved from shared/cache-policy.json. Feature
+  // names here are compatibility aliases for the shared queryDefaults/domains.
   adsList:     cachePolicy('publicLive').client.staleTimeMs,     // [policy] publicLive
   adDetail:    cachePolicy('staticDetail').client.staleTimeMs,   // [policy] staticDetail
-  myAds:       120_000,  // 120 s (was 45s) — mutations invalidate explicitly
+  myAds:       cachePolicy('queryDefaults').myAds.staleTimeMs,
   categories:  cachePolicy('reference').client.staleTimeMs, // [policy] reference
   // Store business types (pharmacy/restaurant/...) — admin-managed
   // reference list. Shorter than categories: a label/icon tweak by an
   // admin should propagate within a browsing session, not after an hour.
-  storeTypes:  120_000,  //   2 m
+  storeTypes:  cachePolicy('queryDefaults').storeTypes.staleTimeMs,
   userProfile: cachePolicy('privateUserProfile').client.staleTimeMs, // [policy] privateUserProfile
   // [policy] personal. Mounting SellerVerificationBanner, BecomeStoreOwnerCard and
   // BecomeServiceProviderCard together still shares one fetch (fresh within the window +
   // in-flight dedupe); useSellerMutations invalidates explicitly.
   sellerProfile: cachePolicy('personal').client.staleTimeMs,
-  publicProfile: 120_000, //  2 m — matches userProfile's TTL for one's own profile
-  sessions:    60_000,   //  60 s
+  publicProfile: cachePolicy('queryDefaults').publicProfile.staleTimeMs,
+  sessions:    cachePolicy('queryDefaults').sessions.staleTimeMs,
   favorites:   cachePolicy('personal').client.staleTimeMs, // [policy] personal
-  adminList:   30_000,   //  30 s
+  adminList:   cachePolicy('queryDefaults').adminList.staleTimeMs,
   // Gap #7 (product analytics): aggregated over a date range, not a
   // live list — changes far less per-minute than adminList's paginated
   // tables, so a longer TTL avoids re-running the trend/category/funnel
   // aggregations on every sidebar revisit within the same session.
-  adminAnalytics: 120_000, // 2 m
+  adminAnalytics: cachePolicy('queryDefaults').adminAnalytics.staleTimeMs,
   // Gap #9 (recommendations): response is personalized per caller (see
   // backend recommendations.routes.ts's CACHE.NONE — no shared HTTP
   // cache is possible), so this is purely the client-side React Query
@@ -364,28 +363,28 @@ export const CACHE_TTL = {
   // Epic 3.1: service requests move through PENDING/ACCEPTED/etc fairly
   // often (a provider can respond any time), so keep this shorter than
   // myAds — same reasoning as adsList's 30s over categories' 5m.
-  serviceRequests: 20_000, // 20 s
+  serviceRequests: cachePolicy('queryDefaults').serviceRequests.staleTimeMs,
   // Reviews are append-only and change far less often than a request's
   // live status — closer to sellerProfile's 60s than serviceRequests' 20s.
-  serviceReviews: 60_000, // 60 s
+  serviceReviews: cachePolicy('queryDefaults').serviceReviews.staleTimeMs,
   // Epic 4: a provider's own appointment list changes about as often as
   // their service requests (status flips on completion/cancellation) —
   // same 20s as serviceRequests. Availability is shorter: two customers
   // racing for the same slot need a fresher view, and the backend's own
   // race-protection (findOverlapping inside withProviderScheduleLock)
   // is the real source of truth at booking time regardless.
-  appointments: 20_000,    // 20 s
-  availability: 30_000,    // 30 s
+  appointments: cachePolicy('queryDefaults').appointments.staleTimeMs,
+  availability: cachePolicy('queryDefaults').availability.staleTimeMs,
   // The open thread is updated through the unified SSE stream. This client
   // TTL is a cache freshness fallback, not a polling interval.
   conversations: cachePolicy('messages').client.staleTimeMs, // [policy] messages
   messages: cachePolicy('messages').client.staleTimeMs,      // [policy] messages
   // Background badge cache. It is intentionally much less volatile than
   // the active thread and is not polled on a timer.
-  conversationUnreadCount: 120_000,         // 2 m
+  conversationUnreadCount: cachePolicy('queryDefaults').conversationUnreadCount.staleTimeMs,
   // Presence is cached for one minute; it is fetched in one bulk request
   // for the visible inbox participants rather than polling each row.
-  presence: 60_000,         // 60 s
+  presence: cachePolicy('queryDefaults').presence.staleTimeMs,
   // Notification badge freshness fallback; SSE invalidates the notification
   // queries when a notification event arrives.
   notifications: cachePolicy('messages').client.staleTimeMs, // [policy] messages
@@ -396,8 +395,8 @@ export const CACHE_TTL = {
   activity: cachePolicy('personal').client.staleTimeMs, // [policy] personal
   // Sales aggregates are stable between explicit sale/payment mutations;
   // mutations invalidate the sales query family so a short client cache is safe.
-  salesData: 60_000,       // 60 s
-  salesList: 15_000,       // 15 s — recent transactions should refresh quickly
+  salesData: cachePolicy('queryDefaults').salesData.staleTimeMs,
+  salesList: cachePolicy('queryDefaults').salesList.staleTimeMs,
   // A user's saved-search list changes only when they explicitly
   // create/delete one — no server-side process mutates it in the
   // background the way a conversation or notification does. Matches
@@ -413,5 +412,36 @@ export const CACHE_TTL = {
   // search.service.ts's SUGGESTIONS_TTL) — a short client staleTime
   // just avoids re-fetching on every keystroke within the same debounce
   // window, the server-side cache absorbs the rest.
-  searchSuggestions: 60_000, // 60 s
+  searchSuggestions: cachePolicy('queryDefaults').searchSuggestions.staleTimeMs,
+  homePrefetch: cachePolicy('queryDefaults').homePrefetch.staleTimeMs,
+  publicFeatureFlags: cachePolicy('queryDefaults').publicFeatureFlags.staleTimeMs,
+  marketplaceOrders: cachePolicy('queryDefaults').marketplaceOrders.staleTimeMs,
+  marketplaceOrderDetail: cachePolicy('queryDefaults').marketplaceOrderDetail.staleTimeMs,
+  adminAlwaysFresh: cachePolicy('queryDefaults').adminAlwaysFresh.staleTimeMs,
+  adminStoreTypes: cachePolicy('queryDefaults').adminStoreTypes.staleTimeMs,
+  adminStoreTypeFields: cachePolicy('queryDefaults').adminStoreTypeFields.staleTimeMs,
+  debts: cachePolicy('queryDefaults').debts.staleTimeMs,
+  notificationDevices: cachePolicy('queryDefaults').notificationDevices.staleTimeMs,
+  salesCostSettings: cachePolicy('queryDefaults').salesCostSettings.staleTimeMs,
+  salesCostProducts: cachePolicy('queryDefaults').salesCostProducts.staleTimeMs,
+  salesDebtSummary: cachePolicy('queryDefaults').salesDebtSummary.staleTimeMs,
+  salesDashboard: cachePolicy('queryDefaults').salesDashboard.staleTimeMs,
+  salesReceipt: cachePolicy('queryDefaults').salesReceipt.staleTimeMs,
+  salesReport: cachePolicy('queryDefaults').salesReport.staleTimeMs,
+  salesSmartInsights: cachePolicy('queryDefaults').salesSmartInsights.staleTimeMs,
+  storyFeed: cachePolicy('queryDefaults').storyFeed.staleTimeMs,
+  storyViewers: cachePolicy('queryDefaults').storyViewers.staleTimeMs,
+  conversationDetail: cachePolicy('queryDefaults').conversationDetail.staleTimeMs,
+  customers: cachePolicy('queryDefaults').customers.staleTimeMs,
+  installments: cachePolicy('queryDefaults').installments.staleTimeMs,
+  storeTypeFields: cachePolicy('queryDefaults').storeTypeFields.staleTimeMs,
+  followCounts: cachePolicy('queryDefaults').followCounts.staleTimeMs,
+  publicSalesStats: cachePolicy('queryDefaults').publicSalesStats.staleTimeMs,
+  sellersRanking: cachePolicy('queryDefaults').sellersRanking.staleTimeMs,
+  serviceListingMatches: cachePolicy('queryDefaults').serviceListingMatches.staleTimeMs,
+} as const;
+
+/** Query garbage-collection windows, kept separate from freshness TTLs. */
+export const CACHE_GC_TTL = {
+  publicFeatureFlags: cachePolicy('queryDefaults').publicFeatureFlags.gcTimeMs,
 } as const;

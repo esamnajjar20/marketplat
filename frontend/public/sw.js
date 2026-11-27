@@ -22,8 +22,8 @@ const API_CACHE = `market-api-${CACHE_VERSION}`;
 // كاش بيانات المستخدم مقسَّم حسب هويته (يُمسح عند الخروج).
 const USER_DATA_CACHE_PREFIX = `market-user-data-${CACHE_VERSION}-`;
 
-const MAX_USER_DATA_ENTRIES = MARKET_STORAGE_POLICY.userDataEntries ?? 400;
-const MAX_USER_DATA_BYTES = MARKET_STORAGE_POLICY.userDataBytes ?? 52428800;
+const MAX_USER_DATA_ENTRIES = MARKET_STORAGE_POLICY.userDataEntries ?? 600;
+const MAX_USER_DATA_BYTES = MARKET_STORAGE_POLICY.userDataBytes ?? 83886080;
 
 // الباك-إند يوقّع userId، و sub مدعوم أيضًا.
 function jwtSubject(payload) {
@@ -344,17 +344,17 @@ const CORE_CACHE = `market-core-${CACHE_VERSION}`;
 // إعلانات محفوظة يدويًا — بلا رقم إصدار عمدًا.
 const SAVED_ADS_CACHE = 'market-saved-ads';
 
-const MAX_API_ENTRIES = MARKET_STORAGE_POLICY.apiEntries ?? 120;
+const MAX_API_ENTRIES = MARKET_STORAGE_POLICY.apiEntries ?? 200;
 
-const MAX_IMAGE_ENTRIES = MARKET_STORAGE_POLICY.imageEntries ?? 160;
+const MAX_IMAGE_ENTRIES = MARKET_STORAGE_POLICY.imageEntries ?? 300;
 
-const MAX_STATIC_ENTRIES = MARKET_STORAGE_POLICY.staticEntries ?? 800;
+const MAX_STATIC_ENTRIES = MARKET_STORAGE_POLICY.staticEntries ?? 1200;
 
-const MAX_STATIC_BYTES = MARKET_STORAGE_POLICY.staticBytes ?? 62914560;
+const MAX_STATIC_BYTES = MARKET_STORAGE_POLICY.staticBytes ?? 104857600;
 
-const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 1000;
+const MAX_SAVED_ADS_ENTRIES = MARKET_STORAGE_POLICY.savedAdsEntries ?? 1500;
 
-const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 500;
+const MAX_PERSONAL_SHELL_ENTRIES = MARKET_STORAGE_POLICY.personalShellEntries ?? 750;
 
 // ⚠️ Must match PERMANENT_*_SHELL_ROUTES in lib/offlineRouteShells.ts
 // (enforced by __tests__/unit/lib/permanentShellParity.test.ts).

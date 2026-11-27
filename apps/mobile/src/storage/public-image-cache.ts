@@ -1,15 +1,21 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { getReferencedPublicImageUris } from '@/storage/public-cache';
-import { planPublicImageEviction, MAX_TRACKED_PUBLIC_IMAGES, MAX_PUBLIC_IMAGE_CACHE_BYTES } from './public-image-cache-policy';
+import {
+  planPublicImageEviction,
+  MAX_TRACKED_PUBLIC_IMAGES,
+  MAX_PUBLIC_IMAGE_CACHE_BYTES,
+  MAX_SINGLE_PUBLIC_IMAGE_BYTES,
+  PUBLIC_IMAGE_OPPORTUNISTIC_PRUNE_INTERVAL_MS,
+} from './public-image-cache-policy';
 
 const IMAGE_DIRECTORY = `${FileSystem.documentDirectory ?? ''}marketplat-public-images/`;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_BYTES = MAX_SINGLE_PUBLIC_IMAGE_BYTES;
 const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 const downloadsInFlight = new Map<string, Promise<string>>();
 let pruneQueue: Promise<void> = Promise.resolve();
 let lastOpportunisticPruneAt = 0;
 let opportunisticPruneInFlight: Promise<void> | null = null;
-const OPPORTUNISTIC_PRUNE_INTERVAL_MS = 15 * 60 * 1000;
+const OPPORTUNISTIC_PRUNE_INTERVAL_MS = PUBLIC_IMAGE_OPPORTUNISTIC_PRUNE_INTERVAL_MS;
 
 function hash(value: string): string {
   // Stable, non-cryptographic key; URLs are identifiers, not secrets.

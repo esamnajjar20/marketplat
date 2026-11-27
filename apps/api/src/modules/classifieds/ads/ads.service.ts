@@ -107,7 +107,7 @@ function buildAdsListCacheKey(query: GetAdsQuery): string {
 // caching them fills Redis with one-hit keys (and lets a client flood it
 // by varying `search`). Short/common terms are still cached; long ones
 // are served from the DB (still singleflighted by the SWR engine).
-const ADS_CACHEABLE_SEARCH_MAX = 24;
+const ADS_CACHEABLE_SEARCH_MAX = cachePolicy('publicLive').server.maxCacheableSearchTextLength;
 
 // TRACK-AD-STORE (phase 2): an ad published under a store is no longer
 // manageable only by the exact account that created it — the store

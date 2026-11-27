@@ -1,5 +1,6 @@
 import { cacheRedis as redis } from '../../../config/redis';
 import { canonicalCacheKey } from '../../../shared/cache/cacheKey';
+import { CACHE_POLICY } from '../../../shared/cache/cachePolicy';
 import { getCacheDomain } from '../../../shared/cache/cacheContract';
 import { logger } from '../../../shared/observability/logger';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
@@ -26,7 +27,7 @@ const CACHE_KEY = canonicalCacheKey(
   getCacheDomain('serviceCategories').scope as 'public',
   { resource: 'service-types-active', version: 1 }
 );
-const CACHE_TTL = 30 * 60;
+const CACHE_TTL = CACHE_POLICY.server.referenceDictionaryTtlSec;
 
 export interface ServiceTypeCapabilities {
   appointments?: boolean;

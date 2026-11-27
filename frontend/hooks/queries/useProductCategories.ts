@@ -69,6 +69,6 @@ export function useProductCategoriesForAdmin() {
   return useQuery({
     queryKey: queryKeys.productCategories.adminAll(),
     queryFn: ({ signal }) => productCategoriesApi.getAllForAdmin({ signal }).then((r) => r.data.data),
-    staleTime: 0,
+    staleTime: CACHE_TTL.adminAlwaysFresh,
   });
 }

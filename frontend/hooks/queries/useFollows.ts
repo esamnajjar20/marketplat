@@ -62,7 +62,7 @@ export function useFollowingFeed(params?: Parameters<typeof followsApi.feed>[0])
   return useQuery({
     queryKey: queryKeys.follows.feed(params),
     queryFn: ({ signal }) => followsApi.feed(params, { signal }).then((r) => r.data.data),
-    staleTime: 120_000,
+    staleTime: CACHE_TTL.followCounts,
     enabled: isAuthenticated,
   });
 }

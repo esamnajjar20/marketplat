@@ -33,6 +33,9 @@ import type {
   ResponseDescriptor,
   UpstreamResult,
 } from './src/types';
+import { GENERATED_CACHE_POLICY } from './src/cachePolicy.generated';
+
+const EDGE_CACHE_POLICY = GENERATED_CACHE_POLICY.edge;
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -156,19 +159,19 @@ const CACHEABLE_PREFIXES = [
   '/api/v1/requests',
 ];
 
-const DEFAULT_TTL = 900;   // Increased from 300 → 5 min to 15 min
-const DEFAULT_SWR = 3600;  // Increased from 900 → 15 min to 60 min
-const MAX_CACHE_SIZE = 10 * 1024 * 1024;
-const STALE_ON_ERROR = true;
+const DEFAULT_TTL = EDGE_CACHE_POLICY.cacheApi.defaultTtlSec;
+const DEFAULT_SWR = EDGE_CACHE_POLICY.cacheApi.defaultSwrSec;
+const MAX_CACHE_SIZE = EDGE_CACHE_POLICY.cacheApi.maxCacheBytes;
+const STALE_ON_ERROR = EDGE_CACHE_POLICY.cacheApi.staleOnError;
 // Extra physical retention after ttl+swr so stale-on-error has something to serve.
-const STALE_ERROR_GRACE_SEC = 600;
+const STALE_ERROR_GRACE_SEC = EDGE_CACHE_POLICY.cacheApi.staleErrorGraceSec;
 
 // Bumped v2 -> v3: key format changed (normalised query, pinned host, SWR metadata).
 const CACHE_KEY_VERSION = 'v4';
 
 // Negative caching (#9)
-const NEGATIVE_TTL_SEC = 60;
-const NEGATIVE_MAX_BODY = 4096;
+const NEGATIVE_TTL_SEC = EDGE_CACHE_POLICY.negative.ttlSec;
+const NEGATIVE_MAX_BODY = EDGE_CACHE_POLICY.negative.maxBodyBytes;
 
 // Reference cache tier: D1 with Workers KV fallback (#10)
 const REFERENCE_ROUTES = new Set([
@@ -194,14 +197,14 @@ const REFERENCE_ROUTES = new Set([
 // D1 reference-cache namespace. v2 adds invalidation tags to every entry;
 // the v1 namespace is intentionally abandoned so untagged legacy rows can never
 // be served after this deployment. Expired v1 rows are removed by the daily sweep.
-const KV_PREFIX = 'ref:v2:';
-const KV_DEFAULT_FRESH_SEC = 3600; // Reference data can use a longer default window
-const KV_DEFAULT_MAX_AGE_SEC = 86400; // Reference data: at most 24h before origin fallback
-const KV_MUTABLE_FRESH_SEC = 60; // Mutable catalog data: refresh at least every minute
-const KV_MUTABLE_MAX_AGE_SEC = 600; // Mutable catalog data: never serve older than 10 minutes
-const KV_LONG_FRESH_SEC = 86400; // Explicit opt-in: 24h between origin refreshes
-const KV_LONG_MAX_AGE_SEC = 604800; // Opt-in: serve stale-once-refresh entries for at most 7 days
-const MAX_SEARCH_CACHE_TERMS = 500;
+const KV_PREFIX = EDGE_CACHE_POLICY.reference.namespace;
+const KV_DEFAULT_FRESH_SEC = EDGE_CACHE_POLICY.reference.defaultFreshSec;
+const KV_DEFAULT_MAX_AGE_SEC = EDGE_CACHE_POLICY.reference.defaultMaxAgeSec;
+const KV_MUTABLE_FRESH_SEC = EDGE_CACHE_POLICY.reference.mutableFreshSec;
+const KV_MUTABLE_MAX_AGE_SEC = EDGE_CACHE_POLICY.reference.mutableMaxAgeSec;
+const KV_LONG_FRESH_SEC = EDGE_CACHE_POLICY.reference.longFreshSec;
+const KV_LONG_MAX_AGE_SEC = EDGE_CACHE_POLICY.reference.longMaxAgeSec;
+const MAX_SEARCH_CACHE_TERMS = EDGE_CACHE_POLICY.reference.maxSearchTerms;
 // Mutable route families enter D1 only after the explicit purge-readiness gate.
 const MUTABLE_REFERENCE_ROUTES_REQUIRE_PURGE = new Set([
   // Admin-managed dictionaries are mutable too; they must not inherit the
@@ -224,8 +227,8 @@ const MUTABLE_REFERENCE_ROUTES_REQUIRE_PURGE = new Set([
   'search',
   'requests',
 ]);
-const KV_MAX_PARAMS = 12;
-const KV_MAX_PARAM_VALUE = 160;
+const KV_MAX_PARAMS = EDGE_CACHE_POLICY.reference.maxParams;
+const KV_MAX_PARAM_VALUE = EDGE_CACHE_POLICY.reference.maxParamValueLength;
 
 // Search caching is deliberately bounded. These are the initial terms supplied
 // for this rollout; add terms only after confirming they are common in analytics.
@@ -233,8 +236,8 @@ const DEFAULT_SEARCH_CACHE_WHITELIST = new Set([
   'سيارة', 'هاتف', 'لابتوب', 'شقة', 'غرفة', 'كرسي',
   'ثلاجة', 'غسالة', 'تكييف', 'سباك', 'كهربائي',
 ]);
-const KV_MAX_BODY = 1024 * 1024;
-const KV_MAX_KEY = 400;
+const KV_MAX_BODY = EDGE_CACHE_POLICY.reference.maxBodyBytes;
+const KV_MAX_KEY = EDGE_CACHE_POLICY.reference.maxKeyLength;
 
 // Query params that never change the response: removed from key AND origin URL.
 const IGNORED_PARAM = /^(utm_[a-z0-9_]+|fbclid|gclid|msclkid|igshid|mc_cid|mc_eid|_ga|__mp_.*)$/i;
@@ -265,7 +268,7 @@ const GATEWAY_REGISTRY_KEY = 'gateway:registry:v1';
 // The registry changes only on an admin save. Data-plane isolates read the D1 replica
 // first and cache it locally; admin refresh/save always bypasses this cache and checks DO.
 // Other isolates may see an update after this TTL, but they never need a DO read per cache miss.
-const GATEWAY_REGISTRY_CACHE_MS = 5 * 60 * 1000;
+const GATEWAY_REGISTRY_CACHE_MS = EDGE_CACHE_POLICY.controlPlane.gatewayRegistryCacheMs;
 const GATEWAY_MAX_SERVERS = 16;
 const GATEWAY_MAX_GO_TARGETS = 32;
 const GATEWAY_MAX_GO_FAILOVER_ATTEMPTS = 3;
@@ -282,10 +285,10 @@ const GATEWAY_REGISTRY_OBJECT_NAME = 'gateway-registry-v1';
 const FRONTEND_RELEASE_COOKIE = '__Host-mp-frontend-release';
 // Health snapshots are control-plane reads. A bounded isolate cache reduces DO reads;
 // local circuit breakers continue reacting immediately to failures seen in this isolate.
-const GATEWAY_HEALTH_CACHE_MS = 2 * 60 * 1000; // local circuit breakers react immediately; central telemetry is bounded
-const GATEWAY_HEALTH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const GATEWAY_HEALTH_HISTORY_INTERVAL_SEC = 15 * 60;
-const GATEWAY_HEALTH_HISTORY_RETENTION_SEC = 30 * 24 * 60 * 60;
+const GATEWAY_HEALTH_CACHE_MS = EDGE_CACHE_POLICY.controlPlane.gatewayHealthCacheMs;
+const GATEWAY_HEALTH_RETENTION_MS = EDGE_CACHE_POLICY.controlPlane.gatewayHealthRetentionMs;
+const GATEWAY_HEALTH_HISTORY_INTERVAL_SEC = EDGE_CACHE_POLICY.controlPlane.gatewayHealthHistoryIntervalSec;
+const GATEWAY_HEALTH_HISTORY_RETENTION_SEC = EDGE_CACHE_POLICY.controlPlane.gatewayHealthHistoryRetentionSec;
 const gatewayFailures = new Map<string, GatewayFailureState>();
 const goTrafficSampleCounters = new Map<string, number>();
 // Sample successful Go traffic at 1-in-25 (was 1-in-10); failures remain unsampled

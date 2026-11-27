@@ -2,7 +2,7 @@ import { canonicalCacheKey, canonicalGenerationKey } from './cacheKey';
 import { getCacheDomain } from './cacheContract';
 import { swrGet, bumpGeneration } from './swrCache';
 import { HOME_GEN_KEY, invalidateHomeCache } from '../../modules/discovery/home/home.cache.keys';
-import { cachePolicy } from './cachePolicy';
+import { CACHE_POLICY, cachePolicy } from './cachePolicy';
 import { listHardTtlSec } from './warmedListQueries';
 import { logger } from '../observability/logger';
 
@@ -49,7 +49,7 @@ export const PUBLIC_LIST_SOFT_JITTER_MS = PUBLIC_LIST_POLICY.softJitterMs;
 export const PUBLIC_LIST_HARD_TTL_SECONDS = PUBLIC_LIST_POLICY.hardTtlSec;
 export const PUBLIC_LIST_LOCK_TTL_MS = PUBLIC_LIST_POLICY.lockTtlMs;
 /** Free-text values longer than this are near-unique per user: don't cache them. */
-export const PUBLIC_LIST_MAX_CACHEABLE_TEXT = 24;
+export const PUBLIC_LIST_MAX_CACHEABLE_TEXT = CACHE_POLICY.publicLive.server.maxCacheableSearchTextLength;
 
 const DOMAIN_BY_NAMESPACE: Record<PublicListNamespace, Parameters<typeof getCacheDomain>[0]> = {
   stores: 'storeList',

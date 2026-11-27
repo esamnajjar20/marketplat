@@ -9,7 +9,7 @@ import type { SellerRankingRow } from '@/types/seller-ranking.types';
 import { normalizeSellerRankingRows } from '@/lib/sellerRanking';
 import { queryKeys } from '@/lib/queryKeys';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, CACHE_TTL } from '@/lib/constants';
 import { ResponseTimeBadge } from '@/components/sellers/ResponseTimeBadge';
 import {
   getOfflineList,
@@ -181,7 +181,7 @@ export function SellersRankingList({
         throw err;
       }
     },
-    staleTime: 30_000,
+    staleTime: CACHE_TTL.sellersRanking,
   });
 
   // Persist only a page payload explicitly prefetched from the server. The

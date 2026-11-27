@@ -130,7 +130,7 @@ export function useConversationMedia(conversationId: string, enabled = true) {
         throw error;
       }
     },
-    staleTime: 60_000,
+    staleTime: CACHE_TTL.conversationDetail,
     refetchOnWindowFocus: false,
     enabled: enabled && isAuthenticated && Boolean(conversationId) && (hasToken || !isOnline),
   });

@@ -16,8 +16,8 @@ const pass = (m: string) => console.log(`[cache-audit] OK: ${m}`);
 
 const policy = JSON.parse(read('shared/cache-policy.json'));
 const contract = JSON.parse(read('shared/cache/cache-contract.json'));
-if (policy.version !== 1) fail('unsupported cache policy version'); else pass('canonical policy version=1');
-if (contract.version !== 1 || contract.keyAlgorithmVersion !== 1) fail('unsupported cache contract/key algorithm version'); else pass('canonical cache contract version=1/keyAlgorithm=1');
+if (policy.version !== 2) fail('unsupported cache policy version'); else pass('canonical policy version=2');
+if (contract.version !== 3 || contract.keyAlgorithmVersion !== 1) fail('unsupported cache contract/key algorithm version'); else pass('canonical cache contract version=3/keyAlgorithm=1');
 
 for (const target of ['frontend/lib/cache-policy.json', 'apps/api/src/shared/cache/cache-policy.json']) {
   if (read(target) !== JSON.stringify(policy, null, 2) + '\n') fail(`${target} is stale`);
@@ -35,10 +35,21 @@ const sharedKey = read('shared/cache/cacheKey.ts');
 if (frontendKey !== sharedKey || backendKey !== sharedKey) fail('cache key algorithm copies diverge');
 else pass('frontend/API cache-key algorithms are identical');
 
+const mobilePolicy = read('apps/mobile/src/cachePolicy.generated.ts');
+if (mobilePolicy !== `/* generated from shared/cache-policy.json — do not edit */\nexport const MOBILE_CACHE_POLICY = ${JSON.stringify(policy, null, 2)} as const;\n`) fail('Mobile cache policy artifact is stale');
+const workerPolicy = read('workers/cf-api-proxy/src/cachePolicy.generated.ts');
+if (workerPolicy !== `/* generated from shared/cache-policy.json — do not edit */\nexport const GENERATED_CACHE_POLICY = ${JSON.stringify(policy, null, 2)} as const;\n`) fail('Cloudflare Worker cache policy artifact is stale');
+else pass('Cloudflare Worker cache policy uses the canonical policy');
+
+if (!Array.isArray(contract.mobileMutationInvalidation) || contract.mobileMutationInvalidation.length < 15) fail('mobile mutation invalidation contract is incomplete');
+else pass(`mobile mutation invalidation rules validated: ${contract.mobileMutationInvalidation.length}`);
+
 const invalidation = read('frontend/lib/cache/cacheInvalidationRegistry.ts');
 const backendInvalidation = read('apps/api/src/shared/cache/cacheInvalidationRegistry.ts');
 if (!invalidation.includes("contract.invalidation") || !backendInvalidation.includes("contract.invalidation")) fail('invalidation registry is not generated from the canonical contract');
 else pass('frontend/API invalidation registries use canonical contract');
+if (!read('apps/api/src/shared/cache/publicMutationTags.ts').includes('CACHE_CONTRACT.publicMutationTags')) fail('API mutation cache tags are not contract-driven'); else pass('API mutation cache tags use canonical contract');
+if (!read('frontend/lib/server/serverCacheTags.ts').includes('contract.publicReadTags')) fail('frontend public read cache tags are not contract-driven'); else pass('frontend public read cache tags use canonical contract');
 
 const contractDomains = Object.keys(contract.domains);
 if (new Set(contractDomains).size !== contractDomains.length) fail('duplicate cache domains');
@@ -185,7 +196,7 @@ if (!userCache.includes('invalidateCachedUserProfile(userId)')) fail('userCache 
 if (!salesService.includes('await userCache.invalidate(userId)')) fail('sales cost settings do not invalidate the cached user profile');
 if (!authService.includes('await userCache.invalidate(linked.id)')) fail('Google account linking does not invalidate the cached user profile');
 if (!authService.includes('await userCache.invalidate(record.userId)')) fail('email verification does not invalidate the cached user profile');
-if (!adminService.includes('const invalidations: Promise<unknown>[] = [userCache.invalidate(userId)]')) fail('admin activation/deactivation does not always invalidate cached user state');
+if (!/const invalidations: Promise<unknown>\[\] = \[\s*userCache\.invalidate\(userId\)/.test(adminService) || !adminService.includes('await Promise.all(invalidations)')) fail('admin activation/deactivation does not always invalidate cached user state');
 if (!authQuery.includes('CACHE_POLICY.privateUserProfile.client.staleTimeMs')) fail('self profile React Query staleTime is not sourced from the canonical private policy');
 if (!offlineFreshness.includes('CACHE_POLICY.privateUserProfile.offline.staleAfterMs')) fail('self profile offline freshness is not sourced from the canonical private policy');
 if (!contract.domains.userProfile || contract.domains.userProfile.scope !== 'private') fail('private user profile cache domain is absent from the canonical contract');

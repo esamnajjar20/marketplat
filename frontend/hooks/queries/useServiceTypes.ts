@@ -18,6 +18,6 @@ export function useServiceTypesForAdmin() {
   return useQuery({
     queryKey: queryKeys.serviceTypes.adminAll(),
     queryFn: ({ signal }) => serviceTypesApi.getAllForAdmin({ signal }).then((r) => r.data.data),
-    staleTime: 0,
+    staleTime: CACHE_TTL.adminAlwaysFresh,
   });
 }

@@ -127,7 +127,13 @@
     "network:phase6-audit": "node scripts/http-request-phase6-audit.mts && node scripts/fetch-client-csrf-audit.mts && node scripts/http-request-phase3-audit.mts && node scripts/network-request-monitor-audit.mts && node scripts/request-dedup-concurrency-audit.mts && node scripts/query-abort-signal-phase2-audit.cts && node scripts/export-http-request-inventory.cts",
     "perf:home-first-render-audit": "node scripts/home-first-render-performance-audit.mts",
     "e2e:ci": "playwright test e2e/tests/marketplace-smoke.spec.ts e2e/tests/auth-form-validation.spec.ts e2e/tests/missing-business-journeys-mocked.spec.ts",
-    "type-check:tests": "tsc --noEmit -p tsconfig.tests.json"
+    "type-check:tests": "tsc --noEmit -p tsconfig.tests.json",
+    "predev": "node ../tools/sync-cache-artifacts.mjs",
+    "prebuild": "node ../tools/sync-cache-artifacts.mjs",
+    "pretype-check": "node ../tools/sync-cache-artifacts.mjs",
+    "pretest": "node ../tools/sync-cache-artifacts.mjs",
+    "cache:layer-audit": "node ../tools/audit-cache-policy.mjs",
+    "prebuild:cf": "node ../tools/sync-cache-artifacts.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

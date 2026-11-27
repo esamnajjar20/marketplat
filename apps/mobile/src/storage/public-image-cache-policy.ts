@@ -1,5 +1,10 @@
-export const MAX_TRACKED_PUBLIC_IMAGES = 120;
-export const MAX_PUBLIC_IMAGE_CACHE_BYTES = 80 * 1024 * 1024;
+import { MOBILE_CACHE_POLICY } from '../cachePolicy.generated.ts';
+
+const IMAGE_CACHE_POLICY = MOBILE_CACHE_POLICY.mobile.storage.publicImages;
+export const MAX_TRACKED_PUBLIC_IMAGES = IMAGE_CACHE_POLICY.maxFiles;
+export const MAX_PUBLIC_IMAGE_CACHE_BYTES = IMAGE_CACHE_POLICY.maxBytes;
+export const MAX_SINGLE_PUBLIC_IMAGE_BYTES = IMAGE_CACHE_POLICY.maxSingleImageBytes;
+export const PUBLIC_IMAGE_OPPORTUNISTIC_PRUNE_INTERVAL_MS = IMAGE_CACHE_POLICY.opportunisticPruneIntervalMs;
 
 /**
  * Plan deletion of the oldest unreferenced image files until both limits are met.

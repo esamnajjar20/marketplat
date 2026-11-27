@@ -14,7 +14,7 @@ export function useStoryFeed() {
   return useQuery({
     queryKey: queryKeys.stories.feed(),
     queryFn: ({ signal }) => storiesApi.feed({ signal }).then((r) => r.data.data),
-    staleTime: 60_000,
+    staleTime: CACHE_TTL.storyFeed,
     enabled: authenticated && hasToken && online,
   });
 }
@@ -35,7 +35,7 @@ export function useStoryViewers(storyId: string, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.stories.viewers(storyId),
     queryFn: ({ signal }) => storiesApi.viewers(storyId, { signal }).then((r) => r.data.data),
-    staleTime: 10_000,
+    staleTime: CACHE_TTL.storyViewers,
     enabled: Boolean(storyId) && enabled,
   });
 }

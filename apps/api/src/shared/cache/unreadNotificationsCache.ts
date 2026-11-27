@@ -2,11 +2,14 @@ import { cacheRedis as redis } from '../../config/redis';
 import { logger } from '../observability/logger';
 import type Redis from 'ioredis';
 import { ttlWithJitter } from './ttlJitter';
+import { cachePolicy } from './cachePolicy';
 
 const UNREAD_COUNT_CACHE_PREFIX = 'unread_notifications_count:';
-const BASE_TTL = 45;
-const JITTER = 15;
-const L1_TTL_MS = 12_000;
+const UNREAD_COUNT_POLICY = cachePolicy('messages').server;
+const BASE_TTL = UNREAD_COUNT_POLICY.unreadCountTtlSec;
+const JITTER = UNREAD_COUNT_POLICY.unreadCountTtlJitterSec;
+const L1_TTL_MS = UNREAD_COUNT_POLICY.unreadCountL1TtlMs;
+const L1_MAX_ENTRIES = UNREAD_COUNT_POLICY.unreadCountL1MaxEntries;
 // Cross-worker invalidation channel — same PM2-cluster reasoning as
 // userCache.ts's own "Cross-worker L1 invalidation" block, though the
 // impact here is a stale badge count (≤12s), not an auth bypass.
@@ -32,7 +35,7 @@ function l1Get(userId: string): number | null {
 
 function l1Set(userId: string, count: number): void {
   L1.set(userId, { count, exp: Date.now() + L1_TTL_MS });
-  if (L1.size > 5_000) {
+  if (L1.size > L1_MAX_ENTRIES) {
     const first = L1.keys().next().value;
     if (first) L1.delete(first);
   }

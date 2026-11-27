@@ -1,5 +1,6 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import { CACHE_TTL } from '@/lib/constants';
 import { installmentsApi } from '@/api/installments.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore, selectIsAuthenticated, selectHasAccessToken, selectIsAuthResolving } from '@/store/auth.store';
@@ -23,6 +24,6 @@ export function useInstallmentsOverview(options?: InstallmentQueryOptions) {
       return result;
     }),
     enabled: (options?.enabled ?? true) && isAuthenticated && hasAccessToken && !isAuthResolving,
-    staleTime: 30_000,
+    staleTime: CACHE_TTL.installments,
   });
 }

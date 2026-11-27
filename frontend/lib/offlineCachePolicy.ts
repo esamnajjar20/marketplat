@@ -5,8 +5,8 @@
  *
  * راجع: docs/OFFLINE_CACHE_ARCHITECTURE.md
  *
- * أرقام IMAGE/API في public/sw.js يجب أن تبقى متوافقة عند التغيير
- * (SW لا يستورد هذا الملف — انسخ القيم يدويًا هناك).
+ * public/sw.js يقرأ النسخة المولّدة، وتبقى القيم الافتراضية داخله متطابقة
+ * مع السياسة المركزية (يفرض ذلك cacheVersionSync.test).
  */
 
 import { CACHE_POLICY } from '@/lib/cachePolicy';

@@ -4,11 +4,14 @@ import { logger } from '../observability/logger';
 import { invalidateCachedUserProfile } from './userProfileCache';
 import type Redis from 'ioredis';
 import { ttlWithJitter } from './ttlJitter';
+import { cachePolicy } from './cachePolicy';
 
 const USER_CACHE_PREFIX = 'user_cache:';
-const BASE_TTL = 5 * 60;
-const JITTER = 60;
-const L1_TTL_MS = 30_000;
+const USER_SNAPSHOT_POLICY = cachePolicy('personal').server;
+const BASE_TTL = USER_SNAPSHOT_POLICY.userSnapshotTtlSec;
+const JITTER = USER_SNAPSHOT_POLICY.userSnapshotTtlJitterSec;
+const L1_TTL_MS = USER_SNAPSHOT_POLICY.userSnapshotL1TtlMs;
+const L1_MAX_ENTRIES = USER_SNAPSHOT_POLICY.userSnapshotL1MaxEntries;
 // Cross-worker invalidation channel — see the "Cross-worker L1
 // invalidation" block below for why this exists and why init is eager.
 const INVALIDATION_CHANNEL = 'user_cache:invalidate';
@@ -73,7 +76,7 @@ function l1Get(userId: string): CachedUser | null {
 
 function l1Set(user: CachedUser): void {
   L1.set(user.id, { user, exp: Date.now() + L1_TTL_MS });
-  if (L1.size > 5_000) {
+  if (L1.size > L1_MAX_ENTRIES) {
     const first = L1.keys().next().value;
     if (first) L1.delete(first);
   }

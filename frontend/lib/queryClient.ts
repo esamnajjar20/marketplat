@@ -12,7 +12,7 @@
  */
 import { QueryClient } from '@tanstack/react-query';
 import { cache } from 'react';
-import { CLIENT_CACHE_DEFAULTS } from '@/lib/cachePolicy';
+import { CACHE_POLICY, CLIENT_CACHE_DEFAULTS } from '@/lib/cachePolicy';
 import {
   getRetryAfterFromParsedError,
   getRetryDelayMs,
@@ -95,26 +95,16 @@ export function makeQueryClient() {
   // inline millisecond literals, so hooks without an explicit staleTime match
   // the hooks that pass CACHE_TTL.* directly.
 
-  // Reference data — categories are admin-edited and purged explicitly, so
-  // this stays at the original 15 min. It is intentionally longer than
-  // CACHE_TTL.categories (5 min) so hooks that do not pass an explicit
-  // staleTime keep the old behaviour.
-  client.setQueryDefaults(['categories'], { staleTime: 15 * 60 * 1000 });
-
-  // Public catalogues — 5 min. Longer than publicLive (90 s) on purpose:
-  // these are paged lists behind a server-side cache; 90 s would refetch
-  // every catalogue page on every tab switch.
-  client.setQueryDefaults(['stores'], { staleTime: 5 * 60 * 1000 });
-  client.setQueryDefaults(['service-listings'], { staleTime: 5 * 60 * 1000 });
-  client.setQueryDefaults(['products'], { staleTime: 5 * 60 * 1000 });
-
-  // Dynamic — 30 s / 90 s (per-surface tuning, no matching policy bucket).
-  client.setQueryDefaults(['notifications'], { staleTime: 30 * 1000 });
-  client.setQueryDefaults(['activity'], { staleTime: 90 * 1000 });
-
-  // Chat — always refetch. SSE covers the open thread, and staleTime 0
-  // keeps the inbox in sync across tab switches.
-  client.setQueryDefaults(['conversations'], { staleTime: 0 });
+  // Defaults for query families are declared in the canonical shared policy.
+  // Individual hooks may use a stricter domain TTL via CACHE_TTL.
+  const queryDefaults = CACHE_POLICY.queryDefaults;
+  client.setQueryDefaults(['categories'], { staleTime: queryDefaults.categories.staleTimeMs });
+  client.setQueryDefaults(['stores'], { staleTime: queryDefaults.stores.staleTimeMs });
+  client.setQueryDefaults(['service-listings'], { staleTime: queryDefaults.serviceListings.staleTimeMs });
+  client.setQueryDefaults(['products'], { staleTime: queryDefaults.products.staleTimeMs });
+  client.setQueryDefaults(['notifications'], { staleTime: queryDefaults.notifications.staleTimeMs });
+  client.setQueryDefaults(['activity'], { staleTime: queryDefaults.activity.staleTimeMs });
+  client.setQueryDefaults(['conversations'], { staleTime: queryDefaults.conversations.staleTimeMs });
 
   return client;
 }

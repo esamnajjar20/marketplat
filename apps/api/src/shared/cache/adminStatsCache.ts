@@ -1,8 +1,9 @@
 import { cacheRedis as redis } from '../../config/redis';
 import { logger } from '../observability/logger';
+import { CACHE_POLICY } from './cachePolicy';
 
 const STATS_CACHE_KEY = 'admin_stats_cache';
-const CACHE_TTL_SECONDS = 30;
+const CACHE_TTL_SECONDS = CACHE_POLICY.server.adminStatsTtlSec;
 
 export interface AdminStats {
   totalAds: number;

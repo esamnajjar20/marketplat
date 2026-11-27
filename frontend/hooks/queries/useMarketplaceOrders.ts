@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { CACHE_TTL } from '@/lib/constants';
 import { marketplaceOrdersApi } from '@/api/marketplaceOrders.api';
 
 export function useMarketplaceOrders(kind: 'buyer' | 'seller', page = 1) {
@@ -25,7 +26,7 @@ export function useMarketplaceOrders(kind: 'buyer' | 'seller', page = 1) {
         },
       };
     },
-    staleTime: 30_000,
+    staleTime: CACHE_TTL.marketplaceOrders,
   });
 }
 
@@ -38,6 +39,6 @@ export function useMarketplaceOrder(id: string) {
       return response.data.data;
     },
     enabled: Boolean(id),
-    staleTime: 20_000,
+    staleTime: CACHE_TTL.marketplaceOrderDetail,
   });
 }

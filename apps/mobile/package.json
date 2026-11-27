@@ -31,7 +31,11 @@
     "report:tokens": "node ./scripts/report-token-bypass.mts",
     "analyze:bundle": "node ./scripts/analyze-bundle.mts",
     "build:bundle:ci": "expo export --platform all --output-dir ../../node_modules/.cache/marketplat-mobile-export",
-    "type-check:scripts": "tsc --noEmit -p tsconfig.scripts.json"
+    "type-check:scripts": "tsc --noEmit -p tsconfig.scripts.json",
+    "predev": "node ../../tools/sync-cache-artifacts.mjs",
+    "pretype-check": "node ../../tools/sync-cache-artifacts.mjs",
+    "pretest": "node ../../tools/sync-cache-artifacts.mjs",
+    "prebuild:bundle:ci": "node ../../tools/sync-cache-artifacts.mjs"
   },
   "dependencies": {
     "@expo/dom-webview": "~58.0.2",

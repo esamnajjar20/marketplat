@@ -6,11 +6,11 @@
  * mobile data would be a real cost to the user. The persisted public cache
  * (SQLite) keeps its own limits in storage/public-cache-policy.ts.
  */
-import policy from '../../../../shared/cache-policy.json';
+import { MOBILE_CACHE_POLICY } from '../cachePolicy.generated.ts';
 
-/** Home: products / services / requests sections — 15 min. */
-export const HOME_PUBLIC_LIST_TTL_MS = 15 * 60 * 1000;
-/** Home: public stores carousel — 10 min. */
-export const HOME_PUBLIC_STORES_TTL_MS = 10 * 60 * 1000;
+/** Home: products / services / requests sections — shared mobile policy. */
+export const HOME_PUBLIC_LIST_TTL_MS = MOBILE_CACHE_POLICY.mobile.home.publicListsStaleTimeMs;
+/** Home: public stores carousel — shared mobile policy. */
+export const HOME_PUBLIC_STORES_TTL_MS = MOBILE_CACHE_POLICY.mobile.home.publicStoresStaleTimeMs;
 /** Public category tree held in module memory (reference policy — 5 min). */
-export const CATEGORY_MEMORY_TTL_MS = policy.reference.client.staleTimeMs;
+export const CATEGORY_MEMORY_TTL_MS = MOBILE_CACHE_POLICY.reference.client.staleTimeMs;

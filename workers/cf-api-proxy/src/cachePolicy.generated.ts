@@ -1,0 +1,438 @@
+/* generated from shared/cache-policy.json — do not edit */
+export const GENERATED_CACHE_POLICY = {
+  "version": 2,
+  "publicLive": {
+    "server": {
+      "softTtlMs": 20000,
+      "softJitterMs": 5000,
+      "hardTtlSec": 90,
+      "lockTtlMs": 10000,
+      "warmedListHardTtlSec": 600,
+      "maxCacheableSearchTextLength": 24
+    },
+    "http": {
+      "maxAgeSec": 30,
+      "staleWhileRevalidateSec": 120,
+      "sharedMaxAgeSec": 120
+    },
+    "client": {
+      "staleTimeMs": 90000,
+      "gcTimeMs": 600000
+    },
+    "offline": {
+      "staleAfterMs": 1800000,
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 3600000
+    }
+  },
+  "publicDetail": {
+    "server": {
+      "softTtlMs": 60000,
+      "softJitterMs": 10000,
+      "hardTtlSec": 300,
+      "lockTtlMs": 10000
+    },
+    "http": {
+      "maxAgeSec": 30,
+      "staleWhileRevalidateSec": 180,
+      "sharedMaxAgeSec": 180
+    },
+    "client": {
+      "staleTimeMs": 60000,
+      "gcTimeMs": 600000
+    },
+    "offline": {
+      "staleAfterMs": 1800000,
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 3600000
+    }
+  },
+  "staticDetail": {
+    "http": {
+      "maxAgeSec": 120,
+      "staleWhileRevalidateSec": 600,
+      "sharedMaxAgeSec": 600
+    },
+    "client": {
+      "staleTimeMs": 120000,
+      "gcTimeMs": 600000
+    }
+  },
+  "publicHome": {
+    "server": {
+      "softTtlMs": 120000,
+      "softJitterMs": 10000,
+      "hardTtlSec": 600,
+      "lockTtlMs": 15000
+    },
+    "http": {
+      "maxAgeSec": 30,
+      "staleWhileRevalidateSec": 180,
+      "sharedMaxAgeSec": 180
+    },
+    "client": {
+      "staleTimeMs": 90000,
+      "gcTimeMs": 600000
+    },
+    "offline": {
+      "staleAfterMs": 1800000,
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 10800000
+    }
+  },
+  "recommendations": {
+    "server": {
+      "softTtlMs": 60000,
+      "softJitterMs": 10000,
+      "guestHardTtlSec": 300,
+      "userHardTtlSec": 120,
+      "lockTtlMs": 10000,
+      "maxCacheableCityLength": 24,
+      "coordinateDecimals": 2
+    },
+    "http": {
+      "maxAgeSec": 0,
+      "staleWhileRevalidateSec": 0
+    },
+    "client": {
+      "staleTimeMs": 60000,
+      "gcTimeMs": 300000
+    },
+    "offline": {
+      "staleAfterMs": 900000,
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 7200000
+    }
+  },
+  "reference": {
+    "http": {
+      "maxAgeSec": 300,
+      "staleWhileRevalidateSec": 600
+    },
+    "client": {
+      "staleTimeMs": 300000,
+      "gcTimeMs": 86400000
+    },
+    "offline": {
+      "staleAfterMs": 86400000,
+      "hardAfterMs": 172800000,
+      "staleGraceMs": 604800000
+    }
+  },
+  "personal": {
+    "http": {
+      "maxAgeSec": 0,
+      "staleWhileRevalidateSec": 0
+    },
+    "client": {
+      "staleTimeMs": 60000,
+      "gcTimeMs": 600000
+    },
+    "offline": {
+      "staleAfterMs": 900000,
+      "hardAfterMs": 86400000
+    },
+    "server": {
+      "userSnapshotTtlSec": 300,
+      "userSnapshotTtlJitterSec": 60,
+      "userSnapshotL1TtlMs": 30000,
+      "userSnapshotL1MaxEntries": 5000
+    }
+  },
+  "messages": {
+    "http": {
+      "maxAgeSec": 0,
+      "staleWhileRevalidateSec": 0
+    },
+    "client": {
+      "staleTimeMs": 30000,
+      "gcTimeMs": 300000
+    },
+    "offline": {
+      "staleAfterMs": 300000,
+      "hardAfterMs": 86400000
+    },
+    "server": {
+      "unreadCountTtlSec": 45,
+      "unreadCountTtlJitterSec": 15,
+      "unreadCountL1TtlMs": 12000,
+      "unreadCountL1MaxEntries": 5000
+    }
+  },
+  "security": {
+    "http": {
+      "maxAgeSec": 0,
+      "staleWhileRevalidateSec": 0
+    },
+    "client": {
+      "staleTimeMs": 0,
+      "gcTimeMs": 60000
+    },
+    "offline": {
+      "staleAfterMs": 0,
+      "hardAfterMs": 0
+    }
+  },
+  "storage": {
+    "serviceWorker": {
+      "apiEntries": 200,
+      "imageEntries": 300,
+      "savedAdsEntries": 1500,
+      "staticEntries": 1200,
+      "staticBytes": 104857600,
+      "personalShellEntries": 750,
+      "userDataEntries": 600,
+      "userDataBytes": 83886080
+    },
+    "offlineLists": {
+      "adsBrowse": 40,
+      "myAds": 50,
+      "productsBrowse": 40,
+      "servicesBrowse": 40,
+      "storesBrowse": 40,
+      "categories": 120,
+      "activity": 60,
+      "savedSearches": 30,
+      "sellersRanking": 50,
+      "notifications": 50,
+      "conversations": 80,
+      "messagesPerConversation": 150,
+      "savedAdsExplicit": 50
+    }
+  },
+  "privateUserProfile": {
+    "server": {
+      "softTtlMs": 20000,
+      "softJitterMs": 3000,
+      "hardTtlSec": 60,
+      "lockTtlMs": 5000
+    },
+    "http": {
+      "maxAgeSec": 0,
+      "staleWhileRevalidateSec": 0
+    },
+    "client": {
+      "staleTimeMs": 120000,
+      "gcTimeMs": 600000
+    },
+    "offline": {
+      "staleAfterMs": 900000,
+      "hardAfterMs": 86400000
+    }
+  },
+  "queryDefaults": {
+    "categories": {
+      "staleTimeMs": 900000
+    },
+    "stores": {
+      "staleTimeMs": 300000
+    },
+    "serviceListings": {
+      "staleTimeMs": 300000
+    },
+    "products": {
+      "staleTimeMs": 300000
+    },
+    "notifications": {
+      "staleTimeMs": 30000
+    },
+    "activity": {
+      "staleTimeMs": 90000
+    },
+    "conversations": {
+      "staleTimeMs": 0
+    },
+    "myAds": {
+      "staleTimeMs": 120000
+    },
+    "storeTypes": {
+      "staleTimeMs": 120000
+    },
+    "publicProfile": {
+      "staleTimeMs": 120000
+    },
+    "sessions": {
+      "staleTimeMs": 60000
+    },
+    "adminList": {
+      "staleTimeMs": 30000
+    },
+    "adminAnalytics": {
+      "staleTimeMs": 120000
+    },
+    "serviceRequests": {
+      "staleTimeMs": 20000
+    },
+    "serviceReviews": {
+      "staleTimeMs": 60000
+    },
+    "appointments": {
+      "staleTimeMs": 20000
+    },
+    "availability": {
+      "staleTimeMs": 30000
+    },
+    "conversationUnreadCount": {
+      "staleTimeMs": 120000
+    },
+    "presence": {
+      "staleTimeMs": 60000
+    },
+    "salesData": {
+      "staleTimeMs": 60000
+    },
+    "salesList": {
+      "staleTimeMs": 15000
+    },
+    "searchSuggestions": {
+      "staleTimeMs": 60000
+    },
+    "homePrefetch": {
+      "staleTimeMs": 60000
+    },
+    "publicFeatureFlags": {
+      "staleTimeMs": 30000,
+      "gcTimeMs": 300000
+    },
+    "marketplaceOrders": {
+      "staleTimeMs": 30000
+    },
+    "marketplaceOrderDetail": {
+      "staleTimeMs": 20000
+    },
+    "adminAlwaysFresh": {
+      "staleTimeMs": 0
+    },
+    "adminStoreTypes": {
+      "staleTimeMs": 3600000
+    },
+    "adminStoreTypeFields": {
+      "staleTimeMs": 300000
+    },
+    "debts": {
+      "staleTimeMs": 30000
+    },
+    "notificationDevices": {
+      "staleTimeMs": 30000
+    },
+    "salesCostSettings": {
+      "staleTimeMs": 300000
+    },
+    "salesCostProducts": {
+      "staleTimeMs": 300000
+    },
+    "salesDebtSummary": {
+      "staleTimeMs": 180000
+    },
+    "salesDashboard": {
+      "staleTimeMs": 180000
+    },
+    "salesReceipt": {
+      "staleTimeMs": 300000
+    },
+    "salesReport": {
+      "staleTimeMs": 180000
+    },
+    "salesSmartInsights": {
+      "staleTimeMs": 60000
+    },
+    "storyFeed": {
+      "staleTimeMs": 60000
+    },
+    "storyViewers": {
+      "staleTimeMs": 10000
+    },
+    "conversationDetail": {
+      "staleTimeMs": 60000
+    },
+    "customers": {
+      "staleTimeMs": 30000
+    },
+    "installments": {
+      "staleTimeMs": 30000
+    },
+    "storeTypeFields": {
+      "staleTimeMs": 900000
+    },
+    "followCounts": {
+      "staleTimeMs": 120000
+    },
+    "publicSalesStats": {
+      "staleTimeMs": 20000
+    },
+    "sellersRanking": {
+      "staleTimeMs": 30000
+    },
+    "serviceListingMatches": {
+      "staleTimeMs": 300000
+    }
+  },
+  "server": {
+    "adminStatsTtlSec": 30,
+    "referenceDictionaryTtlSec": 1800,
+    "referenceTreeTtlSec": 3600,
+    "searchSuggestions": {
+      "redisTtlSec": 300,
+      "l1TtlMs": 30000,
+      "limit": 8,
+      "l1MaxEntries": 500
+    }
+  },
+  "mobile": {
+    "home": {
+      "publicListsStaleTimeMs": 900000,
+      "publicStoresStaleTimeMs": 600000
+    },
+    "storage": {
+      "publicCache": {
+        "maxEntries": 100,
+        "maxBytes": 6000000,
+        "maxEntryChars": 500000,
+        "maxEntryBytes": 1500000,
+        "publicMaxStaleMs": 604800000,
+        "privateMaxStaleMs": 86400000,
+        "clockSkewToleranceMs": 300000
+      },
+      "publicImages": {
+        "maxFiles": 120,
+        "maxBytes": 83886080,
+        "maxSingleImageBytes": 5242880,
+        "opportunisticPruneIntervalMs": 900000
+      }
+    }
+  },
+  "edge": {
+    "cacheApi": {
+      "defaultTtlSec": 900,
+      "defaultSwrSec": 3600,
+      "maxCacheBytes": 10485760,
+      "staleOnError": true,
+      "staleErrorGraceSec": 600
+    },
+    "negative": {
+      "ttlSec": 60,
+      "maxBodyBytes": 4096
+    },
+    "reference": {
+      "namespace": "ref:v2:",
+      "defaultFreshSec": 3600,
+      "defaultMaxAgeSec": 86400,
+      "mutableFreshSec": 60,
+      "mutableMaxAgeSec": 600,
+      "longFreshSec": 86400,
+      "longMaxAgeSec": 604800,
+      "maxSearchTerms": 500,
+      "maxParams": 12,
+      "maxParamValueLength": 160,
+      "maxBodyBytes": 1048576,
+      "maxKeyLength": 400
+    },
+    "controlPlane": {
+      "gatewayRegistryCacheMs": 300000,
+      "gatewayHealthCacheMs": 120000,
+      "gatewayHealthRetentionMs": 604800000,
+      "gatewayHealthHistoryIntervalSec": 900,
+      "gatewayHealthHistoryRetentionSec": 2592000
+    }
+  }
+} as const;

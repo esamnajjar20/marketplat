@@ -70,7 +70,7 @@ export function useCategoriesForAdmin() {
   return useQuery({
     queryKey: queryKeys.categories.adminAll(),
     queryFn: ({ signal }) => categoriesApi.getAllForAdmin({ signal }).then((r) => r.data.data),
-    staleTime: 0,
+    staleTime: CACHE_TTL.adminAlwaysFresh,
   });
 }
 

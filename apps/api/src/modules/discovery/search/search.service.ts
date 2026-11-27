@@ -5,6 +5,7 @@ import { searchRepository } from './search.repository';
 import { SearchQuery, SearchSuggestionsQuery } from './search.validation';
 import { RawSearchRow, SearchResult, UnifiedSearchResponse } from './search.types';
 import { analyzeSearchQuery } from '../../../shared/search/searchQueryIntelligence';
+import { CACHE_POLICY } from '../../../shared/cache/cachePolicy';
 
 /** المسافات غير المنطقية (مثل ~20015 = π×6371 من clamp لـ acos) تُعامل كـ null. */
 function sanitizeDistanceKm(value: number | null | undefined): number | null {
@@ -14,10 +15,11 @@ function sanitizeDistanceKm(value: number | null | undefined): number | null {
   return n;
 }
 
-const SUGGESTIONS_TTL = 5 * 60; // 5 minutes — design doc's 5-10min window, low end since categories/products change more often than the ads-search's own 1hr categories cache
-const SUGGESTIONS_LIMIT = 8;
+const SUGGESTIONS_CACHE_POLICY = CACHE_POLICY.server.searchSuggestions;
+const SUGGESTIONS_TTL = SUGGESTIONS_CACHE_POLICY.redisTtlSec;
+const SUGGESTIONS_LIMIT = SUGGESTIONS_CACHE_POLICY.limit;
 const _suggestL1 = new Map<string, { at: number; value: string[] }>();
-const SUGGEST_L1_MS = 30_000;
+const SUGGEST_L1_MS = SUGGESTIONS_CACHE_POLICY.l1TtlMs;
 
 const suggestionsCacheKey = (q: string): string =>
   // Lowercased so "iPhone" and "iphone" share a cache entry — the
@@ -126,7 +128,7 @@ export const searchService = {
 
     const suggestions = await searchRepository.suggest(query.q, SUGGESTIONS_LIMIT);
     _suggestL1.set(cacheKey, { at: Date.now(), value: suggestions });
-    if (_suggestL1.size > 500) {
+    if (_suggestL1.size > SUGGESTIONS_CACHE_POLICY.l1MaxEntries) {
       const first = _suggestL1.keys().next().value;
       if (first) _suggestL1.delete(first);
     }

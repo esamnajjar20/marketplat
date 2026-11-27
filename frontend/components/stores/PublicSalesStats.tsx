@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { CACHE_TTL } from '@/lib/constants';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { BadgeCheck, BarChart3, Star } from 'lucide-react';
 import type { PublicStoreSalesStats } from '@/types/public-store-stats.types';
@@ -23,7 +24,7 @@ export function PublicSalesStats({ slug }: { slug: string }) {
       if (!payload.data) throw new Error(payload.message || 'Store statistics response is empty');
       return payload.data;
     },
-    staleTime: 20_000,
+    staleTime: CACHE_TTL.publicSalesStats,
   });
 
   // A failed background refetch must not hide a valid persisted snapshot.

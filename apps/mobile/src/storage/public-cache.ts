@@ -6,11 +6,13 @@ import {
   planPublicCacheEviction,
   MAX_PUBLIC_CACHE_ENTRIES,
   MAX_PUBLIC_CACHE_BYTES,
+  MAX_PUBLIC_CACHE_ENTRY_CHARS,
+  MAX_PUBLIC_CACHE_ENTRY_BYTES,
 } from './public-cache-policy';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';
-const MAX_ENTRY_CHARS = 500_000;
-const MAX_ENTRY_BYTES = 1_500_000;
+const MAX_ENTRY_CHARS = MAX_PUBLIC_CACHE_ENTRY_CHARS;
+const MAX_ENTRY_BYTES = MAX_PUBLIC_CACHE_ENTRY_BYTES;
 type CacheRow = { value_json: string; saved_at: number; size_bytes?: number };
 
 export type PublicCacheEntry<T> = { value: T; savedAt: number };

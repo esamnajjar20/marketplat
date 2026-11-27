@@ -51,6 +51,8 @@
     "verify:all": "pnpm run verify:workspace && pnpm run verify:prisma-layout && pnpm run lint:all && pnpm run type-check:all && pnpm run test:all && pnpm run build:all",
     "verify:type-suppressions": "node tools/check-type-suppressions.mjs",
     "lint": "pnpm run lint:all",
-    "type-check": "pnpm run type-check:all"
+    "type-check": "pnpm run type-check:all",
+    "cache:sync": "node tools/sync-cache-artifacts.mjs",
+    "cache:layer-audit": "node tools/audit-cache-policy.mjs"
   }
 }

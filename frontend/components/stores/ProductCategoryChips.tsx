@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { CACHE_TTL } from '@/lib/constants';
 import { useUnifiedFilters } from '@/hooks/useUnifiedFilters';
 import { productCategoriesApi } from '@/api/product-categories.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -17,7 +18,7 @@ export function ProductCategoryChips() {
       const response = await productCategoriesApi.getAll({ signal });
       return response.data.data ?? [];
     },
-    staleTime: 5 * 60_000,
+    staleTime: CACHE_TTL.categories,
   });
 
   const categories = (data ?? []).filter((category) => category.isActive !== false && !category.parentId);

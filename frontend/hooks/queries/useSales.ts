@@ -64,7 +64,7 @@ export function useSalesCostSettings(enabled = true) {
   return useQuery({
     queryKey: queryKeys.sales.costSettings(),
     queryFn: ({ signal }) => salesApi.costSettings({ signal }).then(r => r.data.data),
-    staleTime: 5 * 60_000,
+    staleTime: CACHE_TTL.salesCostSettings,
     enabled,
   });
 }
@@ -87,12 +87,12 @@ export function useSalesCostProducts(enabled = true, search = '') {
     getNextPageParam: lastPage =>
       lastPage.pagination.hasNextPage ? lastPage.pagination.page + 1 : undefined,
     enabled,
-    staleTime: 5 * 60_000,
+    staleTime: CACHE_TTL.salesCostProducts,
   });
 }
 
 export function useDebtSummary() {
-  return useQuery({ queryKey: queryKeys.sales.debtSummary(), queryFn: ({ signal }) => salesApi.debtSummary({ signal }).then(r => r.data.data), staleTime: 180_000 });
+  return useQuery({ queryKey: queryKeys.sales.debtSummary(), queryFn: ({ signal }) => salesApi.debtSummary({ signal }).then(r => r.data.data), staleTime: CACHE_TTL.salesDebtSummary });
 }
 
 
@@ -105,7 +105,7 @@ export function useSalesDashboard() {
     // exposes a user-triggered retry after the backend issue is corrected.
     retry: false,
     retryOnMount: false,
-    staleTime: 180_000,
+    staleTime: CACHE_TTL.salesDashboard,
   });
 }
 
@@ -118,14 +118,14 @@ export function useSalesReceipt(id: string) {
       return data;
     }),
     enabled: Boolean(id),
-    staleTime: 5 * 60 * 1000,
+    staleTime: CACHE_TTL.salesReceipt,
   });
 }
 
 export function useSalesReport(params?: Parameters<typeof salesApi.report>[0]) {
-  return useQuery({ queryKey: queryKeys.sales.report(params), queryFn: ({ signal }) => salesApi.report(params, { signal }).then(r => r.data.data), staleTime: 180_000 });
+  return useQuery({ queryKey: queryKeys.sales.report(params), queryFn: ({ signal }) => salesApi.report(params, { signal }).then(r => r.data.data), staleTime: CACHE_TTL.salesReport });
 }
 
 export function useSalesSmartInsights() {
-  return useQuery({ queryKey: queryKeys.sales.smartInsights(), queryFn: ({ signal }) => salesApi.smartInsights({ signal }).then(r => r.data.data), staleTime: 60_000 });
+  return useQuery({ queryKey: queryKeys.sales.smartInsights(), queryFn: ({ signal }) => salesApi.smartInsights({ signal }).then(r => r.data.data), staleTime: CACHE_TTL.salesSmartInsights });
 }

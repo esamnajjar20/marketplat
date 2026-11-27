@@ -276,7 +276,7 @@ export async function prefetchHomepage(
           if (!res.data) throw new Error('empty /home response');
           return res.data;
         },
-        staleTime: 60 * 1000,
+        staleTime: CACHE_TTL.homePrefetch,
       }),
       timeout,
     ]);
@@ -315,7 +315,7 @@ export async function prefetchHomeFeed(
           if (!res.data) throw new Error('empty /home/static response');
           return res.data;
         },
-        staleTime: 60_000,
+        staleTime: CACHE_TTL.homePrefetch,
       }),
       timeout,
     ]);

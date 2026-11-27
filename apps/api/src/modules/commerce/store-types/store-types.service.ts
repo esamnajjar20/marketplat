@@ -1,4 +1,5 @@
 import { cacheRedis as redis } from '../../../config/redis';
+import { CACHE_POLICY } from '../../../shared/cache/cachePolicy';
 import { logger } from '../../../shared/observability/logger';
 import { purgeReferenceKv } from '../../../shared/cache/edgePurge';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
@@ -13,7 +14,7 @@ import {
 } from './store-types.validation';
 
 const CACHE_KEY = 'store_types:active:v1';
-const CACHE_TTL_SECONDS = 30 * 60;
+const CACHE_TTL_SECONDS = CACHE_POLICY.server.referenceDictionaryTtlSec;
 
 const publicSummary = (
   type: Awaited<ReturnType<typeof storeTypesRepository.findActive>>[number]

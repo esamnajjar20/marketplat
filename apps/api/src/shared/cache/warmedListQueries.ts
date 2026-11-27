@@ -1,4 +1,5 @@
 import { stableSerialize } from './cacheKey';
+import { cachePolicy } from './cachePolicy';
 
 /**
  * Single source of truth for the public list queries that the keep-warm loop
@@ -23,7 +24,7 @@ import { stableSerialize } from './cacheKey';
  */
 
 /** Must stay below `hardTtl - KEEP_WARM_INTERVAL_MS`-style safety: 600s vs a 240s cycle. */
-export const WARMED_LIST_HARD_TTL_SECONDS = 600;
+export const WARMED_LIST_HARD_TTL_SECONDS = cachePolicy('publicLive').server.warmedListHardTtlSec;
 
 export type WarmedListScope =
   'ads' | 'products' | 'stores' | 'service-listings' | 'service-providers';

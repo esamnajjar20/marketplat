@@ -19,6 +19,6 @@ export function useStoreTypeFields(storeTypeId?: string, options?: { enabled?: b
     queryKey: queryKeys.storeTypes.fields(storeTypeId ?? ''),
     queryFn: ({ signal }) => storeTypesApi.getFields(storeTypeId!, { signal }).then((r) => r.data.data),
     enabled: Boolean(storeTypeId) && (options?.enabled ?? true),
-    staleTime: 15 * 60 * 1000,
+    staleTime: CACHE_TTL.storeTypeFields,
   });
 }

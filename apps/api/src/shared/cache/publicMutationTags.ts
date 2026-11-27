@@ -1,135 +1,16 @@
 /**
- * Derive the Next.js Data Cache tags affected by a successful public mutation.
- * This vocabulary is intentionally shared with frontend/lib/server/serverCacheTags.ts
- * and the Next revalidation Route Handler.
+ * Resolve public cache tags for a successful write using the canonical cache
+ * contract. Route/resource tag lists and safety guards are defined only in
+ * shared/cache/cache-contract.json.
  */
-const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-const RESERVED_SEGMENTS = new Set([
-  'me',
-  'search',
-  'featured',
-  'ranking',
-  'suggestions',
-  'categories',
-  'types',
-  'availability',
-  'nearby',
-  'stats',
-  'analytics',
-  'bulk',
-]);
-const NON_PUBLIC_CONTENT_ACTIONS = new Set([
-  'follow',
-  'unfollow',
-  'favorite',
-  'favorites',
-  'like',
-  'likes',
-  'view',
-  'views',
-  'click',
-  'clicks',
-  'impression',
-  'impressions',
-  'tracking',
-  'track',
-  'share',
-  'shares',
-  'members',
-  'memberships',
-  'member-invites',
-]);
-const SAFE_ENTITY_ID = /^[A-Za-z0-9_-]{1,128}$/;
+import { CACHE_CONTRACT } from './cacheContract';
 
-const TAGS_BY_RESOURCE: Record<string, readonly string[]> = {
-  ads: ['route:ads', 'route:home', 'route:search'],
-  products: ['route:products', 'route:collections', 'route:home', 'route:search'],
-  promotions: ['route:products', 'route:collections', 'route:home', 'route:search'],
-  collections: ['route:collections', 'route:products', 'route:home', 'route:search'],
-  stores: ['route:stores', 'route:badges', 'route:public', 'route:home', 'route:search'],
-  // Seller suspension/deactivation hides every public surface owned by that
-  // seller, not just the seller profile itself. These tags also cover direct
-  // detail URLs cached by the API Worker (products/stores/services/providers),
-  // plus search, story, review, badge and homepage projections.
-  sellers: [
-    'route:sellers',
-    'route:ads',
-    'route:products',
-    'route:stores',
-    'route:collections',
-    'route:requests',
-    'route:service-listings',
-    'route:service-providers',
-    'route:service-reviews',
-    'route:stories',
-    'route:follows',
-    'route:badges',
-    'route:public',
-    'route:home',
-    'route:search',
-  ],
-  // Account deletion/deactivation has the same visibility effect as seller
-  // suspension, including personal ads and the user's direct profile/story URLs.
-  users: [
-    'route:users',
-    'route:sellers',
-    'route:ads',
-    'route:products',
-    'route:stores',
-    'route:collections',
-    'route:requests',
-    'route:service-listings',
-    'route:service-providers',
-    'route:service-reviews',
-    'route:stories',
-    'route:follows',
-    'route:badges',
-    'route:public',
-    'route:home',
-    'route:search',
-  ],
-  'service-reviews': ['route:service-reviews', 'route:badges', 'route:search'],
-  sales: ['route:public'],
-  'store-types': ['route:store-types', 'route:stores', 'route:home', 'route:search'],
-  'service-listings': ['route:service-listings', 'route:home', 'route:search'],
-  'service-providers': [
-    'route:service-providers',
-    'route:service-listings',
-    'route:badges',
-    'route:home',
-    'route:search',
-  ],
-  'service-categories': [
-    'route:service-categories',
-    'route:service-listings',
-    'route:home',
-    'route:search',
-  ],
-  'service-types': ['route:service-types', 'route:service-listings', 'route:home', 'route:search'],
-  // The open public request feed is cached by the API Worker/D1 tier. Every
-  // lifecycle mutation must invalidate it, including offer creation/acceptance.
-  requests: ['route:requests'],
-  categories: ['route:categories', 'route:ads', 'route:products', 'route:home', 'route:search'],
-  'product-categories': [
-    'route:product-categories',
-    'route:products',
-    'route:ads',
-    'route:home',
-    'route:search',
-  ],
-};
-
-const ENTITY_TAG_PREFIX_BY_RESOURCE: Record<string, string> = {
-  ads: 'ad',
-  products: 'product',
-  stores: 'store',
-  'service-listings': 'service',
-  'service-providers': 'provider',
-  categories: 'category',
-  'product-categories': 'category',
-  'service-categories': 'category',
-  sellers: 'seller',
-};
+const PUBLIC_MUTATION_TAG_POLICY = CACHE_CONTRACT.publicMutationTags;
+const MUTATION_METHODS = new Set(PUBLIC_MUTATION_TAG_POLICY.methods);
+const RESERVED_SEGMENTS = new Set(PUBLIC_MUTATION_TAG_POLICY.reservedSegments);
+const NON_PUBLIC_CONTENT_ACTIONS = new Set(PUBLIC_MUTATION_TAG_POLICY.nonPublicContentActions);
+const SAFE_ENTITY_ID = new RegExp(PUBLIC_MUTATION_TAG_POLICY.safeEntityIdPattern);
+const TAGS_BY_RESOURCE = PUBLIC_MUTATION_TAG_POLICY.resources;
 
 /**
  * Returns no tags for reads, private domains, unknown paths, or malformed URLs.
@@ -141,8 +22,7 @@ export function publicMutationCacheTags(method: string, originalUrl: string): st
     typeof originalUrl !== 'string' ||
     !originalUrl.startsWith('/') ||
     originalUrl.startsWith('//')
-  )
-    return [];
+  ) return [];
 
   let segments: string[];
   try {
@@ -157,8 +37,7 @@ export function publicMutationCacheTags(method: string, originalUrl: string): st
   let resourceIndex = 0;
   let entityIndex = 1;
 
-  // Moderation writes are mounted below /admin, not below the public resource
-  // routers. They still change the same public lists and must invalidate them.
+  // Moderation writes are mounted below /admin, not below public resource routers.
   if (segments[0] === 'admin') {
     resourceIndex = 1;
     entityIndex = 2;
@@ -168,21 +47,24 @@ export function publicMutationCacheTags(method: string, originalUrl: string): st
     }
   }
 
-  const resource = segments[resourceIndex];
+  const resource = segments[resourceIndex] as keyof typeof TAGS_BY_RESOURCE | undefined;
   if (!resource) return [];
-  const tags = TAGS_BY_RESOURCE[resource];
-  if (!tags) return [];
+  const resourcePolicy = TAGS_BY_RESOURCE[resource];
+  if (!resourcePolicy) return [];
 
   const candidateId = segments[entityIndex];
+  // The account's own /users/me endpoint is private profile state, not a public catalog mutation.
+  if (resource === 'users' && candidateId?.toLowerCase() === 'me') return [];
   const trailingSegments = segments.slice(entityIndex + (candidateId ? 1 : 0));
-  // User-specific counters, follows and member management do not alter the
-  // public catalog. Avoid invalidating public lists for ordinary engagement.
-  if (trailingSegments.some(segment => NON_PUBLIC_CONTENT_ACTIONS.has(segment.toLowerCase()))) {
+  // User-specific counters, follows and member management do not change public catalogs.
+  if (trailingSegments.some((segment) => NON_PUBLIC_CONTENT_ACTIONS.has(segment.toLowerCase()))) {
     return [];
   }
 
-  const result = new Set(tags);
-  const entityPrefix = ENTITY_TAG_PREFIX_BY_RESOURCE[resource];
+  const result = new Set<string>(resourcePolicy.routeTags);
+  const entityPrefix = 'entityTagPrefix' in resourcePolicy
+    ? resourcePolicy.entityTagPrefix
+    : undefined;
   if (
     entityPrefix &&
     candidateId &&
