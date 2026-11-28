@@ -1,3 +1,5 @@
+'use client';
+
 import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
 /**
  * Admin moderation mutations: feature/pin ads, force-delete ads,
@@ -23,8 +25,6 @@ import { DOMAIN_STATUS_LABELS } from '@marketplat/contracts';
  * condition or loop would have compiled clean with no lint warning at
  * all. The `use` prefix is what makes the linter actually watch it.
  */
-'use client';
-
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { adminApi }      from '@/api/admin.api';
 import { queryKeys }     from '@/lib/queryKeys';

@@ -1,6 +1,6 @@
-import type { ServiceProviderAnalytics } from '@/types/service.types';
 'use client';
 
+import type { ServiceProviderAnalytics } from '@/types/service.types';
 import { throwIfQueryCancelled } from '@/lib/queryCancellation';
 
 import { useEffect } from 'react';
