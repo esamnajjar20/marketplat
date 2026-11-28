@@ -58,6 +58,9 @@
     "ux:loading-contract-audit": "node tools/audit-loading-contract.mjs",
     "perf:render-unification-audit": "node tools/audit-rendering-unification.mjs",
     "uiux:unification-audit": "npm --prefix frontend run uiux:unification-audit",
-    "audit:notification-contract": "node tools/audit-notification-contract.mjs"
+    "audit:notification-contract": "node tools/audit-notification-contract.mjs",
+    "loadtest:inventory": "node apps/api/load-tests/catalog/generate-route-inventory.mjs",
+    "loadtest:verify": "node apps/api/load-tests/catalog/generate-route-inventory.mjs --check && node apps/api/load-tests/catalog/verify-workload.mjs",
+    "loadtest:run": "k6 run apps/api/load-tests/unified.js"
   }
 }

@@ -1,0 +1,5 @@
+{
+  "name": "@marketplat/load-tests",
+  "private": true,
+  "type": "module"
+}

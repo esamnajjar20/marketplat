@@ -1,0 +1,276 @@
+name: Load Test — Unified API Operations
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Dedicated non-production API origin (host or /api/v1 URL)'
+        required: true
+        type: string
+      confirm_non_production:
+        description: 'I verified this is a dedicated non-production environment'
+        required: true
+        type: boolean
+        default: false
+      profile:
+        description: 'Load profile'
+        required: true
+        type: choice
+        options: [smoke, standard, stress, spike, soak]
+        default: smoke
+      load_model:
+        description: 'VUs simulates concurrent users; arrival-rate targets request throughput'
+        required: true
+        type: choice
+        options: [vus, arrival-rate]
+        default: vus
+      peak_vus:
+        description: 'Peak virtual users'
+        required: true
+        type: number
+        default: 20
+      pre_allocated_vus:
+        description: 'Pre-allocated VUs (arrival-rate mode)'
+        required: true
+        type: number
+        default: 30
+      max_vus:
+        description: 'Maximum VUs allowed (arrival-rate mode)'
+        required: true
+        type: number
+        default: 100
+      duration_seconds:
+        description: 'Time at peak load, in seconds (soak profile uses this as total duration)'
+        required: true
+        type: number
+        default: 60
+      ramp_seconds:
+        description: 'Duration of each ramp stage, in seconds'
+        required: true
+        type: number
+        default: 15
+      request_rate:
+        description: 'Target requests/second (arrival-rate mode)'
+        required: true
+        type: number
+        default: 100
+      selection_strategy:
+        description: 'round-robin exercises eligible routes evenly; weighted follows per-operation/domain weights'
+        required: true
+        type: choice
+        options: [round-robin, weighted]
+        default: round-robin
+      operation_groups:
+        description: 'Comma-separated domains: classifieds,commerce,services,discovery,identity,engagement,trust,platform,go-worker,edge-ops,frontend-api,keepalive-worker or all'
+        required: true
+        type: string
+        default: all
+      include_mutations:
+        description: 'Allow explicitly enabled write operations from workload.config.js'
+        required: true
+        type: boolean
+        default: false
+      include_admin:
+        description: 'Include admin/moderator operations (requires role token secrets)'
+        required: true
+        type: boolean
+        default: false
+      include_internal:
+        description: 'Include internal Worker callbacks (requires explicit headers in config)'
+        required: true
+        type: boolean
+        default: false
+      warmup:
+        description: 'Warm up safe read endpoints before load begins'
+        required: true
+        type: boolean
+        default: true
+      p95_limit_ms:
+        description: 'Maximum p95 latency threshold, milliseconds'
+        required: true
+        type: number
+        default: 1500
+      p99_limit_ms:
+        description: 'Maximum p99 latency threshold, milliseconds'
+        required: true
+        type: number
+        default: 3000
+      error_rate_limit:
+        description: 'Maximum failed request ratio (0.02 = 2%)'
+        required: true
+        type: string
+        default: '0.02'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplat-unified-load-test
+  cancel-in-progress: false
+
+jobs:
+  unified-load-test:
+    name: Unified k6 load test
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@1a4442cacd436585916779262731d5b162bc6ec7 # v4.4.0
+        with:
+          node-version: '22.18.0'
+
+      - name: Validate target and dispatch safeguards
+        env:
+          TARGET: ${{ inputs.target }}
+          CONFIRM_NON_PRODUCTION: ${{ inputs.confirm_non_production }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$TARGET" =~ ^https?://[^/]+(/api/v1)?/?$ ]]; then
+            echo "::error::Target must be an http(s) origin, optionally ending in /api/v1. Query strings, fragments, and other paths are not supported."
+            exit 1
+          fi
+          TARGET="$TARGET" node -e "const u = new URL(process.env.TARGET); if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password || u.search || u.hash) process.exit(1);" || {
+            echo "::error::Invalid target URL: credentials, query strings, and fragments are not allowed."
+            exit 1
+          }
+          if [[ "$TARGET" =~ (prod(uction)?[.-]|marketplat-api\.esamnajjar6\.workers\.dev|api\.classifieds-platform\.com) ]]; then
+            echo "::error::Known production-like targets are blocked. Use a dedicated non-production environment."
+            exit 1
+          fi
+          if [[ ! "$TARGET" =~ ^http://(localhost|127\.0\.0\.1)(:[0-9]+)?(/api/v1)?/?$ && "$CONFIRM_NON_PRODUCTION" != "true" ]]; then
+            echo "::error::Confirm that the remote target is a dedicated non-production environment."
+            exit 1
+          fi
+          echo "Target accepted for this manually dispatched load test."
+
+      - name: Generate current route inventory and validate workload configuration
+        run: |
+          node apps/api/load-tests/catalog/generate-route-inventory.mjs
+          node apps/api/load-tests/catalog/verify-workload.mjs
+
+      - name: Install k6
+        shell: bash
+        run: |
+          set -euo pipefail
+          K6_VERSION="v1.8.3"
+          curl --fail --location --silent --show-error \
+            "https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-linux-amd64.tar.gz" \
+            --output /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo install "/tmp/k6-${K6_VERSION}-linux-amd64/k6" /usr/local/bin/k6
+          k6 version
+
+      - name: Warm up safe read endpoints
+        if: inputs.warmup
+        env:
+          TARGET: ${{ inputs.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="${TARGET%/}"
+          ROOT="${TARGET%/api/v1}"
+          ROOT="${ROOT%/}"
+          for path in /health /ready /api/v1/categories /api/v1/home/static /api/v1/ads?limit=10 /api/v1/products?limit=10 /api/v1/stores?limit=10 /api/v1/service-categories; do
+            url="$ROOT$path"
+            code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 "$url" || true)
+            printf '%-5s %s\n' "${code:-ERR}" "$url"
+            sleep 0.25
+          done
+
+      - name: Run unified load test and capture diagnostics
+        id: run_k6
+        env:
+          TARGET: ${{ inputs.target }}
+          CONFIRM_NON_PRODUCTION: ${{ inputs.confirm_non_production }}
+          PROFILE: ${{ inputs.profile }}
+          LOAD_MODEL: ${{ inputs.load_model }}
+          PEAK_VUS: ${{ inputs.peak_vus }}
+          PRE_ALLOCATED_VUS: ${{ inputs.pre_allocated_vus }}
+          MAX_VUS: ${{ inputs.max_vus }}
+          DURATION_SECONDS: ${{ inputs.duration_seconds }}
+          RAMP_SECONDS: ${{ inputs.ramp_seconds }}
+          REQUEST_RATE: ${{ inputs.request_rate }}
+          OPERATION_GROUPS: ${{ inputs.operation_groups }}
+          SELECTION_STRATEGY: ${{ inputs.selection_strategy }}
+          INCLUDE_MUTATIONS: ${{ inputs.include_mutations }}
+          INCLUDE_ADMIN: ${{ inputs.include_admin }}
+          INCLUDE_INTERNAL: ${{ inputs.include_internal }}
+          P95_LIMIT_MS: ${{ inputs.p95_limit_ms }}
+          P99_LIMIT_MS: ${{ inputs.p99_limit_ms }}
+          ERROR_RATE_LIMIT: ${{ inputs.error_rate_limit }}
+          LOAD_TEST_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+          LOAD_TEST_COMMIT: ${{ github.sha }}
+          LOAD_TEST_USER_TOKEN: ${{ secrets.LOAD_TEST_USER_TOKEN }}
+          LOAD_TEST_BEARER_TOKEN: ${{ secrets.LOAD_TEST_BEARER_TOKEN }}
+          LOAD_TEST_MODERATOR_TOKEN: ${{ secrets.LOAD_TEST_MODERATOR_TOKEN }}
+          LOAD_TEST_ADMIN_TOKEN: ${{ secrets.LOAD_TEST_ADMIN_TOKEN }}
+          LOAD_TEST_GO_WORKER_TOKEN: ${{ secrets.LOAD_TEST_GO_WORKER_TOKEN }}
+          LOAD_TEST_GO_WORKER_TARGET: ${{ vars.LOAD_TEST_GO_WORKER_TARGET }}
+          LOAD_TEST_FRONTEND_TARGET: ${{ vars.LOAD_TEST_FRONTEND_TARGET }}
+          LOAD_TEST_KEEPALIVE_TARGET: ${{ vars.LOAD_TEST_KEEPALIVE_TARGET }}
+          LOAD_TEST_EDGE_GATEWAY_ADMIN_TOKEN: ${{ secrets.LOAD_TEST_EDGE_GATEWAY_ADMIN_TOKEN }}
+          LOAD_TEST_EDGE_PURGE_TOKEN: ${{ secrets.LOAD_TEST_EDGE_PURGE_TOKEN }}
+          LOAD_TEST_EDGE_FEATURE_FLAGS_TOKEN: ${{ secrets.LOAD_TEST_EDGE_FEATURE_FLAGS_TOKEN }}
+          LOAD_TEST_EDGE_FEATURE_FLAGS_ACTOR: ${{ vars.LOAD_TEST_EDGE_FEATURE_FLAGS_ACTOR }}
+          LOAD_TEST_FRONTEND_ADMIN_COOKIE: ${{ secrets.LOAD_TEST_FRONTEND_ADMIN_COOKIE }}
+          LOAD_TEST_CACHE_REVALIDATION_SECRET: ${{ secrets.LOAD_TEST_CACHE_REVALIDATION_SECRET }}
+          LOAD_TEST_ROUTE_PARAMS_JSON: ${{ secrets.LOAD_TEST_ROUTE_PARAMS_JSON }}
+          LOAD_TEST_GLOBAL_HEADERS_JSON: ${{ secrets.LOAD_TEST_GLOBAL_HEADERS_JSON }}
+          LOAD_TEST_AD_ID: ${{ vars.LOAD_TEST_AD_ID }}
+          LOAD_TEST_PRODUCT_ID: ${{ vars.LOAD_TEST_PRODUCT_ID }}
+          LOAD_TEST_STORE_ID: ${{ vars.LOAD_TEST_STORE_ID }}
+          LOAD_TEST_SERVICE_LISTING_ID: ${{ vars.LOAD_TEST_SERVICE_LISTING_ID }}
+          LOAD_TEST_LAT: ${{ vars.LOAD_TEST_LAT }}
+          LOAD_TEST_LNG: ${{ vars.LOAD_TEST_LNG }}
+        shell: bash
+        run: |
+          set +e
+          mkdir -p apps/api/load-tests/reports
+          k6 run apps/api/load-tests/unified.js 2>&1 | tee apps/api/load-tests/reports/k6-console.log
+          result=${PIPESTATUS[0]}
+          echo "exit_code=$result" >> "$GITHUB_OUTPUT"
+          exit "$result"
+
+      - name: Extract structured error samples
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p apps/api/load-tests/reports
+          if [[ -f apps/api/load-tests/reports/k6-console.log ]]; then
+            sed -n 's/^.*\[LOAD_TEST_ERROR\] //p' apps/api/load-tests/reports/k6-console.log | jq -s '.' > apps/api/load-tests/reports/error-samples.json
+          else
+            echo '[]' > apps/api/load-tests/reports/error-samples.json
+          fi
+
+      - name: Publish report to GitHub Actions summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f apps/api/load-tests/reports/latest-report.md ]]; then
+            cat apps/api/load-tests/reports/latest-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '# MarketPlat — Unified Load Test'
+              echo ''
+              echo 'The k6 report was not generated. Inspect the preceding step and k6-console.log.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload full load-test report and diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: marketplat-load-test-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            apps/api/load-tests/reports/latest-report.md
+            apps/api/load-tests/reports/latest-summary.json
+            apps/api/load-tests/reports/latest-by-operation.csv
+            apps/api/load-tests/reports/error-samples.json
+            apps/api/load-tests/reports/k6-console.log
+          if-no-files-found: warn
+          retention-days: 30
