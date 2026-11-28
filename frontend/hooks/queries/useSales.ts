@@ -85,7 +85,7 @@ export function useSalesCostProducts(enabled = true, search = '') {
       return { items: response.data.data, pagination };
     },
     getNextPageParam: lastPage =>
-      lastPage.pagination.hasNextPage ? lastPage.pagination.page + 1 : undefined,
+      lastPage.pagination.hasNextPage ? (lastPage.pagination.page ?? 1) + 1 : undefined,
     enabled,
     staleTime: CACHE_TTL.salesCostProducts,
   });

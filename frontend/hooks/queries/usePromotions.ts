@@ -19,7 +19,7 @@ export function useMyPromotions() {
       return { items: response.data.data, pagination };
     },
     getNextPageParam: lastPage =>
-      lastPage.pagination.hasNextPage ? lastPage.pagination.page + 1 : undefined,
+      lastPage.pagination.hasNextPage ? (lastPage.pagination.page ?? 1) + 1 : undefined,
     staleTime: CACHE_TTL.myAds,
   });
 }

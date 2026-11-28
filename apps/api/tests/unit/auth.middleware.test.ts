@@ -5,7 +5,7 @@ import { userCache } from '../../src/shared/cache/userCache';
 import * as tokenStoreModule from '../../src/shared/auth/tokenStore';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 
 const { tokenStore } = tokenStoreModule;
 
@@ -35,7 +35,7 @@ describe('authenticate middleware', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    next = jest.fn() as NextFunction;
+    next = jest.fn();
     jest.spyOn(jwtUtils, 'verifyAccessToken').mockReturnValue({
       userId: 'u1', sessionId: 's1', jti: 'j1',
     } as jwtUtils.JwtPayload);

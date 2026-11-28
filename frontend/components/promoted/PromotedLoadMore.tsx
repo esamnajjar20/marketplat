@@ -38,7 +38,7 @@ export function PromotedLoadMore({ hasServerSeed }: { hasServerSeed: boolean }) 
       return response.data.data as PromotedPage;
     },
     getNextPageParam: (lastPage) =>
-      lastPage.meta.hasNextPage ? lastPage.meta.page + 1 : undefined,
+      lastPage.meta.hasNextPage ? (lastPage.meta.page ?? 1) + 1 : undefined,
     staleTime: CACHE_TTL.adsList,
   });
 

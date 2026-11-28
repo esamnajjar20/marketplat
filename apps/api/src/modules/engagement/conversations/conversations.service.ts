@@ -697,7 +697,7 @@ export const conversationsService = {
     conversationId: string,
     messageId: string
   ): Promise<Message> => {
-    await requireActiveConversation(conversationId, userId);
+    const conversation = await requireActiveConversation(conversationId, userId);
 
     const message = await messagesRepository.findById(messageId);
     if (!message || message.conversationId !== conversationId) {

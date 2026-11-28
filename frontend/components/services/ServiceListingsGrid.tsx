@@ -70,7 +70,7 @@ export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchP
       page: pageParam,
       limit: pageSize,
     }, { signal }).then((r) => r.data.data),
-    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
+    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? (lastPage.meta.page ?? 1) + 1 : undefined,
   });
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
   const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];

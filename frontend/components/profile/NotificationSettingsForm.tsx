@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Smartphone, ListChecks, Moon } from 'lucide-react';
+import { Smartphone, ListChecks, Moon, type LucideIcon } from 'lucide-react';
 import { useMe } from '@/hooks/queries/useAuth';
 import { useUpdateNotificationPreferences } from '@/hooks/mutations/useUpdateProfile';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -24,9 +24,45 @@ import { cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
 type PrefKey = keyof NotificationPreferences;
 type BooleanPrefKey = NotificationContentPreferenceKey;
-const GROUPS = NOTIFICATION_PREFERENCE_GROUPS;
+interface PreferenceGroup {
+  readonly title: string;
+  readonly description: string;
+  readonly items: readonly { readonly key: BooleanPrefKey; readonly label: string; readonly desc: string }[];
+}
+const GROUPS: readonly PreferenceGroup[] = NOTIFICATION_PREFERENCE_GROUPS;
 const DEFAULT_PREFS: NotificationPreferences = { ...NOTIFICATION_PREFERENCE_DEFAULTS };
 const DEFAULT_QUIET_TIME_ZONE = 'Asia/Gaza';
+
+/** IANA time zone reported by the browser, or null when unavailable. */
+function getDeviceTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
+
+function SectionHeading({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <h2 className="text-base font-extrabold text-foreground">{title}</h2>
+        {subtitle ? <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p> : null}
+      </div>
+    </div>
+  );
+}
 
 /** Shared preference row toggle matching design (green pill switch). */
 function PrefSwitch({

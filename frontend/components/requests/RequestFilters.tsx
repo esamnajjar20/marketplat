@@ -115,7 +115,7 @@ export function RequestFilters({
             onChange={() => undefined}
           />
         )}
-        {type === 'SERVICE' && isLoadingServiceTypes && !serviceTypes?.length ? (
+        {type === 'SERVICE' && isLoadingServiceTypes ? (
           <p className="col-span-2 text-xs text-muted-foreground" role="status">جارٍ تحميل المجالات…</p>
         ) : null}
       </div>

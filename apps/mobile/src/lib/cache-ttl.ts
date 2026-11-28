@@ -6,7 +6,7 @@
  * mobile data would be a real cost to the user. The persisted public cache
  * (SQLite) keeps its own limits in storage/public-cache-policy.ts.
  */
-import { MOBILE_CACHE_POLICY } from '../cachePolicy.generated.ts';
+import { MOBILE_CACHE_POLICY } from '../cachePolicy.generated';
 
 /** Home: products / services / requests sections — shared mobile policy. */
 export const HOME_PUBLIC_LIST_TTL_MS = MOBILE_CACHE_POLICY.mobile.home.publicListsStaleTimeMs;

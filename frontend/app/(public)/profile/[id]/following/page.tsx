@@ -41,8 +41,9 @@ export default async function UserFollowingPage({ params, searchParams }: Props)
     );
   }
 
-  if (data.meta.totalPages > 0 && page > data.meta.totalPages) {
-    redirect(`/profile/${id}/following?page=${data.meta.totalPages}`);
+  const totalPages = data.meta.totalPages ?? 0;
+  if (totalPages > 0 && page > totalPages) {
+    redirect(`/profile/${id}/following?page=${totalPages}`);
   }
 
   return (

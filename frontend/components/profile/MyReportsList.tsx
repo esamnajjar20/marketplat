@@ -107,7 +107,7 @@ export function MyReportsList() {
         ))}
       </div>
 
-      {data!.meta.totalPages > 1 && (
+      {(data!.meta.totalPages ?? 0) > 1 && (
         <nav className="flex items-center justify-center gap-2 py-4" aria-label="Pagination">
           {page <= 1 ? (
             <Button variant="outline" size="sm" disabled aria-disabled="true" className="pointer-events-none opacity-50">
@@ -119,9 +119,9 @@ export function MyReportsList() {
             </Button>
           )}
           <span className="text-sm text-muted-foreground" aria-live="polite" aria-atomic="true">
-            صفحة {page} من {data!.meta.totalPages}
+            صفحة {page} من {(data!.meta.totalPages ?? 0)}
           </span>
-          {page >= data!.meta.totalPages ? (
+          {page >= (data!.meta.totalPages ?? 0) ? (
             <Button variant="outline" size="sm" disabled aria-disabled="true" className="pointer-events-none opacity-50">
               التالي
             </Button>

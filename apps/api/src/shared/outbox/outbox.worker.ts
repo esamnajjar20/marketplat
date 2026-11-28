@@ -122,6 +122,160 @@ function parseMarketplaceOrderNotificationPayload(
   return payload as unknown as MarketplaceOrderNotificationPayload;
 }
 
+function asRecord(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} payload must be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function parseActivityPayload(value: unknown): ActivityPayload {
+  const payload = asRecord(value, 'User-activity');
+  if (
+    typeof payload.userId !== 'string' ||
+    !payload.userId ||
+    typeof payload.type !== 'string' ||
+    !payload.type ||
+    typeof payload.title !== 'string' ||
+    !payload.title
+  ) {
+    throw new Error('User-activity payload is missing required fields');
+  }
+  return payload as unknown as ActivityPayload;
+}
+
+function parseFollowedActivityPayload(value: unknown): FollowedActivityPayload {
+  const payload = asRecord(value, 'Followed-activity');
+  if (
+    !Array.isArray(payload.targets) ||
+    payload.targets.length === 0 ||
+    typeof payload.title !== 'string' ||
+    typeof payload.body !== 'string' ||
+    typeof payload.type !== 'string'
+  ) {
+    throw new Error('Followed-activity payload is missing required fields');
+  }
+  for (const target of payload.targets) {
+    const t = target as Record<string, unknown> | null;
+    if (!t || typeof t.targetType !== 'string' || typeof t.targetId !== 'string' || !t.targetId) {
+      throw new Error('Followed-activity payload has an invalid target');
+    }
+  }
+  const data = payload.data;
+  return {
+    ...(payload as unknown as FollowedActivityPayload),
+    data: data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, unknown>) : {},
+  };
+}
+
+interface SavedSearchMatchEntry {
+  userId: string;
+  savedSearchId: string;
+  label: string;
+}
+
+interface SavedSearchMatchPayload {
+  adId: string;
+  adTitle: string;
+  matches: SavedSearchMatchEntry[];
+}
+
+function parseSavedSearchMatchPayload(value: unknown): SavedSearchMatchPayload {
+  const payload = asRecord(value, 'Saved-search');
+  if (
+    typeof payload.adId !== 'string' ||
+    !payload.adId ||
+    typeof payload.adTitle !== 'string' ||
+    !Array.isArray(payload.matches)
+  ) {
+    throw new Error('Saved-search payload is missing required fields');
+  }
+  const matches: SavedSearchMatchEntry[] = payload.matches.map(raw => {
+    const m = raw as Record<string, unknown> | null;
+    if (
+      !m ||
+      typeof m.userId !== 'string' ||
+      typeof m.savedSearchId !== 'string' ||
+      typeof m.label !== 'string'
+    ) {
+      throw new Error('Saved-search payload has an invalid match entry');
+    }
+    return { userId: m.userId, savedSearchId: m.savedSearchId, label: m.label };
+  });
+  return { adId: payload.adId, adTitle: payload.adTitle, matches };
+}
+
+interface SavedSearchMatchScanPayload {
+  adId: string;
+  adTitle: string;
+  ownerUserId: string;
+  title: string;
+  description: string | null;
+  city: string | null;
+  categoryId: string | null;
+  condition: string | null;
+  price: string | null;
+  snapshotAt: string;
+  cursor: string | null;
+}
+
+function nullableString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function parseSavedSearchMatchScanPayload(value: unknown): SavedSearchMatchScanPayload {
+  const payload = asRecord(value, 'Saved-search scan');
+  if (
+    typeof payload.adId !== 'string' ||
+    !payload.adId ||
+    typeof payload.adTitle !== 'string' ||
+    typeof payload.ownerUserId !== 'string' ||
+    typeof payload.snapshotAt !== 'string' ||
+    Number.isNaN(new Date(payload.snapshotAt).getTime())
+  ) {
+    throw new Error('Saved-search scan payload is missing required fields');
+  }
+  return {
+    adId: payload.adId,
+    adTitle: payload.adTitle,
+    ownerUserId: payload.ownerUserId,
+    title: typeof payload.title === 'string' ? payload.title : payload.adTitle,
+    description: nullableString(payload.description),
+    city: nullableString(payload.city),
+    categoryId: nullableString(payload.categoryId),
+    condition: nullableString(payload.condition),
+    price: payload.price === null || payload.price === undefined ? null : String(payload.price),
+    snapshotAt: payload.snapshotAt,
+    cursor: nullableString(payload.cursor),
+  };
+}
+
+/** Mirrors saved-searches.service matchesAdFilters, but against the outbox payload snapshot. */
+function savedSearchMatchesAd(filtersJson: unknown, ad: SavedSearchMatchScanPayload): boolean {
+  const filters = (filtersJson && typeof filtersJson === 'object' && !Array.isArray(filtersJson)
+    ? filtersJson
+    : {}) as {
+    type?: string;
+    q?: string;
+    city?: string;
+    categoryId?: string;
+    condition?: string;
+    minPrice?: number;
+    maxPrice?: number;
+  };
+  // Rows saved before the `type` field existed default to ad searches.
+  if ((filters.type ?? 'ads') !== 'ads') return false;
+  if (filters.q && !matchesSearchQuery([ad.title, ad.description], filters.q)) return false;
+  if (filters.city && (ad.city ?? '').toLowerCase() !== filters.city.toLowerCase()) return false;
+  if (filters.categoryId && ad.categoryId !== filters.categoryId) return false;
+  if (filters.condition && ad.condition !== filters.condition) return false;
+
+  const price = ad.price !== null ? Number(ad.price) : null;
+  if (filters.minPrice !== undefined && (price === null || price < filters.minPrice)) return false;
+  if (filters.maxPrice !== undefined && (price === null || price > filters.maxPrice)) return false;
+  return true;
+}
+
 function preferenceAllowsStoreUpdates(value: unknown): boolean {
   return readNotificationPreference(value, 'storeUpdates');
 }

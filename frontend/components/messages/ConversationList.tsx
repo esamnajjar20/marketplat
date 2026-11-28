@@ -10,7 +10,6 @@ import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useDeleteConversation, useSetConversationFlags } from '@/hooks/mutations/useConversationMutations';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { ROUTES } from '@/lib/constants';
-import { cn } from '@/lib/utils';
 import type { Conversation, ConversationListItem } from '@/types/conversation.types';
 import { ConversationRow } from './ConversationRow';
 import { Skeleton } from '@/components/shared/ui/Skeleton';

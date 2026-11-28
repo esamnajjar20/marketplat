@@ -59,7 +59,7 @@ export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams: in
     initialDataUpdatedAt: seededInitialPage ? initialPageUpdatedAt : undefined,
     staleTime: CACHE_TTL.adsList,
     queryFn: ({ pageParam, signal }) => storesApi.getAll({ search, city, type, sortBy, sortOrder, page: pageParam, limit: pageSize }, { signal }).then((r) => r.data.data),
-    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
+    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? (lastPage.meta.page ?? 1) + 1 : undefined,
   });
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
 

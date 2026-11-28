@@ -13,14 +13,15 @@ import type { PaginationMeta } from '@/types/api.types';
 
 import { Spinner } from '@/components/ui/spinner';
 export function FollowPagination({ meta, page, onPageChange }: { meta?: PaginationMeta; page: number; onPageChange: (page: number) => void }) {
-  if (!meta || meta.totalPages <= 1) return null;
+  const totalPages = meta?.totalPages ?? 0;
+  if (!meta || totalPages <= 1) return null;
   return (
     <nav aria-label="صفحات المتابعة" className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-3 py-2">
       <button type="button" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1} className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40">
         <ChevronRight className="h-4 w-4" /> السابق
       </button>
-      <span className="text-xs tabular-nums text-muted-foreground">صفحة {page} من {meta.totalPages}</span>
-      <button type="button" onClick={() => onPageChange(Math.min(meta.totalPages, page + 1))} disabled={!meta.hasNextPage} className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40">
+      <span className="text-xs tabular-nums text-muted-foreground">صفحة {page} من {totalPages}</span>
+      <button type="button" onClick={() => onPageChange(Math.min(totalPages, page + 1))} disabled={!meta.hasNextPage} className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40">
         التالي <ChevronLeft className="h-4 w-4" />
       </button>
     </nav>

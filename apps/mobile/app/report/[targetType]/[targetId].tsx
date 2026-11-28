@@ -64,8 +64,8 @@ export default function ReportTargetScreen() {
   }}>شكرًا لمساعدتك في الحفاظ على سلامة المنصة. سيراجع الفريق البلاغ وفق إجراءات المنصة.</Text><PrimaryButton label="العودة" onPress={() => goBack()}/></SectionCard> : <><SectionCard><Text tone="ink" strong>الإبلاغ عن {targetLabels[targetType as keyof typeof targetLabels] || 'المحتوى'}</Text><Text style={{
     textAlign: 'right', color: colors.muted, lineHeight: 21
   }}>اختر السبب الأقرب للمشكلة. لا ترسل معلومات شخصية لا حاجة لها.</Text>{reasons.map(value => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: reason === value }} accessibilityLabel={DOMAIN_STATUS_LABELS.reportReason[value]} onPress={() => setReason(value)} style={{
-    paddingVertical: spacing.lg, paddingHorizontal: spacing.lg, marginTop: spacing.md, borderWidth: 1, borderColor: reason === item.value ? colors.brand : colors.border, borderRadius: radius.button, backgroundColor: reason === item.value ? colors.surface : 'transparent'
+    paddingVertical: spacing.lg, paddingHorizontal: spacing.lg, marginTop: spacing.md, borderWidth: 1, borderColor: reason === value ? colors.brand : colors.border, borderRadius: radius.button, backgroundColor: reason === value ? colors.surface : 'transparent'
   }}><Text style={{
-    textAlign: 'right', color: colors.ink, fontWeight: reason === item.value ? '700' : '400'
+    textAlign: 'right', color: colors.ink, fontWeight: reason === value ? '700' : '400'
   }}>{reason === value ? '● ' : '○ '}{DOMAIN_STATUS_LABELS.reportReason[value]}</Text></Pressable>)}<Field label="تفاصيل إضافية (اختياري)" value={notes} onChangeText={setNotes} multiline maxLength={500} showCharacterCount placeholder="اشرح المشكلة بإيجاز (500 حرف كحد أقصى)" inputStyle={{ minHeight: 124, borderWidth: 1, borderColor: colors.border, borderRadius: radius.button, padding: spacing.lg, textAlign: 'right', color: colors.ink }} /><PrimaryButton label="إرسال البلاغ" onPress={() => void send()} busy={busy}/></SectionCard></>}{error ? <Notice>{error}</Notice> : null}</PageShell>;
 }

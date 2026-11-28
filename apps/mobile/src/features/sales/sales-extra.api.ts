@@ -2,7 +2,7 @@ import type { ApiEnvelope as SharedApiEnvelope } from '@/api/contracts';
 import { buildFilterParams } from '../../../../../shared/filters';
 import type { SalePaymentStatus } from './sales.api';
 import type { InstallmentStatus, SaleTransferMethod, ReturnReason } from '@marketplat/contracts';
-export type { SaleTransferMethod, ReturnReason as SaleReturnReason } from '@marketplat/contracts';
+export type { SaleTransferMethod } from '@marketplat/contracts';
 import { apiRequest } from '@/api/client';
 import type { SaleRecord } from './sales.api';
 

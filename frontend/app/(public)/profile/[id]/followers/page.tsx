@@ -41,8 +41,9 @@ export default async function FollowersPage({ params, searchParams }: Props) {
     );
   }
 
-  if (data.meta.totalPages > 0 && page > data.meta.totalPages) {
-    redirect(`/profile/${id}/followers?page=${data.meta.totalPages}`);
+  const totalPages = data.meta.totalPages ?? 0;
+  if (totalPages > 0 && page > totalPages) {
+    redirect(`/profile/${id}/followers?page=${totalPages}`);
   }
 
   const people = data.items

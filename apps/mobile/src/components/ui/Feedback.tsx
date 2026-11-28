@@ -1,7 +1,7 @@
 import { AppText as Text } from './AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { type ReactNode, useEffect } from 'react';
-import { AccessibilityInfo, Animated, View } from 'react-native';
+import { AccessibilityInfo, Animated, View, type StyleProp, type ViewStyle } from 'react-native';
 import { radius, spacing, ux } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { COPY } from '@/lib/copy';

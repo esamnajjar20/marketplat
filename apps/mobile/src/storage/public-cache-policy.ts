@@ -1,4 +1,4 @@
-import { MOBILE_CACHE_POLICY } from '../cachePolicy.generated.ts';
+import { MOBILE_CACHE_POLICY } from '../cachePolicy.generated';
 
 /**
  * Public-cache policy shared by the SQLite adapter and dependency-free Node tests.

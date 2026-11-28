@@ -1,4 +1,4 @@
-import { MOBILE_CACHE_POLICY } from '../cachePolicy.generated.ts';
+import { MOBILE_CACHE_POLICY } from '../cachePolicy.generated';
 
 const IMAGE_CACHE_POLICY = MOBILE_CACHE_POLICY.mobile.storage.publicImages;
 export const MAX_TRACKED_PUBLIC_IMAGES = IMAGE_CACHE_POLICY.maxFiles;

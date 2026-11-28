@@ -3,7 +3,6 @@
 import { Suspense, useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ClipboardList } from 'lucide-react';
-import type { RequestOfferStatus } from '@/types/request.types';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { useMyRequestOffers } from '@/hooks/queries/useRequests';
 import { useWithdrawRequestOffer } from '@/hooks/mutations/useRequestMutations';

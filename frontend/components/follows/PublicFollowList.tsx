@@ -179,7 +179,8 @@ export function PublicFollowPagination({
   page: number;
   basePath: string;
 }) {
-  if (meta.totalPages <= 1) return null;
+  const totalPages = meta.totalPages ?? 0;
+  if (totalPages <= 1) return null;
   const pageHref = (nextPage: number) => `${basePath}?page=${nextPage}`;
 
   return (
@@ -200,7 +201,7 @@ export function PublicFollowPagination({
         </span>
       )}
       <span className="text-xs tabular-nums text-muted-foreground">
-        صفحة {page} من {meta.totalPages}
+        صفحة {page} من {totalPages}
       </span>
       {meta.hasNextPage ? (
         <IntentPrefetchLink

@@ -144,7 +144,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
         throw err;
       }
     },
-    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
+    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? (lastPage.meta.page ?? 1) + 1 : undefined,
     // Keep the previous result grid visible while a new filter/search key
     // loads. This avoids replacing useful content with a full-page skeleton
     // on every filter change; pagination stays paused until the new key wins.

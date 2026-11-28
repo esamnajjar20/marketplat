@@ -160,7 +160,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
         throw error;
       }
     },
-    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
+    getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? (lastPage.meta.page ?? 1) + 1 : undefined,
   });
   useEffect(() => {
     if (!seededInitialPage?.items.length) return;

@@ -159,7 +159,7 @@ export function useInfiniteMyProducts(params: Omit<ProductsQuery, 'page'>, optio
     queryKey: ['products', 'me', 'infinite', params],
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) => productsApi.getMine({ ...params, page: Number(pageParam) }, { signal }).then((r) => r.data.data as MyProductsPage),
-    getNextPageParam: (lastPage) => lastPage.meta.hasNextPage ? lastPage.meta.page + 1 : undefined,
+    getNextPageParam: (lastPage) => lastPage.meta.hasNextPage ? (lastPage.meta.page ?? 1) + 1 : undefined,
     staleTime: CACHE_TTL.myAds,
     enabled: options?.enabled ?? true,
   });
