@@ -13,7 +13,7 @@
     "and_chr >= 92"
   ],
   "scripts": {
-    "preinstall": "pnpm --dir .. --filter @marketplat/contracts build",
+    "preinstall": "node ../tools/build-contracts.mjs",
     "dev": "next dev",
     "build": "node scripts/generate-build-id.mts && next build && node scripts/generate-warming-manifest.mts",
     "build:cf": "node scripts/generate-build-id.mts && next build && node scripts/generate-warming-manifest.mts && opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion",
@@ -129,12 +129,12 @@
     "perf:home-first-render-audit": "node scripts/home-first-render-performance-audit.mts",
     "e2e:ci": "playwright test e2e/tests/marketplace-smoke.spec.ts e2e/tests/auth-form-validation.spec.ts e2e/tests/missing-business-journeys-mocked.spec.ts",
     "type-check:tests": "tsc --noEmit -p tsconfig.tests.json",
-    "predev": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
-    "prebuild": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
-    "pretype-check": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
-    "pretest": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
+    "predev": "node ../tools/build-contracts.mjs && node ../tools/sync-cache-artifacts.mjs",
+    "prebuild": "node ../tools/build-contracts.mjs && node ../tools/sync-cache-artifacts.mjs",
+    "pretype-check": "node ../tools/build-contracts.mjs && node ../tools/sync-cache-artifacts.mjs",
+    "pretest": "node ../tools/build-contracts.mjs && node ../tools/sync-cache-artifacts.mjs",
     "cache:layer-audit": "node ../tools/audit-cache-policy.mjs",
-    "prebuild:cf": "pnpm --dir .. --filter @marketplat/contracts build && node ../tools/sync-cache-artifacts.mjs",
+    "prebuild:cf": "node ../tools/build-contracts.mjs && node ../tools/sync-cache-artifacts.mjs",
     "uiux:unification-audit": "node scripts/uiux-unification-audit.mjs"
   },
   "dependencies": {

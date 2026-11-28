@@ -20,5 +20,5 @@ onlyBuiltDependencies:
   - 'expo-sqlite'
 
 overrides:
-  'zod': '3.22.0'
+  zod: 3.25.76
 minimumReleaseAge: 1440
