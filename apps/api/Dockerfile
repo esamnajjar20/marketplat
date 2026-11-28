@@ -20,6 +20,11 @@ COPY apps/api/prisma ./apps/api/prisma
 RUN pnpm install --frozen-lockfile --filter classifieds-platform-backend...
 
 COPY apps/api ./apps/api
+# prebuild compiles @marketplat/contracts and runs tools/sync-cache-artifacts.mjs,
+# so their sources (and the shared cache inputs) must be in the build context.
+COPY packages/contracts ./packages/contracts
+COPY tools/sync-cache-artifacts.mjs ./tools/sync-cache-artifacts.mjs
+COPY shared ./shared
 RUN pnpm --filter classifieds-platform-backend exec prisma generate --schema prisma/schema.prisma \
     && pnpm --filter classifieds-platform-backend build
 
@@ -40,6 +45,8 @@ RUN apk add --no-cache --virtual .build-deps python3 make g++ \
     && pnpm store prune
 
 COPY --from=builder /repo/apps/api/dist ./apps/api/dist
+# apps/api resolves @marketplat/contracts to this workspace package at runtime.
+COPY --from=builder /repo/packages/contracts/dist ./packages/contracts/dist
 COPY --from=builder /repo/apps/api/docker-entrypoint.sh ./apps/api/docker-entrypoint.sh
 COPY --from=builder /repo/apps/api/ecosystem.config.js ./apps/api/ecosystem.config.js
 
